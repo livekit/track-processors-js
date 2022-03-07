@@ -1,11 +1,11 @@
 {
-  "name": "@livekit/video-processors",
+  "name": "@livekit/stream-processors",
   "version": "0.1.0",
-  "description": "Livekit video stream processors",
+  "description": "Livekit stream processors",
   "main": "dist/index.js",
   "source": "src/index.ts",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:livekit/livekit-video-processors.git",
+  "repository": "git@github.com:livekit/livekit-stream-processors.git",
   "author": "Lukas Seiler <mail@lukasseiler.de>",
   "license": "MIT",
   "scripts": {

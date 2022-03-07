@@ -1,9 +1,16 @@
-import BackgroundProcessor, { BlurOptions } from './BackgroundProcessor';
+import BackgroundTransformer, { BackgroundOptions } from './transformers/BackgroundTransformer';
 import ProcessorPipeline from './ProcessorPipeline';
+import DummyTransformer from './transformers/DummyTransformer';
 
-export * from './BaseVideoProcessor';
+export const BackgroundBlur = (opts: BackgroundOptions) => {
+  const pipeline = new ProcessorPipeline([new BackgroundTransformer(opts)]);
+  return pipeline;
+};
 
-export const BackgroundBlur = (opts: BlurOptions) => {
-  const pipeline = new ProcessorPipeline([new BackgroundProcessor(opts)]);
+export const VirtualAndBlur = (opts: BackgroundOptions) => {
+  const pipeline = new ProcessorPipeline([
+    new BackgroundTransformer({ backgroundImage: opts.backgroundImage }),
+    new DummyTransformer(),
+  ]);
   return pipeline;
 };

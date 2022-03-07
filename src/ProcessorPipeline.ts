@@ -1,5 +1,5 @@
 import type { ProcessorOptions, VideoProcessor } from 'livekit-client';
-import BackgroundProcessor from './BackgroundProcessor';
+import { StreamTransformer } from './transformers';
 
 export default class ProcessorPipeline implements VideoProcessor<ProcessorOptions> {
   source?: MediaStreamVideoTrack;
@@ -16,9 +16,9 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
 
   processedTrack?: MediaStreamTrack;
 
-  transformers: Array<BackgroundProcessor>;
+  transformers: Array<StreamTransformer>;
 
-  constructor(transformers: Array<BackgroundProcessor>) {
+  constructor(transformers: Array<StreamTransformer>) {
     this.transformers = transformers;
   }
 

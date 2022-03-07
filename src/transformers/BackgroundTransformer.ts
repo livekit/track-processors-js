@@ -1,36 +1,30 @@
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation';
+import VideoTransformer from './VideoTransformer';
 
-export type BlurOptions = {
-  radius?: number,
+export type BackgroundOptions = {
+  blurRadius?: number,
   backgroundImage?: string,
 };
 
-export default class BackgroundProcessor {
-  transformer: TransformStream;
-
+export default class BackgroundProcessor extends VideoTransformer {
   selfieSegmentation?: SelfieSegmentation;
 
   segmentationResults: Results | undefined;
 
-  canvas?: OffscreenCanvas;
+  //   backgroundImagePattern: CanvasPattern | null = null;
+  backgroundImage: ImageBitmap | null = null;
 
-  ctx?: OffscreenCanvasRenderingContext2D;
+  blurRadius?: number;
 
-  backgroundImagePattern: CanvasPattern | null = null;
-
-  inputVideo?: HTMLVideoElement;
-
-  constructor(opts: BlurOptions) {
-    this.transformer = new TransformStream({
-      transform: (frame, controller) => this.transform(frame, controller),
-    });
-    if (opts.backgroundImage) this.loadBackground(opts.backgroundImage);
+  constructor(opts: BackgroundOptions) {
+    super();
+    if (opts.blurRadius) {
+      this.blurRadius = opts.blurRadius;
+    } else if (opts.backgroundImage) { this.loadBackground(opts.backgroundImage); }
   }
 
   init(outputCanvas: OffscreenCanvas, inputVideo: HTMLVideoElement) {
-    this.canvas = outputCanvas;
-    this.ctx = this.canvas.getContext('2d')!;
-    this.inputVideo = inputVideo;
+    super.init(outputCanvas, inputVideo);
 
     this.selfieSegmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
     this.selfieSegmentation.setOptions({
@@ -59,19 +53,19 @@ export default class BackgroundProcessor {
       img.src = path;
     });
     const imageData = await createImageBitmap(img);
-    this.backgroundImagePattern = this.ctx?.createPattern(imageData, 'repeat') ?? null;
+    this.backgroundImage = imageData;
+    // this.backgroundImagePattern = this.ctx?.createPattern(imageData, 'repeat') ?? null;
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
-    // this.drawResults(frame);
-    this.blurBackground(frame);
+    if (this.blurRadius) { this.blurBackground(frame); } else { this.drawVirtualBackground(frame); }
     // @ts-ignore
     const newFrame = new VideoFrame(this.canvas, { timestamp: performance.now() });
     frame.close();
     controller.enqueue(newFrame);
   }
 
-  drawResults(frame: VideoFrame) {
+  drawVirtualBackground(frame: VideoFrame) {
     if (!this.canvas || !this.ctx) return;
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -81,9 +75,14 @@ export default class BackgroundProcessor {
       this.ctx.drawImage(this.segmentationResults.segmentationMask, 0, 0);
       this.ctx.filter = 'none';
       this.ctx.globalCompositeOperation = 'source-out';
-
-      this.ctx.fillStyle = this.backgroundImagePattern ?? '#00FF00';
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      if (this.backgroundImage) {
+        this.ctx.drawImage(this.backgroundImage,
+          0, 0, this.backgroundImage.width, this.backgroundImage.height,
+          0, 0, this.canvas.width, this.canvas.height);
+      } else {
+        this.ctx.fillStyle = '#00FF00';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }
 
       this.ctx.globalCompositeOperation = 'destination-over';
     }
@@ -96,7 +95,7 @@ export default class BackgroundProcessor {
   blurBackground(frame: VideoFrame) {
     if (!this.ctx || !this.canvas || !this.segmentationResults) return;
     this.ctx.save();
-    this.ctx.filter = 'blur(3px)';
+    this.ctx.filter = `blur(${this.blurRadius!}px)`;
     this.ctx.globalCompositeOperation = 'copy';
     this.ctx.drawImage(
       this.segmentationResults.segmentationMask,
