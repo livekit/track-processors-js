@@ -1,15 +1,15 @@
-import BackgroundTransformer, { BackgroundOptions } from './transformers/BackgroundTransformer';
+import BackgroundTransformer from './transformers/BackgroundTransformer';
 import ProcessorPipeline from './ProcessorPipeline';
 import DummyTransformer from './transformers/DummyTransformer';
 
-export const BackgroundBlur = (opts: BackgroundOptions) => {
-  const pipeline = new ProcessorPipeline([new BackgroundTransformer(opts)]);
+export const BlurBackground = (blurRadius: number = 10) => {
+  const pipeline = new ProcessorPipeline([new BackgroundTransformer({ blurRadius })]);
   return pipeline;
 };
 
-export const VirtualAndBlur = (opts: BackgroundOptions) => {
+export const VirtualBackground = (imagePath: string) => {
   const pipeline = new ProcessorPipeline([
-    new BackgroundTransformer({ backgroundImage: opts.backgroundImage }),
+    new BackgroundTransformer({ imagePath }),
     new DummyTransformer(),
   ]);
   return pipeline;

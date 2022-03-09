@@ -30,9 +30,11 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
     this.processor = new MediaStreamTrackProcessor({ track: this.source });
     this.trackGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
 
-    this.canvas = new OffscreenCanvas(this.sourceSettings.width!, this.sourceSettings.height!);
+    this.canvas = new OffscreenCanvas(
+      this.sourceSettings.width ?? 300,
+      this.sourceSettings.height ?? 300,
+    );
 
-    // this.processor.readable.pipeThrough(this.transformer).pipeTo(this.trackGenerator.writable);
     let readableStream = this.processor.readable;
     for (const transformer of this.transformers) {
       transformer.init(this.canvas, this.sourceDummy!);
@@ -42,7 +44,10 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
   }
 
-  destroy() {
-    // TODO
+  async destroy() {
+    for (const transformer of this.transformers) {
+      await transformer.destroy();
+    }
+    this.trackGenerator?.stop();
   }
 }

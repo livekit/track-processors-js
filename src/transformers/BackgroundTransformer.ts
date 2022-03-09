@@ -3,7 +3,7 @@ import VideoTransformer from './VideoTransformer';
 
 export type BackgroundOptions = {
   blurRadius?: number,
-  backgroundImage?: string,
+  imagePath?: string,
 };
 
 export default class BackgroundProcessor extends VideoTransformer {
@@ -20,7 +20,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     super();
     if (opts.blurRadius) {
       this.blurRadius = opts.blurRadius;
-    } else if (opts.backgroundImage) { this.loadBackground(opts.backgroundImage); }
+    } else if (opts.imagePath) { this.loadBackground(opts.imagePath); }
   }
 
   init(outputCanvas: OffscreenCanvas, inputVideo: HTMLVideoElement) {
@@ -37,10 +37,23 @@ export default class BackgroundProcessor extends VideoTransformer {
     this.sendFramesContinuouslyForSegmentation(this.inputVideo!);
   }
 
-  sendFramesContinuouslyForSegmentation(videoEl: HTMLVideoElement) {
-    // @ts-ignore
-    videoEl.requestVideoFrameCallback(() => this.sendFramesContinuouslyForSegmentation(videoEl));
-    this.selfieSegmentation?.send({ image: videoEl });
+  async destroy() {
+    await super.destroy();
+    await this.selfieSegmentation?.close();
+    this.backgroundImage = null;
+  }
+
+  async sendFramesContinuouslyForSegmentation(videoEl: HTMLVideoElement) {
+    console.log('sending frames');
+    if (!this.isDisabled) {
+      if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+        await this.selfieSegmentation?.send({ image: videoEl });
+      }
+      // @ts-ignore
+      videoEl.requestVideoFrameCallback(() => {
+        this.sendFramesContinuouslyForSegmentation(videoEl);
+      });
+    }
   }
 
   async loadBackground(path: string) {
@@ -54,7 +67,6 @@ export default class BackgroundProcessor extends VideoTransformer {
     });
     const imageData = await createImageBitmap(img);
     this.backgroundImage = imageData;
-    // this.backgroundImagePattern = this.ctx?.createPattern(imageData, 'repeat') ?? null;
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
@@ -95,7 +107,7 @@ export default class BackgroundProcessor extends VideoTransformer {
   blurBackground(frame: VideoFrame) {
     if (!this.ctx || !this.canvas || !this.segmentationResults) return;
     this.ctx.save();
-    this.ctx.filter = `blur(${this.blurRadius!}px)`;
+    this.ctx.filter = `blur(${3}px)`;
     this.ctx.globalCompositeOperation = 'copy';
     this.ctx.drawImage(
       this.segmentationResults.segmentationMask,
@@ -112,7 +124,7 @@ export default class BackgroundProcessor extends VideoTransformer {
       this.canvas.width,
       this.canvas.height);
     this.ctx.globalCompositeOperation = 'destination-over';
-    this.ctx.filter = 'blur(10px)';
+    this.ctx.filter = `blur(${this.blurRadius}px)`;
     this.ctx.drawImage(frame, 0, 0);
     this.ctx.restore();
   }
