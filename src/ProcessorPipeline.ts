@@ -2,6 +2,13 @@ import type { ProcessorOptions, VideoProcessor } from 'livekit-client';
 import { StreamTransformer } from './transformers';
 
 export default class ProcessorPipeline implements VideoProcessor<ProcessorOptions> {
+  static get isSupported() {
+    return (
+      typeof MediaStreamTrackGenerator !== 'undefined'
+      && typeof MediaStreamTrackProcessor !== 'undefined'
+    );
+  }
+
   source?: MediaStreamVideoTrack;
 
   sourceSettings?: MediaTrackSettings;

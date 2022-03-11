@@ -7,6 +7,10 @@ export type BackgroundOptions = {
 };
 
 export default class BackgroundProcessor extends VideoTransformer {
+  static get isSupported() {
+    return typeof OffscreenCanvas !== 'undefined';
+  }
+
   selfieSegmentation?: SelfieSegmentation;
 
   segmentationResults: Results | undefined;
@@ -44,7 +48,6 @@ export default class BackgroundProcessor extends VideoTransformer {
   }
 
   async sendFramesContinuouslyForSegmentation(videoEl: HTMLVideoElement) {
-    console.log('sending frames');
     if (!this.isDisabled) {
       if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
         await this.selfieSegmentation?.send({ image: videoEl });
