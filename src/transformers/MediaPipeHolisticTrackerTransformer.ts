@@ -4,7 +4,6 @@ import { StreamTransformerInitOptions } from "./types";
 
 export type MediaPipeHolisticTrackerTransformerOptions = {
   holisticOptions?: Options;
-  overlayResults?: boolean;
   callback?: (results: Results) => void;
 };
 
@@ -15,22 +14,18 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
   callback: (results: Results) => void;
 
   public static get isSupported(): boolean {
-    return typeof OffscreenCanvas !== "undefined";
+    return true;
   }
 
   //   backgroundImagePattern: CanvasPattern | null = null;
   backgroundImage: ImageBitmap | null = null;
 
-  overlayResults = false;
-
   constructor({
-    overlayResults,
     holisticOptions,
     callback,
   }: MediaPipeHolisticTrackerTransformerOptions) {
     super();
     this.callback = callback || (() => null);
-    this.overlayResults = overlayResults || false;
     this.holisticOptions = holisticOptions || {};
   }
 
@@ -42,7 +37,9 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
         `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`,
     });
     this.holistic.setOptions(this.holisticOptions);
-    this.holistic.onResults(this.callback);
+    this.holistic.onResults((r) => {
+      this.callback(r);
+    });
 
     this.sendFramesContinuouslyForTracking(this.getInputVideo());
   }
@@ -51,6 +48,10 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
     await super.destroy();
     await this.holistic?.close();
     this.backgroundImage = null;
+  }
+
+  async transform(): Promise<void> {
+    return;
   }
 
   async sendFramesContinuouslyForTracking(
@@ -66,23 +67,5 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
         this.sendFramesContinuouslyForTracking(videoEl);
       });
     }
-  }
-
-  async transform(
-    frame: VideoFrame,
-    controller: TransformStreamDefaultController<VideoFrame>
-  ): Promise<void> {
-    // TODO
-    if (this.canvas) {
-      const newFrame = new VideoFrame(this.canvas, {
-        timestamp: performance.now(),
-      });
-      frame.close();
-      controller.enqueue(newFrame);
-    }
-  }
-
-  drawOverlays(frame: VideoFrame): void {
-    if (!this.canvas || !this.ctx) return;
   }
 }

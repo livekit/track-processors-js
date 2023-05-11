@@ -4,8 +4,16 @@ import DummyTransformer from "./transformers/DummyTransformer";
 import MediaPipeHolisticTrackerTransformer, {
   MediaPipeHolisticTrackerTransformerOptions,
 } from "./transformers/MediaPipeHolisticTrackerTransformer";
+import { Results as HolisticResults } from "@mediapipe/holistic";
 
-export const BlurBackground = (blurRadius: number = 10) => {
+export {
+  ProcessorPipeline,
+  MediaPipeHolisticTrackerTransformer,
+  MediaPipeHolisticTrackerTransformerOptions,
+  HolisticResults,
+};
+
+export const BlurBackground = (blurRadius = 10): ProcessorPipeline => {
   const isPipelineSupported =
     ProcessorPipeline.isSupported && BackgroundTransformer.isSupported;
   if (!isPipelineSupported) {
@@ -17,7 +25,7 @@ export const BlurBackground = (blurRadius: number = 10) => {
   return pipeline;
 };
 
-export const VirtualBackground = (imagePath: string) => {
+export const VirtualBackground = (imagePath: string): ProcessorPipeline => {
   const isPipelineSupported =
     ProcessorPipeline.isSupported && BackgroundTransformer.isSupported;
   if (!isPipelineSupported) {

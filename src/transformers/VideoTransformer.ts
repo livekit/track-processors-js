@@ -1,13 +1,10 @@
 import { StreamTransformer, StreamTransformerInitOptions } from "./types";
 
-type CanvasType = OffscreenCanvas | HTMLCanvasElement;
-type ContextType = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
-
 export default abstract class VideoTransformer implements StreamTransformer {
   transformer: TransformStream;
 
-  canvas: CanvasType | null = null;
-  ctx: ContextType | null = null;
+  canvas: OffscreenCanvas | null = null;
+  ctx: OffscreenCanvasRenderingContext2D | null = null;
 
   inputVideo?: HTMLVideoElement;
 

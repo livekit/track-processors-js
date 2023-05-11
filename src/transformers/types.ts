@@ -1,5 +1,5 @@
 export type StreamTransformerInitOptions = {
-  outputCanvas?: OffscreenCanvas | HTMLCanvasElement;
+  outputCanvas?: OffscreenCanvas;
   inputVideo: HTMLVideoElement;
 };
 export interface StreamTransformer {
