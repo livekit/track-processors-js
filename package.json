@@ -17,10 +17,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@mediapipe/holistic": "^0.5.1675471629",
     "@mediapipe/selfie_segmentation": "^0.1.1632777926"
   },
   "peerDependencies": {
-    "livekit-client": "^0.16.6"
+    "livekit-client": "^1"
   },
   "devDependencies": {
     "@types/dom-mediacapture-transform": "^0.1.2",
@@ -32,7 +33,6 @@
     "eslint-config-airbnb-typescript": "^12.3.1",
     "eslint-plugin-import": "^2.24.2",
     "jest": "^27.4.3",
-    "livekit-client": "^0.16.6",
     "ts-jest": "^27.0.7",
     "ts-loader": "^8.1.0",
     "ts-proto": "^1.85.0",

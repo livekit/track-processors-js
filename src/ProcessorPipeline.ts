@@ -1,11 +1,13 @@
-import type { ProcessorOptions, VideoProcessor } from 'livekit-client';
-import { StreamTransformer } from './transformers';
+import type { ProcessorOptions, VideoProcessor } from "livekit-client";
+import { StreamTransformer } from "./transformers";
 
-export default class ProcessorPipeline implements VideoProcessor<ProcessorOptions> {
+export default class ProcessorPipeline
+  implements VideoProcessor<ProcessorOptions>
+{
   static get isSupported() {
     return (
-      typeof MediaStreamTrackGenerator !== 'undefined'
-      && typeof MediaStreamTrackProcessor !== 'undefined'
+      typeof MediaStreamTrackGenerator !== "undefined" &&
+      typeof MediaStreamTrackProcessor !== "undefined"
     );
   }
 
@@ -35,16 +37,19 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
     this.sourceDummy = opts.element;
     // TODO explore if we can do all the processing work in a webworker
     this.processor = new MediaStreamTrackProcessor({ track: this.source });
-    this.trackGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
+    this.trackGenerator = new MediaStreamTrackGenerator({ kind: "video" });
 
     this.canvas = new OffscreenCanvas(
       this.sourceSettings.width ?? 300,
-      this.sourceSettings.height ?? 300,
+      this.sourceSettings.height ?? 300
     );
 
     let readableStream = this.processor.readable;
     for (const transformer of this.transformers) {
-      transformer.init(this.canvas, this.sourceDummy!);
+      transformer.init({
+        outputCanvas: this.canvas,
+        inputVideo: this.sourceDummy!,
+      });
       readableStream = readableStream.pipeThrough(transformer.transformer);
     }
     readableStream.pipeTo(this.trackGenerator.writable);

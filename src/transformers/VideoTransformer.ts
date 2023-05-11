@@ -1,15 +1,17 @@
-import { StreamTransformer } from './types';
+import { StreamTransformer, StreamTransformerInitOptions } from "./types";
+
+type CanvasType = OffscreenCanvas | HTMLCanvasElement;
+type ContextType = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
 export default abstract class VideoTransformer implements StreamTransformer {
   transformer: TransformStream;
 
-  canvas?: OffscreenCanvas;
-
-  ctx?: OffscreenCanvasRenderingContext2D;
+  canvas: CanvasType | null = null;
+  ctx: ContextType | null = null;
 
   inputVideo?: HTMLVideoElement;
 
-  protected isDisabled?: Boolean = false;
+  protected isDisabled = false;
 
   constructor() {
     this.transformer = new TransformStream({
@@ -18,18 +20,30 @@ export default abstract class VideoTransformer implements StreamTransformer {
     this.isDisabled = false;
   }
 
-  init(outputCanvas: OffscreenCanvas, inputVideo: HTMLVideoElement) {
-    this.canvas = outputCanvas;
-    this.ctx = this.canvas.getContext('2d')!;
+  init({ outputCanvas, inputVideo }: StreamTransformerInitOptions): void {
+    this.canvas = outputCanvas || null;
+    if (outputCanvas) {
+      this.ctx = this.canvas?.getContext("2d") || null;
+    }
     this.inputVideo = inputVideo;
   }
 
-  async destroy() {
-    this.isDisabled = true;
-    this.canvas = undefined;
-    this.ctx = undefined;
+  getInputVideo(): HTMLVideoElement {
+    if (!this.inputVideo)
+      throw new Error(
+        "inputVideo is not defined, did you forget to call init()?"
+      );
+    return this.inputVideo;
   }
 
-  abstract transform(frame: VideoFrame,
-    controller: TransformStreamDefaultController<VideoFrame>): Promise<void>;
+  async destroy(): Promise<void> {
+    this.isDisabled = true;
+    this.canvas = null;
+    this.ctx = null;
+  }
+
+  abstract transform(
+    frame: VideoFrame,
+    controller: TransformStreamDefaultController<VideoFrame>
+  ): Promise<void>;
 }
