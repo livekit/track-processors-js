@@ -10,15 +10,11 @@ export type MediaPipeHolisticTrackerTransformerOptions = {
 export default class MediaPipeHolisticTrackerTransformer extends VideoTransformer {
   holistic?: Holistic;
   holisticOptions: Options;
-  holisticResults: Results | undefined;
   callback: (results: Results) => void;
 
   public static get isSupported(): boolean {
     return true;
   }
-
-  //   backgroundImagePattern: CanvasPattern | null = null;
-  backgroundImage: ImageBitmap | null = null;
 
   constructor({
     holisticOptions,
@@ -45,9 +41,9 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
   }
 
   async destroy(): Promise<void> {
+    this.callback = () => null;
     await super.destroy();
     await this.holistic?.close();
-    this.backgroundImage = null;
   }
 
   async transform(): Promise<void> {
