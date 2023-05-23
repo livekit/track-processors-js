@@ -1,6 +1,11 @@
+export type StreamTransformerInitOptions = {
+  outputCanvas: OffscreenCanvas;
+  inputVideo: HTMLVideoElement;
+};
+
 export interface StreamTransformer {
-  init: (outputCanvas: OffscreenCanvas, inputVideo: HTMLVideoElement) => void;
+  init: (options: StreamTransformerInitOptions) => void;
   destroy: () => void;
   transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
-  transformer: TransformStream;
+  transformer?: TransformStream;
 }

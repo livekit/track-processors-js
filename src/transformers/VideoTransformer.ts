@@ -1,7 +1,7 @@
-import { StreamTransformer } from './types';
+import { StreamTransformer, StreamTransformerInitOptions } from './types';
 
 export default abstract class VideoTransformer implements StreamTransformer {
-  transformer: TransformStream;
+  transformer?: TransformStream;
 
   canvas?: OffscreenCanvas;
 
@@ -11,17 +11,16 @@ export default abstract class VideoTransformer implements StreamTransformer {
 
   protected isDisabled?: Boolean = false;
 
-  constructor() {
+  init({ outputCanvas, inputVideo }: StreamTransformerInitOptions): void {
     this.transformer = new TransformStream({
       transform: (frame, controller) => this.transform(frame, controller),
     });
-    this.isDisabled = false;
-  }
-
-  init(outputCanvas: OffscreenCanvas, inputVideo: HTMLVideoElement) {
-    this.canvas = outputCanvas;
-    this.ctx = this.canvas.getContext('2d')!;
+    this.canvas = outputCanvas || null;
+    if (outputCanvas) {
+      this.ctx = this.canvas?.getContext('2d') || undefined;
+    }
     this.inputVideo = inputVideo;
+    this.isDisabled = false;
   }
 
   async destroy() {
@@ -30,6 +29,8 @@ export default abstract class VideoTransformer implements StreamTransformer {
     this.ctx = undefined;
   }
 
-  abstract transform(frame: VideoFrame,
-    controller: TransformStreamDefaultController<VideoFrame>): Promise<void>;
+  abstract transform(
+    frame: VideoFrame,
+    controller: TransformStreamDefaultController<VideoFrame>,
+  ): Promise<void>;
 }
