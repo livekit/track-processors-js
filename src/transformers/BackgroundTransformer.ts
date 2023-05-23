@@ -78,7 +78,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     this.backgroundImage = imageData;
   }
 
-  async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
+  transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
     if (!this.canvas) {
       throw TypeError('Canvas needs to be initialized first');
     }
@@ -88,7 +88,7 @@ export default class BackgroundProcessor extends VideoTransformer {
       this.drawVirtualBackground(frame);
     }
     const newFrame = new VideoFrame(this.canvas, {
-      timestamp: performance.now(),
+      timestamp: frame.timestamp || undefined,
     });
     frame.close();
     controller.enqueue(newFrame);

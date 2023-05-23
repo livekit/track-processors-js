@@ -17,7 +17,7 @@ export default abstract class VideoTransformer implements StreamTransformer {
     });
     this.canvas = outputCanvas || null;
     if (outputCanvas) {
-      this.ctx = this.canvas?.getContext('2d') || undefined;
+      this.ctx = this.canvas?.getContext('2d', { readFrequently: true }) || undefined;
     }
     this.inputVideo = inputVideo;
     this.isDisabled = false;
@@ -32,5 +32,5 @@ export default abstract class VideoTransformer implements StreamTransformer {
   abstract transform(
     frame: VideoFrame,
     controller: TransformStreamDefaultController<VideoFrame>,
-  ): Promise<void>;
+  ): void;
 }
