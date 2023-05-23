@@ -1,5 +1,5 @@
-import BackgroundTransformer from './transformers/BackgroundTransformer';
 import ProcessorPipeline from './ProcessorPipeline';
+import BackgroundTransformer from './transformers/BackgroundTransformer';
 import DummyTransformer from './transformers/DummyTransformer';
 
 export const BlurBackground = (blurRadius: number = 10) => {
@@ -16,9 +16,15 @@ export const VirtualBackground = (imagePath: string) => {
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
   }
-  const pipeline = new ProcessorPipeline([
-    new BackgroundTransformer({ imagePath }),
-    new DummyTransformer(),
-  ]);
+  const pipeline = new ProcessorPipeline([new BackgroundTransformer({ imagePath })]);
+  return pipeline;
+};
+
+export const Dummy = () => {
+  const isPipelineSupported = ProcessorPipeline.isSupported && BackgroundTransformer.isSupported;
+  if (!isPipelineSupported) {
+    throw new Error('pipeline is not supported in this browser');
+  }
+  const pipeline = new ProcessorPipeline([new DummyTransformer()]);
   return pipeline;
 };

@@ -4,8 +4,8 @@ import { StreamTransformer } from './transformers';
 export default class ProcessorPipeline implements VideoProcessor<ProcessorOptions> {
   static get isSupported() {
     return (
-      typeof MediaStreamTrackGenerator !== 'undefined'
-      && typeof MediaStreamTrackProcessor !== 'undefined'
+      typeof MediaStreamTrackGenerator !== 'undefined' &&
+      typeof MediaStreamTrackProcessor !== 'undefined'
     );
   }
 
@@ -29,7 +29,7 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
     this.transformers = transformers;
   }
 
-  init(opts: ProcessorOptions) {
+  async init(opts: ProcessorOptions) {
     this.source = opts.track as MediaStreamVideoTrack;
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
@@ -44,11 +44,23 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
 
     let readableStream = this.processor.readable;
     for (const transformer of this.transformers) {
-      transformer.init(this.canvas, this.sourceDummy!);
-      readableStream = readableStream.pipeThrough(transformer.transformer);
+      transformer.init({
+        outputCanvas: this.canvas,
+        inputVideo: this.sourceDummy!,
+      });
+      readableStream = readableStream.pipeThrough(transformer!.transformer!);
     }
+    console.log('before pipe to');
+
     readableStream.pipeTo(this.trackGenerator.writable);
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
+    console.log(
+      'processed internal',
+      this.source,
+      this.processedTrack,
+      this.processor,
+      this.trackGenerator,
+    );
   }
 
   async destroy() {
