@@ -55,7 +55,6 @@ export default class BackgroundProcessor extends VideoTransformer {
   async destroy() {
     await super.destroy();
     await this.imageSegmenter?.close();
-
     this.backgroundImage = null;
   }
 

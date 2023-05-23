@@ -1,6 +1,6 @@
-# LiveKit stream processors
+# LiveKit track processors
 
-A stream processor consists of one or multiple transformers.
+A track processor consists of one or multiple transformers.
 
 ```ts
 // src/index.ts
@@ -23,7 +23,7 @@ This package exposes `BlurBackground` and `VirtualBackground` as pre-prepared pr
 A processor pipeline consists of an array of transformers. In the case of the two aforementioned it is just one processor within the array.
 
 ```ts
-import 'BlurBackground' from '@livekit/stream-processors';
+import 'BlurBackground' from '@livekit/track-processors';
 
 
 const videoTrack = await createLocalVideoTrack();

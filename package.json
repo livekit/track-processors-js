@@ -1,11 +1,11 @@
 {
-  "name": "@livekit/stream-processors",
+  "name": "@livekit/track-processors",
   "version": "0.1.0",
-  "description": "Livekit stream processors",
+  "description": "Livekit track processors",
   "main": "dist/index.js",
   "source": "src/index.ts",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:livekit/livekit-stream-processors.git",
+  "repository": "git@github.com:livekit/livekit-track-processors.git",
   "author": "Lukas Seiler",
   "license": "Apache 2.0",
   "scripts": {

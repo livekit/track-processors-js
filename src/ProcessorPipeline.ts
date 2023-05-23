@@ -68,6 +68,5 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
       await transformer.destroy();
     }
     this.trackGenerator?.stop();
-    await this.processor?.writableControl?.close();
   }
 }
