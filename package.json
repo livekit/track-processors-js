@@ -11,7 +11,6 @@
   "scripts": {
     "build": "yarn exec tsc",
     "build-docs": "yarn exec typedoc",
-    "sample": "cd example && webpack serve",
     "build-sample": "cd example && webpack && cp styles.css index.html dist/",
     "lint": "eslint src",
     "test": "jest",
