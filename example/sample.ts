@@ -219,32 +219,41 @@ const appActions = {
     if (!currentRoom) return;
     setButtonDisabled('toggle-blur-button', true);
 
-    const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
-      .track as LocalVideoTrack;
-    if (camTrack.getProcessor()?.name !== 'blur-background') {
-      await camTrack.setProcessor(BlurBackground());
-    } else {
-      await camTrack.stopProcessor();
+    try {
+      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+        .track as LocalVideoTrack;
+      if (camTrack.getProcessor()?.name !== 'blur-background') {
+        await camTrack.setProcessor(BlurBackground());
+      } else {
+        await camTrack.stopProcessor();
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      setButtonDisabled('toggle-blur-button', false);
+      renderParticipant(currentRoom.localParticipant);
+      updateButtonsForPublishState();
     }
-    setButtonDisabled('toggle-blur-button', false);
-    renderParticipant(currentRoom.localParticipant);
-    updateButtonsForPublishState();
   },
 
   toggleVirtualBackground: async () => {
     if (!currentRoom) return;
     setButtonDisabled('toggle-blur-button', true);
-
-    const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
-      .track as LocalVideoTrack;
-    if (camTrack.getProcessor()?.name !== 'virtual-background') {
-      await camTrack.setProcessor(VirtualBackground('/samantha-gades-BlIhVfXbi9s-unsplash.jpg'));
-    } else {
-      await camTrack.stopProcessor();
+    try {
+      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+        .track as LocalVideoTrack;
+      if (camTrack.getProcessor()?.name !== 'virtual-background') {
+        await camTrack.setProcessor(VirtualBackground('/samantha-gades-BlIhVfXbi9s-unsplash.jpg'));
+      } else {
+        await camTrack.stopProcessor();
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      setButtonDisabled('toggle-blur-button', false);
+      renderParticipant(currentRoom.localParticipant);
+      updateButtonsForPublishState();
     }
-    setButtonDisabled('toggle-blur-button', false);
-    renderParticipant(currentRoom.localParticipant);
-    updateButtonsForPublishState();
   },
   startAudio: () => {
     currentRoom?.startAudio();
