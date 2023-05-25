@@ -686,11 +686,6 @@
   resolved "https://registry.yarnpkg.com/@mediapipe/holistic/-/holistic-0.5.1675471629.tgz#f1127d43161ff27e8889d5d39aaea164f9730980"
   integrity sha512-qY+cxtDeSOvVtevrLgnodiwXYaAtPi7dHZtNv/bUCGEjFicAOYtMmrZSqMmbPkTB2+4jLnPF1vgshkAqQRSYAw==
 
-"@mediapipe/selfie_segmentation@latest":
-  version "0.1.1675465747"
-  resolved "https://registry.yarnpkg.com/@mediapipe/selfie_segmentation/-/selfie_segmentation-0.1.1675465747.tgz#f1f61eb116bf2efc262faf0a49a1829f4bae2712"
-  integrity sha512-IxYxNhwE5VwOm52L1yoFWYLP7q9Pd+NJjzOC5tlepfvEGaY3o9hslhUrx9BgseqdfZtKSDtd/4NfCSMjNzQalA==
-
 "@mediapipe/tasks-vision@^0.10.0":
   version "0.10.0"
   resolved "https://registry.yarnpkg.com/@mediapipe/tasks-vision/-/tasks-vision-0.10.0.tgz#d95a816f66889dcb15545636ac7fc78588c1d705"
