@@ -1,13 +1,17 @@
-export type StreamTransformerInitOptions = {
-  outputCanvas?: OffscreenCanvas;
-  inputVideo: HTMLVideoElement;
+export type TrackTransformerInitOptions = {
+  inputElement: HTMLMediaElement;
 };
-export interface StreamTransformer {
-  init: ({ outputCanvas, inputVideo }: StreamTransformerInitOptions) => void;
+
+export interface VideoTransformerInitOptions extends TrackTransformerInitOptions {
+  outputCanvas: OffscreenCanvas;
+  inputElement: HTMLVideoElement;
+}
+
+export interface VideoTrackTransformer<
+  T extends TrackTransformerInitOptions = VideoTransformerInitOptions,
+> {
+  init: (options: T) => void;
   destroy: () => void;
-  transform: (
-    frame: VideoFrame,
-    controller: TransformStreamDefaultController
-  ) => void;
-  transformer: TransformStream;
+  transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
+  transformer?: TransformStream;
 }
