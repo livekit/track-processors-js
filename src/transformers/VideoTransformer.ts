@@ -1,6 +1,6 @@
-import { StreamTransformer, StreamTransformerInitOptions } from './types';
+import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
-export default abstract class VideoTransformer implements StreamTransformer {
+export default abstract class VideoTransformer implements VideoTrackTransformer {
   transformer?: TransformStream;
 
   canvas?: OffscreenCanvas;
@@ -11,7 +11,10 @@ export default abstract class VideoTransformer implements StreamTransformer {
 
   protected isDisabled?: Boolean = false;
 
-  init({ outputCanvas, inputVideo }: StreamTransformerInitOptions): void {
+  init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions): void {
+    if (!(inputVideo instanceof HTMLVideoElement)) {
+      throw TypeError('Video transformer needs a HTMLVideoElement as input');
+    }
     this.transformer = new TransformStream({
       transform: (frame, controller) => this.transform(frame, controller),
     });

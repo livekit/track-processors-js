@@ -1,6 +1,6 @@
 import * as vision from '@mediapipe/tasks-vision';
 import VideoTransformer from './VideoTransformer';
-import { StreamTransformerInitOptions } from './types';
+import { VideoTransformerInitOptions } from './types';
 
 export type BackgroundOptions = {
   blurRadius?: number;
@@ -16,7 +16,6 @@ export default class BackgroundProcessor extends VideoTransformer {
 
   segmentationResults: vision.ImageSegmenterResult | undefined;
 
-  //   backgroundImagePattern: CanvasPattern | null = null;
   backgroundImage: ImageBitmap | null = null;
 
   blurRadius?: number;
@@ -30,8 +29,8 @@ export default class BackgroundProcessor extends VideoTransformer {
     }
   }
 
-  async init({ outputCanvas, inputVideo }: StreamTransformerInitOptions) {
-    super.init({ outputCanvas, inputVideo });
+  async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
+    super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm',
@@ -98,7 +97,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     if (this.blurRadius) {
       await this.blurBackground(frame);
     } else {
-      this.drawVirtualBackground(frame);
+      await this.drawVirtualBackground(frame);
     }
     const newFrame = new VideoFrame(this.canvas, {
       timestamp: frame.timestamp || Date.now(),
@@ -107,22 +106,21 @@ export default class BackgroundProcessor extends VideoTransformer {
     controller.enqueue(newFrame);
   }
 
-  drawVirtualBackground(frame: VideoFrame) {
-    if (!this.canvas || !this.ctx) return;
+  async drawVirtualBackground(frame: VideoFrame) {
+    if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.segmentationResults?.categoryMask) {
       this.ctx.filter = 'blur(3px)';
       this.ctx.globalCompositeOperation = 'copy';
-      console.log(this.inputVideo?.videoHeight, this.inputVideo?.videoWidth);
-      const dataNew = new ImageData(
-        Uint8ClampedArray.from(this.segmentationResults.categoryMask.getAsUint8Array()),
-        this.inputVideo?.videoWidth || 0,
-        this.inputVideo?.videoHeight || 0,
+      const bitmap = await maskToBitmap(
+        this.segmentationResults.categoryMask,
+        this.inputVideo.videoWidth,
+        this.inputVideo.videoHeight,
       );
-      this.ctx.putImageData(dataNew, 0, 0);
+      this.ctx.drawImage(bitmap, 0, 0);
       this.ctx.filter = 'none';
-      this.ctx.globalCompositeOperation = 'source-out';
+      this.ctx.globalCompositeOperation = 'source-in';
       if (this.backgroundImage) {
         this.ctx.drawImage(
           this.backgroundImage,
@@ -147,45 +145,51 @@ export default class BackgroundProcessor extends VideoTransformer {
   }
 
   async blurBackground(frame: VideoFrame) {
+    const start = performance.now();
     if (
       !this.ctx ||
       !this.canvas ||
       !this.segmentationResults?.categoryMask?.canvas ||
       !this.inputVideo
-    )
+    ) {
       return;
+    }
     this.ctx.save();
     this.ctx.globalCompositeOperation = 'copy';
-    console.log(
-      this.inputVideo?.videoHeight,
-      this.inputVideo?.videoWidth,
-      this.segmentationResults.categoryMask.getAsUint8Array().length,
-    );
 
-    const dataArray: Uint8ClampedArray = new Uint8ClampedArray(
-      this.inputVideo.videoWidth * this.inputVideo.videoHeight * 4,
-    );
-    const result = this.segmentationResults.categoryMask.getAsUint8Array();
-    for (let i = 0; i < result.length; i += 1) {
-      dataArray[i * 4] = result[i];
-      dataArray[i * 4 + 1] = result[i];
-      dataArray[i * 4 + 2] = result[i];
-      dataArray[i * 4 + 3] = result[i];
-    }
-    const dataNew = new ImageData(
-      dataArray,
+    const bitmap = await maskToBitmap(
+      this.segmentationResults.categoryMask,
       this.inputVideo.videoWidth,
       this.inputVideo.videoHeight,
     );
-    // this.ctx.filter = 'blur(3px)';
+    this.ctx.filter = 'blur(3px)';
     this.ctx.globalCompositeOperation = 'copy';
-    this.ctx.drawImage(await createImageBitmap(dataNew), 0, 0);
-    // this.ctx.filter = 'none';
+    this.ctx.drawImage(bitmap, 0, 0);
+    this.ctx.filter = 'none';
     this.ctx.globalCompositeOperation = 'source-out';
     this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
     this.ctx.globalCompositeOperation = 'destination-over';
     this.ctx.filter = `blur(${this.blurRadius}px)`;
     this.ctx.drawImage(frame, 0, 0);
     this.ctx.restore();
+    console.log('draw time', performance.now() - start);
   }
+}
+
+function maskToBitmap(
+  mask: vision.MPMask,
+  videoWidth: number,
+  videoHeight: number,
+): Promise<ImageBitmap> {
+  const dataArray: Uint8ClampedArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
+  const result = mask.getAsUint8Array();
+  for (let i = 0; i < result.length; i += 1) {
+    dataArray[i * 4] = result[i];
+    dataArray[i * 4 + 1] = result[i];
+    dataArray[i * 4 + 2] = result[i];
+    dataArray[i * 4 + 3] = result[i];
+  }
+  const dataNew = new ImageData(dataArray, videoWidth, videoHeight);
+
+  return createImageBitmap(dataNew);
 }

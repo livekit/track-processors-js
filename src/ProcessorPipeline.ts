@@ -1,13 +1,15 @@
-import type { ProcessorOptions, VideoProcessor } from 'livekit-client';
-import { StreamTransformer } from './transformers';
+import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
+import { VideoTrackTransformer } from './transformers';
 
-export default class ProcessorPipeline implements VideoProcessor<ProcessorOptions> {
+export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
   static get isSupported() {
     return (
       typeof MediaStreamTrackGenerator !== 'undefined' &&
       typeof MediaStreamTrackProcessor !== 'undefined'
     );
   }
+
+  name: string;
 
   source?: MediaStreamVideoTrack;
 
@@ -19,20 +21,24 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
 
   canvas?: OffscreenCanvas;
 
-  sourceDummy?: HTMLVideoElement;
+  sourceDummy?: HTMLMediaElement;
 
   processedTrack?: MediaStreamTrack;
 
-  transformers: Array<StreamTransformer>;
+  transformers: Array<VideoTrackTransformer>;
 
-  constructor(transformers: Array<StreamTransformer>) {
+  constructor(transformers: Array<VideoTrackTransformer>, name: string) {
+    this.name = name;
     this.transformers = transformers;
   }
 
-  async init(opts: ProcessorOptions) {
+  async init(opts: ProcessorOptions<Track.Kind>) {
     this.source = opts.track as MediaStreamVideoTrack;
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
+    if (!(this.sourceDummy instanceof HTMLVideoElement)) {
+      throw TypeError('Currently only video transformers are supported');
+    }
     // TODO explore if we can do all the processing work in a webworker
     this.processor = new MediaStreamTrackProcessor({ track: this.source });
     this.trackGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
@@ -46,7 +52,7 @@ export default class ProcessorPipeline implements VideoProcessor<ProcessorOption
     for (const transformer of this.transformers) {
       transformer.init({
         outputCanvas: this.canvas,
-        inputVideo: this.sourceDummy!,
+        inputElement: this.sourceDummy!,
       });
       readableStream = readableStream.pipeThrough(transformer!.transformer!);
     }

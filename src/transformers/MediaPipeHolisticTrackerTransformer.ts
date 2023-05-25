@@ -1,6 +1,6 @@
 import { Holistic, Options, Results } from '@mediapipe/holistic';
 import VideoTransformer from './VideoTransformer';
-import { StreamTransformerInitOptions } from './types';
+import { VideoTransformerInitOptions } from './types';
 
 export type MediaPipeHolisticTrackerTransformerOptions = {
   holisticOptions?: Options;
@@ -22,8 +22,8 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
     this.holisticOptions = holisticOptions || {};
   }
 
-  init({ inputVideo, outputCanvas }: StreamTransformerInitOptions): void {
-    super.init({ outputCanvas, inputVideo });
+  init({ inputElement: inputVideo, outputCanvas }: VideoTransformerInitOptions): void {
+    super.init({ outputCanvas, inputElement: inputVideo });
 
     this.holistic = new Holistic({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`,

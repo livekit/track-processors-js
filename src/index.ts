@@ -7,7 +7,10 @@ export const BlurBackground = (blurRadius: number = 10) => {
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
   }
-  const pipeline = new ProcessorPipeline([new BackgroundTransformer({ blurRadius })]);
+  const pipeline = new ProcessorPipeline(
+    [new BackgroundTransformer({ blurRadius })],
+    'blur-background',
+  );
   return pipeline;
 };
 
@@ -16,7 +19,10 @@ export const VirtualBackground = (imagePath: string) => {
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
   }
-  const pipeline = new ProcessorPipeline([new BackgroundTransformer({ imagePath })]);
+  const pipeline = new ProcessorPipeline(
+    [new BackgroundTransformer({ imagePath })],
+    'virtual-background',
+  );
   return pipeline;
 };
 
@@ -25,6 +31,6 @@ export const Dummy = () => {
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
   }
-  const pipeline = new ProcessorPipeline([new DummyTransformer()]);
+  const pipeline = new ProcessorPipeline([new DummyTransformer()], 'dummy');
   return pipeline;
 };
