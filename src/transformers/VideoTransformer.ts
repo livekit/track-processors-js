@@ -35,4 +35,10 @@ export default abstract class VideoTransformer implements VideoTrackTransformer 
     frame: VideoFrame,
     controller: TransformStreamDefaultController<VideoFrame>,
   ): void;
+
+  async destroy() {
+    this.isDisabled = true;
+    this.canvas = undefined;
+    this.ctx = undefined;
+  }
 }
