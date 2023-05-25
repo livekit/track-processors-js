@@ -3,7 +3,7 @@ import ProcessorPipeline from './ProcessorPipeline';
 import BackgroundTransformer from './transformers/BackgroundTransformer';
 import DummyTransformer from './transformers/DummyTransformer';
 import MediaPipeHolisticTrackerTransformer, {
-  MediaPipeHolisticTrackerTransformerOptions,
+  type MediaPipeHolisticTrackerTransformerOptions,
 } from './transformers/MediaPipeHolisticTrackerTransformer';
 
 export {
