@@ -22,10 +22,6 @@ async function disableBackgroundBlur() {
 }
 ```
 
-## Available base processors
-
-- BackgroundProcessor (can blur background or use a virtual background);
-
 ## Building your own processors
 
 A track processor consists of one or multiple transformers.
@@ -37,3 +33,7 @@ export const VirtualBackground = (imagePath: string) => {
   return pipeline;
 };
 ```
+
+### Available base transformers
+
+- BackgroundTransformer (can blur background or use a virtual background);
