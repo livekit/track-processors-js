@@ -56,17 +56,8 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
       });
       readableStream = readableStream.pipeThrough(transformer!.transformer!);
     }
-    console.log('before pipe to');
-
     readableStream.pipeTo(this.trackGenerator.writable);
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
-    console.log(
-      'processed internal',
-      this.source,
-      this.processedTrack,
-      this.processor,
-      this.trackGenerator,
-    );
   }
 
   async destroy() {

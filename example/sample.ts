@@ -222,7 +222,7 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      if (camTrack.getProcessor()?.name !== 'blur-background') {
+      if (camTrack.getProcessor()?.name !== 'background-blur') {
         await camTrack.setProcessor(BlurBackground());
       } else {
         await camTrack.stopProcessor();
