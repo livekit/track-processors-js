@@ -21,7 +21,7 @@ import {
   createAudioAnalyser,
   setLogLevel,
 } from 'livekit-client';
-import { BlurBackground, VirtualBackground } from '../src';
+import { BackgroundBlur, VirtualBackground } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -223,7 +223,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'background-blur') {
-        await camTrack.setProcessor(BlurBackground());
+        await camTrack.setProcessor(BackgroundBlur());
       } else {
         await camTrack.stopProcessor();
       }
