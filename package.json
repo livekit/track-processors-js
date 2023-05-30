@@ -21,7 +21,7 @@
     "@mediapipe/tasks-vision": "^0.10.0"
   },
   "peerDependencies": {
-    "livekit-client": "^1.9.6"
+    "livekit-client": "^1.9.7"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.1.1",
@@ -36,7 +36,7 @@
     "eslint-plugin-ecmascript-compat": "^3.0.0",
     "eslint-plugin-import": "2.27.5",
     "jest": "^27.4.3",
-    "livekit-client": "^0.16.6",
+    "livekit-client": "^1.9.7",
     "prettier": "^2.8.8",
     "ts-jest": "^27.0.7",
     "ts-loader": "^8.1.0",

@@ -3,13 +3,12 @@ import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 export default abstract class VideoTransformer implements VideoTrackTransformer {
   transformer?: TransformStream;
 
-  canvas?: OffscreenCanvas;
-
-  ctx?: OffscreenCanvasRenderingContext2D;
+  canvas: OffscreenCanvas | undefined;
+  ctx: OffscreenCanvasRenderingContext2D | undefined;
 
   inputVideo?: HTMLVideoElement;
 
-  protected isDisabled?: Boolean = false;
+  protected isDisabled = false;
 
   init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions): void {
     if (!(inputVideo instanceof HTMLVideoElement)) {
@@ -26,14 +25,20 @@ export default abstract class VideoTransformer implements VideoTrackTransformer 
     this.isDisabled = false;
   }
 
-  async destroy() {
-    this.isDisabled = true;
-    this.canvas = undefined;
-    this.ctx = undefined;
+  getInputVideo(): HTMLVideoElement {
+    if (!this.inputVideo)
+      throw new Error('inputVideo is not defined, did you forget to call init()?');
+    return this.inputVideo;
   }
 
   abstract transform(
     frame: VideoFrame,
     controller: TransformStreamDefaultController<VideoFrame>,
   ): void;
+
+  async destroy() {
+    this.isDisabled = true;
+    this.canvas = undefined;
+    this.ctx = undefined;
+  }
 }
