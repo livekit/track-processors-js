@@ -1,6 +1,9 @@
 # LiveKit track processors
 
-
+## Install
+```
+yarn add @livekit/track-processors
+```
 
 ## Usage of prebuilt processors
 
