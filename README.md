@@ -1,21 +1,6 @@
 # LiveKit track processors
 
-A track processor consists of one or multiple transformers.
 
-```ts
-// src/index.ts
-export const VirtualBackground = (imagePath: string) => {
-  const pipeline = new ProcessorPipeline([
-    new BackgroundTransformer({ imagePath }),
-    new DummyTransformer(),
-  ]);
-  return pipeline;
-};
-```
-
-## Available processors
-
-- Backgroundprocessor (can blur background or use a virtual background);
 
 ## Usage of prebuilt processors
 
@@ -36,6 +21,21 @@ async function disableBackgroundBlur() {
 
 ```
 
-## Notes
+## Available base processors
 
-`BackgroundProcessor` relies on google mediapipe's selfie segmentation. Only one instance of mediapipe's selfie segmentation can be active at a time, so the current design forbids to have multiple Backgroundprocessors chained together. It would however be no problem to chain `BackgroundProcessor` together with another processor that doesn't rely on google mediapipe's selfie segmentation.
+- BackgroundProcessor (can blur background or use a virtual background);
+
+
+## Building your own processors
+A track processor consists of one or multiple transformers.
+
+```ts
+// src/index.ts
+export const VirtualBackground = (imagePath: string) => {
+  const pipeline = new ProcessorPipeline([
+    new BackgroundTransformer({ imagePath }),
+    new DummyTransformer(),
+  ]);
+  return pipeline;
+};
+```
