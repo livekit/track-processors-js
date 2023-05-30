@@ -8,7 +8,7 @@ yarn add @livekit/track-processors
 ## Usage of prebuilt processors
 
 This package exposes `BlurBackground` and `VirtualBackground` as pre-prepared processor pipelines.
-A processor pipeline consists of an array of transformers. In the case of the two aforementioned it is just one processor within the array.
+
 
 ```ts
 import 'BlurBackground' from '@livekit/track-processors';
