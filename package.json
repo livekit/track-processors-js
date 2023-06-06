@@ -1,13 +1,13 @@
 {
   "name": "@livekit/track-processors",
   "version": "0.1.0",
-  "description": "Livekit track processors",
+  "description": "LiveKit track processors",
   "main": "dist/index.js",
   "source": "src/index.ts",
   "types": "dist/index.d.ts",
   "repository": "git@github.com:livekit/livekit-track-processors.git",
   "author": "Lukas Seiler",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "yarn exec tsc",
     "build-docs": "yarn exec typedoc",
@@ -16,12 +16,16 @@
     "test": "jest",
     "sample": "vite serve example --port 8080 --open"
   },
+  "files": [
+    "dist",
+    "src"
+  ],
   "dependencies": {
     "@mediapipe/holistic": "^0.5.1675471629",
     "@mediapipe/tasks-vision": "^0.10.0"
   },
   "peerDependencies": {
-    "livekit-client": "^1.9.6"
+    "livekit-client": "^1.10.0"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.1.1",
