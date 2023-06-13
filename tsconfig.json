@@ -21,7 +21,7 @@
     "excludeProtected": true,
     "excludeExternals": true,
     "includeVersion": true,
-    "name": "LiveKit Spatial Plugin",
+    "name": "LiveKit track processors",
     "out": "docs",
     "theme": "default"
   }
