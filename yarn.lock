@@ -681,15 +681,15 @@
   resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-5.2.55.tgz#1d95b6b35daeecd8143e69c382105317cef159ee"
   integrity sha512-V5y5VhgXobwZl817zn+iAlCSTbXIXBMRHbL2WDyjJyMMgcHZoQTk6db1y3ZxBUo/H23MXgTKBo7bQ9S8aEfs2A==
 
-"@mediapipe/holistic@^0.5.1675471629":
+"@mediapipe/holistic@0.5.1675471629":
   version "0.5.1675471629"
   resolved "https://registry.yarnpkg.com/@mediapipe/holistic/-/holistic-0.5.1675471629.tgz#f1127d43161ff27e8889d5d39aaea164f9730980"
   integrity sha512-qY+cxtDeSOvVtevrLgnodiwXYaAtPi7dHZtNv/bUCGEjFicAOYtMmrZSqMmbPkTB2+4jLnPF1vgshkAqQRSYAw==
 
-"@mediapipe/tasks-vision@^0.10.0":
-  version "0.10.0"
-  resolved "https://registry.yarnpkg.com/@mediapipe/tasks-vision/-/tasks-vision-0.10.0.tgz#d95a816f66889dcb15545636ac7fc78588c1d705"
-  integrity sha512-l7Sqdw9EgO758tLrt+jDqqKnYKjeOFgzC9MRcE4qZnh/XG/o7JBacEF4cAzes+2wsElRCVoVGf8ETllIqgBzWA==
+"@mediapipe/tasks-vision@0.10.1":
+  version "0.10.1"
+  resolved "https://registry.yarnpkg.com/@mediapipe/tasks-vision/-/tasks-vision-0.10.1.tgz#68047459352019cc141dc9c1d15c05b8ab689423"
+  integrity sha512-/zIKjOAIABx+KVfqe8hA6X2pxBGsBYlEtvD7/gpXecvzKefo/JQO6XaggmJul7+noaqiPYM0CVGZxmFJ2oTdSQ==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"

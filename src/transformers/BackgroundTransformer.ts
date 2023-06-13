@@ -1,4 +1,5 @@
 import * as vision from '@mediapipe/tasks-vision';
+import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
 import { VideoTransformerInitOptions } from './types';
 
@@ -33,7 +34,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm',
+      `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
     );
 
     this.imageSegmenter = await vision.ImageSegmenter.createFromOptions(fileSet, {
@@ -145,7 +146,6 @@ export default class BackgroundProcessor extends VideoTransformer {
   }
 
   async blurBackground(frame: VideoFrame) {
-    const start = performance.now();
     if (
       !this.ctx ||
       !this.canvas ||
@@ -172,7 +172,6 @@ export default class BackgroundProcessor extends VideoTransformer {
     this.ctx.filter = `blur(${this.blurRadius}px)`;
     this.ctx.drawImage(frame, 0, 0);
     this.ctx.restore();
-    console.log('draw time', performance.now() - start);
   }
 }
 
