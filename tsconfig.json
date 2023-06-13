@@ -10,7 +10,8 @@
     "skipLibCheck": true /* Skip type checking of declaration files. */,
     "noUnusedLocals": true,
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "resolveJsonModule": true
   },
   "include": ["src/**/*", "plugins/**/*"],
   "typedocOptions": {
