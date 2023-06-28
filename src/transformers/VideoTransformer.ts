@@ -20,7 +20,7 @@ export default abstract class VideoTransformer implements VideoTrackTransformer 
     });
     this.canvas = outputCanvas || null;
     if (outputCanvas) {
-      this.ctx = this.canvas?.getContext('2d', { readFrequently: true }) || undefined;
+      this.ctx = this.canvas?.getContext('2d') || undefined;
     }
     this.inputVideo = inputVideo;
     this.isDisabled = false;

@@ -49,7 +49,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     });
 
     // this.loadBackground(opts.backgroundUrl).catch((e) => console.error(e));
-    this.sendFramesContinuouslyForSegmentation(this.inputVideo!);
+    // this.sendFramesContinuouslyForSegmentation(this.inputVideo!);
   }
 
   async destroy() {
@@ -95,6 +95,13 @@ export default class BackgroundProcessor extends VideoTransformer {
     if (!this.canvas) {
       throw TypeError('Canvas needs to be initialized first');
     }
+    let startTimeMs = performance.now();
+    this.imageSegmenter?.segmentForVideo(
+      this.inputVideo!,
+      startTimeMs,
+      (result) => (this.segmentationResults = result),
+    );
+
     if (this.blurRadius) {
       await this.blurBackground(frame);
     } else {
