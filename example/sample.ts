@@ -28,6 +28,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
+  blur: BackgroundBlur(),
 };
 let currentRoom: Room | undefined;
 
@@ -223,7 +224,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'background-blur') {
-        await camTrack.setProcessor(BackgroundBlur());
+        await camTrack.setProcessor(state.blur);
       } else {
         await camTrack.stopProcessor();
       }
