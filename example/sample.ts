@@ -17,8 +17,11 @@ import {
   RoomOptions,
   Track,
   TrackPublication,
+  VideoCaptureOptions,
   VideoPresets,
+  VideoPresets43,
   createAudioAnalyser,
+  facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
 import { BackgroundBlur, VirtualBackground } from '../src';
@@ -59,10 +62,10 @@ const appActions = {
       dynacast: true,
       publishDefaults: {
         simulcast: true,
-        videoSimulcastLayers: [VideoPresets.h90, VideoPresets.h216],
+        videoSimulcastLayers: [VideoPresets43.h120, VideoPresets43.h240],
       },
       videoCaptureDefaults: {
-        resolution: VideoPresets.h720.resolution,
+        resolution: VideoPresets43.h540.resolution,
       },
     };
 
@@ -214,6 +217,25 @@ const appActions = {
 
     // update display
     updateButtonsForPublishState();
+  },
+
+  flipVideo: () => {
+    const videoPub = currentRoom?.localParticipant.getTrack(Track.Source.Camera);
+    if (!videoPub) {
+      return;
+    }
+    const track = videoPub.track as LocalVideoTrack | undefined;
+    const facingMode = track && facingModeFromLocalTrack(track);
+    if (facingMode?.facingMode === 'environment') {
+      setButtonState('flip-video-button', 'Front Camera', false);
+    } else {
+      setButtonState('flip-video-button', 'Back Camera', false);
+    }
+    const options: VideoCaptureOptions = {
+      resolution: VideoPresets.h720.resolution,
+      facingMode: facingMode?.facingMode === 'environment' ? 'user' : 'environment',
+    };
+    videoPub.videoTrack?.restartTrack(options);
   },
 
   toggleBlur: async () => {

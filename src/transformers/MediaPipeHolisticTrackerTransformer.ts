@@ -22,7 +22,10 @@ export default class MediaPipeHolisticTrackerTransformer extends VideoTransforme
     this.holisticOptions = holisticOptions || {};
   }
 
-  init({ inputElement: inputVideo, outputCanvas }: VideoTransformerInitOptions): void {
+  async init({
+    inputElement: inputVideo,
+    outputCanvas,
+  }: VideoTransformerInitOptions): Promise<void> {
     super.init({ outputCanvas, inputElement: inputVideo });
 
     this.holistic = new Holistic({

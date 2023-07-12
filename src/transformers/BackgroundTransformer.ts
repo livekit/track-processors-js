@@ -31,7 +31,7 @@ export default class BackgroundProcessor extends VideoTransformer {
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
-    super.init({ outputCanvas, inputElement: inputVideo });
+    await super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
       `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
@@ -49,29 +49,12 @@ export default class BackgroundProcessor extends VideoTransformer {
     });
 
     // this.loadBackground(opts.backgroundUrl).catch((e) => console.error(e));
-    // this.sendFramesContinuouslyForSegmentation(this.inputVideo!);
   }
 
   async destroy() {
     await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImage = null;
-  }
-
-  async sendFramesContinuouslyForSegmentation(videoEl: HTMLVideoElement) {
-    if (!this.isDisabled) {
-      if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
-        let startTimeMs = performance.now();
-        this.imageSegmenter?.segmentForVideo(
-          videoEl,
-          startTimeMs,
-          (result) => (this.segmentationResults = result),
-        );
-      }
-      videoEl.requestVideoFrameCallback(() => {
-        this.sendFramesContinuouslyForSegmentation(videoEl);
-      });
-    }
   }
 
   async loadBackground(path: string) {
@@ -88,30 +71,33 @@ export default class BackgroundProcessor extends VideoTransformer {
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
-    if (this.isDisabled) {
-      controller.enqueue(frame);
-      return;
-    }
-    if (!this.canvas) {
-      throw TypeError('Canvas needs to be initialized first');
-    }
-    let startTimeMs = performance.now();
-    this.imageSegmenter?.segmentForVideo(
-      this.inputVideo!,
-      startTimeMs,
-      (result) => (this.segmentationResults = result),
-    );
+    try {
+      if (this.isDisabled) {
+        controller.enqueue(frame);
+        return;
+      }
+      if (!this.canvas) {
+        throw TypeError('Canvas needs to be initialized first');
+      }
+      let startTimeMs = performance.now();
+      this.imageSegmenter?.segmentForVideo(
+        this.inputVideo!,
+        startTimeMs,
+        (result) => (this.segmentationResults = result),
+      );
 
-    if (this.blurRadius) {
-      await this.blurBackground(frame);
-    } else {
-      await this.drawVirtualBackground(frame);
+      if (this.blurRadius) {
+        await this.blurBackground(frame);
+      } else {
+        await this.drawVirtualBackground(frame);
+      }
+      const newFrame = new VideoFrame(this.canvas, {
+        timestamp: frame.timestamp || Date.now(),
+      });
+      controller.enqueue(newFrame);
+    } finally {
+      frame.close();
     }
-    const newFrame = new VideoFrame(this.canvas, {
-      timestamp: frame.timestamp || Date.now(),
-    });
-    frame.close();
-    controller.enqueue(newFrame);
   }
 
   async drawVirtualBackground(frame: VideoFrame) {
@@ -161,6 +147,8 @@ export default class BackgroundProcessor extends VideoTransformer {
     ) {
       return;
     }
+    this.canvas.width = frame.codedWidth;
+    this.canvas.height = frame.codedHeight;
     this.ctx.save();
     this.ctx.globalCompositeOperation = 'copy';
 
@@ -169,6 +157,7 @@ export default class BackgroundProcessor extends VideoTransformer {
       this.inputVideo.videoWidth,
       this.inputVideo.videoHeight,
     );
+
     this.ctx.filter = 'blur(3px)';
     this.ctx.globalCompositeOperation = 'copy';
     this.ctx.drawImage(bitmap, 0, 0);

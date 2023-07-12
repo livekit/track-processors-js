@@ -11,7 +11,10 @@ export default abstract class VideoTransformer implements VideoTrackTransformer 
 
   protected isDisabled?: Boolean = false;
 
-  init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions): void {
+  async init({
+    outputCanvas,
+    inputElement: inputVideo,
+  }: VideoTransformerInitOptions): Promise<void> {
     if (!(inputVideo instanceof HTMLVideoElement)) {
       throw TypeError('Video transformer needs a HTMLVideoElement as input');
     }

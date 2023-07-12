@@ -34,14 +34,31 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
 
   async init(opts: ProcessorOptions<Track.Kind>) {
     this.source = opts.track as MediaStreamVideoTrack;
+    const origConstraints = this.source.getConstraints();
+    await this.source.applyConstraints({
+      ...origConstraints,
+      // @ts-expect-error when a mediastream track is resized and/or cropped, the `VideoFrame` will have a coded height/width of the original video size
+      // this leads to a shift of the underlying video as the frame itself is being rendered with the coded size
+      // but image segmentation is based on the display dimensions (-> the cropped version)
+      // in order to prevent this, we force the resize mode to "none"
+      resizeMode: 'none',
+    });
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
+    if (this.sourceDummy instanceof HTMLVideoElement) {
+      this.sourceDummy.height = this.sourceSettings.height!;
+      this.sourceDummy.width = this.sourceSettings.width!;
+    }
     if (!(this.sourceDummy instanceof HTMLVideoElement)) {
       throw TypeError('Currently only video transformers are supported');
     }
     // TODO explore if we can do all the processing work in a webworker
     this.processor = new MediaStreamTrackProcessor({ track: this.source });
-    this.trackGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
+
+    this.trackGenerator = new MediaStreamTrackGenerator({
+      kind: 'video',
+      signalTarget: this.source,
+    });
 
     this.canvas = new OffscreenCanvas(
       this.sourceSettings.width ?? 300,
@@ -50,13 +67,16 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
 
     let readableStream = this.processor.readable;
     for (const transformer of this.transformers) {
-      transformer.init({
+      await transformer.init({
         outputCanvas: this.canvas,
         inputElement: this.sourceDummy!,
       });
       readableStream = readableStream.pipeThrough(transformer!.transformer!);
     }
-    readableStream.pipeTo(this.trackGenerator.writable);
+    readableStream
+      .pipeTo(this.trackGenerator.writable)
+      .catch((e) => console.error('error when trying to pipe', e))
+      .finally(() => this.destroy());
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
   }
 
