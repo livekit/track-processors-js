@@ -147,8 +147,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     ) {
       return;
     }
-    this.canvas.width = frame.codedWidth;
-    this.canvas.height = frame.codedHeight;
+
     this.ctx.save();
     this.ctx.globalCompositeOperation = 'copy';
 
