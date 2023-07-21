@@ -15,7 +15,8 @@
     "build-sample": "cd example && webpack && cp styles.css index.html dist/",
     "lint": "eslint src",
     "test": "jest",
-    "sample": "vite serve example --port 8080 --open"
+    "sample": "vite serve example --port 8080 --open",
+    "prepublish": "yarn build"
   },
   "files": [
     "dist",

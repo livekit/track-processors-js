@@ -3,9 +3,12 @@ import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
 import { VideoTransformerInitOptions } from './types';
 
+export type SegmenterBaseOptions = Partial<Pick<vision.ImageSegmenterOptions, 'baseOptions'>>;
+
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
+  segmenterOptions?: SegmenterBaseOptions;
 };
 
 export default class BackgroundProcessor extends VideoTransformer {
@@ -21,8 +24,11 @@ export default class BackgroundProcessor extends VideoTransformer {
 
   blurRadius?: number;
 
+  options: BackgroundOptions;
+
   constructor(opts: BackgroundOptions) {
     super();
+    this.options = opts;
     if (opts.blurRadius) {
       this.blurRadius = opts.blurRadius;
     } else if (opts.imagePath) {
@@ -41,7 +47,8 @@ export default class BackgroundProcessor extends VideoTransformer {
       baseOptions: {
         modelAssetPath:
           'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
-        delegate: 'CPU',
+        delegate: 'GPU',
+        ...this.options.segmenterOptions,
       },
       runningMode: 'VIDEO',
       outputCategoryMask: true,
