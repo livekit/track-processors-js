@@ -3,7 +3,7 @@ import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
 import { VideoTransformerInitOptions } from './types';
 
-export type SegmenterBaseOptions = Partial<Pick<vision.ImageSegmenterOptions, 'baseOptions'>>;
+export type SegmenterBaseOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
 
 export type BackgroundOptions = {
   blurRadius?: number;
@@ -34,6 +34,8 @@ export default class BackgroundProcessor extends VideoTransformer {
     } else if (opts.imagePath) {
       this.loadBackground(opts.imagePath);
     }
+
+    this.options.segmenterOptions;
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {

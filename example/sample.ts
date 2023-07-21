@@ -31,7 +31,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(),
+  blur: BackgroundBlur(10, { delegate: 'GPU' }),
 };
 let currentRoom: Room | undefined;
 
