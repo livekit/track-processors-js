@@ -2,7 +2,10 @@ import ProcessorPipeline from './ProcessorPipeline';
 import BackgroundTransformer, { SegmenterBaseOptions } from './transformers/BackgroundTransformer';
 import DummyTransformer from './transformers/DummyTransformer';
 
-export const BackgroundBlur = (blurRadius: number = 10, segmenterOptions: SegmenterBaseOptions) => {
+export const BackgroundBlur = (
+  blurRadius: number = 10,
+  segmenterOptions?: SegmenterBaseOptions,
+) => {
   const isPipelineSupported = ProcessorPipeline.isSupported && BackgroundTransformer.isSupported;
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
@@ -14,7 +17,7 @@ export const BackgroundBlur = (blurRadius: number = 10, segmenterOptions: Segmen
   return pipeline;
 };
 
-export const VirtualBackground = (imagePath: string, segmenterOptions: SegmenterBaseOptions) => {
+export const VirtualBackground = (imagePath: string, segmenterOptions?: SegmenterBaseOptions) => {
   const isPipelineSupported = ProcessorPipeline.isSupported && BackgroundTransformer.isSupported;
   if (!isPipelineSupported) {
     throw new Error('pipeline is not supported in this browser');
