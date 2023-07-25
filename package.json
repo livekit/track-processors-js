@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
     "build-docs": "yarn exec typedoc",
-    "build-sample": "cd example && webpack && cp styles.css index.html dist/",
+    "build-sample": "cd example && vite build",
     "lint": "eslint src",
     "test": "jest",
     "sample": "vite serve example --port 8080 --open"
@@ -41,7 +41,7 @@
     "eslint-plugin-ecmascript-compat": "^3.0.0",
     "eslint-plugin-import": "2.27.5",
     "jest": "^27.4.3",
-    "livekit-client": "^0.16.6",
+    "livekit-client": "^1.12.0",
     "prettier": "^2.8.8",
     "ts-jest": "^27.0.7",
     "ts-loader": "^8.1.0",
