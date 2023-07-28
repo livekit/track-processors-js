@@ -46,8 +46,8 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
     if (this.sourceDummy instanceof HTMLVideoElement) {
-      this.sourceDummy.height = this.sourceSettings.height!;
-      this.sourceDummy.width = this.sourceSettings.width!;
+      this.sourceDummy.height = this.sourceSettings.height ?? 300;
+      this.sourceDummy.width = this.sourceSettings.width ?? 300;
     }
     if (!(this.sourceDummy instanceof HTMLVideoElement)) {
       throw TypeError('Currently only video transformers are supported');

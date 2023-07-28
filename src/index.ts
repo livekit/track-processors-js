@@ -2,6 +2,8 @@ import ProcessorPipeline from './ProcessorPipeline';
 import BackgroundTransformer, { SegmenterBaseOptions } from './transformers/BackgroundTransformer';
 import DummyTransformer from './transformers/DummyTransformer';
 
+export * from './transformers/types';
+
 export const BackgroundBlur = (
   blurRadius: number = 10,
   segmenterOptions?: SegmenterBaseOptions,

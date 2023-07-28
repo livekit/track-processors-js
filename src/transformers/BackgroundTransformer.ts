@@ -118,10 +118,10 @@ export default class BackgroundProcessor extends VideoTransformer {
       this.ctx.globalCompositeOperation = 'copy';
       const bitmap = await maskToBitmap(
         this.segmentationResults.categoryMask,
-        this.inputVideo.videoWidth,
-        this.inputVideo.videoHeight,
+        this.segmentationResults.categoryMask.width,
+        this.segmentationResults.categoryMask.height,
       );
-      this.ctx.drawImage(bitmap, 0, 0);
+      this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.filter = 'none';
       this.ctx.globalCompositeOperation = 'source-in';
       if (this.backgroundImage) {
@@ -162,19 +162,19 @@ export default class BackgroundProcessor extends VideoTransformer {
 
     const bitmap = await maskToBitmap(
       this.segmentationResults.categoryMask,
-      this.inputVideo.videoWidth,
-      this.inputVideo.videoHeight,
+      this.segmentationResults.categoryMask.width,
+      this.segmentationResults.categoryMask.height,
     );
 
     this.ctx.filter = 'blur(3px)';
     this.ctx.globalCompositeOperation = 'copy';
-    this.ctx.drawImage(bitmap, 0, 0);
+    this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
     this.ctx.filter = 'none';
     this.ctx.globalCompositeOperation = 'source-out';
     this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
     this.ctx.globalCompositeOperation = 'destination-over';
     this.ctx.filter = `blur(${this.blurRadius}px)`;
-    this.ctx.drawImage(frame, 0, 0);
+    this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
     this.ctx.restore();
   }
 }
