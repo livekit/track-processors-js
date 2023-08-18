@@ -12,6 +12,7 @@ export interface VideoTrackTransformer<
 > {
   init: (options: T) => void;
   destroy: () => void;
+  restart: (options: T) => void;
   transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
 }

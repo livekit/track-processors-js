@@ -32,7 +32,7 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
     this.transformers = transformers;
   }
 
-  async init(opts: ProcessorOptions<Track.Kind>) {
+  private async setup(opts: ProcessorOptions<Track.Kind>) {
     this.source = opts.track as MediaStreamVideoTrack;
     const origConstraints = this.source.getConstraints();
     await this.source.applyConstraints({
@@ -64,12 +64,19 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
       this.sourceSettings.width ?? 300,
       this.sourceSettings.height ?? 300,
     );
+  }
+
+  async init(opts: ProcessorOptions<Track.Kind>) {
+    await this.setup(opts);
+    if (!this.canvas || !this.processor || !this.trackGenerator) {
+      throw new TypeError('Expected both canvas and processor to be defined after setup');
+    }
 
     let readableStream = this.processor.readable;
     for (const transformer of this.transformers) {
       await transformer.init({
         outputCanvas: this.canvas,
-        inputElement: this.sourceDummy!,
+        inputElement: this.sourceDummy as HTMLVideoElement,
       });
       readableStream = readableStream.pipeThrough(transformer!.transformer!);
     }
@@ -78,6 +85,11 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
       .catch((e) => console.error('error when trying to pipe', e))
       .finally(() => this.destroy());
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
+  }
+
+  async restart(opts: ProcessorOptions<Track.Kind>) {
+    await this.destroy();
+    return this.init(opts);
   }
 
   async destroy() {

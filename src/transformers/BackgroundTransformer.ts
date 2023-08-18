@@ -34,8 +34,6 @@ export default class BackgroundProcessor extends VideoTransformer {
     } else if (opts.imagePath) {
       this.loadBackground(opts.imagePath);
     }
-
-    this.options.segmenterOptions;
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
@@ -114,7 +112,7 @@ export default class BackgroundProcessor extends VideoTransformer {
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.segmentationResults?.categoryMask) {
-      this.ctx.filter = 'blur(3px)';
+      this.ctx.filter = 'blur(10px)';
       this.ctx.globalCompositeOperation = 'copy';
       const bitmap = await maskToBitmap(
         this.segmentationResults.categoryMask,

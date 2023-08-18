@@ -29,6 +29,14 @@ export default abstract class VideoTransformer implements VideoTrackTransformer 
     this.isDisabled = false;
   }
 
+  async restart({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
+    this.canvas = outputCanvas || null;
+    this.ctx = this.canvas.getContext('2d') || undefined;
+
+    this.inputVideo = inputVideo;
+    this.isDisabled = false;
+  }
+
   async destroy() {
     this.isDisabled = true;
     this.canvas = undefined;
