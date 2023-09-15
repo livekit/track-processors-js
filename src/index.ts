@@ -3,6 +3,8 @@ import BackgroundTransformer, { SegmenterBaseOptions } from './transformers/Back
 import DummyTransformer from './transformers/DummyTransformer';
 
 export * from './transformers/types';
+export { default as VideoTransformer } from './transformers/VideoTransformer';
+export { ProcessorPipeline };
 
 export const BackgroundBlur = (
   blurRadius: number = 10,

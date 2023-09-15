@@ -690,10 +690,10 @@
   resolved "https://registry.yarnpkg.com/@mediapipe/holistic/-/holistic-0.5.1675471629.tgz#f1127d43161ff27e8889d5d39aaea164f9730980"
   integrity sha512-qY+cxtDeSOvVtevrLgnodiwXYaAtPi7dHZtNv/bUCGEjFicAOYtMmrZSqMmbPkTB2+4jLnPF1vgshkAqQRSYAw==
 
-"@mediapipe/tasks-vision@0.10.1":
-  version "0.10.1"
-  resolved "https://registry.yarnpkg.com/@mediapipe/tasks-vision/-/tasks-vision-0.10.1.tgz#68047459352019cc141dc9c1d15c05b8ab689423"
-  integrity sha512-/zIKjOAIABx+KVfqe8hA6X2pxBGsBYlEtvD7/gpXecvzKefo/JQO6XaggmJul7+noaqiPYM0CVGZxmFJ2oTdSQ==
+"@mediapipe/tasks-vision@0.10.5":
+  version "0.10.5"
+  resolved "https://registry.yarnpkg.com/@mediapipe/tasks-vision/-/tasks-vision-0.10.5.tgz#09cfcf873a1056e1e80b9c6fe3b9f2c1836cb1ea"
+  integrity sha512-pCLvVEx917KHMYlIP/TqJH0XnO3ryObl5ox2l8cKSFGIWvmT9bKCq+lsD4N89UaslxEkB6ofPLRD2mOm01n1qA==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
@@ -728,10 +728,10 @@
     javascript-natural-sort "0.7.1"
     lodash "^4.17.21"
 
-"@types/dom-mediacapture-transform@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.5.tgz#66e0bc919c4c18542644c6658d4e4dc1abd49740"
-  integrity sha512-Mgu6H5LVJPgJuAumx0xFEdZvn9whHy+J3gEJbJz5xdWrUJ8ZwZ/JTvWwYOQPkCGzGWykPN7ufQn94iil+VCWGw==
+"@types/dom-mediacapture-transform@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.6.tgz#26890dbfa4b3e5d81fba370e49f579892bcf89a3"
+  integrity sha512-sl2o+PVeciAozjEmj6UOnxOB3n4qv9bs2mw7PFYWYxpUKTHRIpDvm8TTfsWoRI86byQXWjQKecckaGSx/ExDPA==
   dependencies:
     "@types/dom-webcodecs" "*"
 
