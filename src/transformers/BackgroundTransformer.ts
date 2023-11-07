@@ -58,6 +58,16 @@ export default class BackgroundProcessor extends VideoTransformer {
     // this.loadBackground(opts.backgroundUrl).catch((e) => console.error(e));
   }
 
+  update(opts: BackgroundOptions) {    
+    this.options = opts;
+    if (opts.blurRadius) {
+      this.blurRadius = opts.blurRadius;
+    } else if (opts.imagePath) {
+      this.blurRadius = undefined;
+      this.loadBackground(opts.imagePath);
+    }
+  }
+
   async destroy() {
     await super.destroy();
     await this.imageSegmenter?.close();
