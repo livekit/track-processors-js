@@ -60,6 +60,12 @@ export default class BackgroundProcessor extends VideoTransformer {
 
   async destroy() {
     await super.destroy();
+
+    const categoryMaskCanvas = this.segmentationResults?.categoryMask?.canvas;
+    if (categoryMaskCanvas) {
+      const gl = (categoryMaskCanvas.getContext('webgl2') ?? categoryMaskCanvas.getContext('webgl')) as WebGLRenderingContext;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    }
     await this.imageSegmenter?.close();
     this.backgroundImage = null;
   }
