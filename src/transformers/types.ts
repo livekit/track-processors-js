@@ -9,25 +9,31 @@ export interface VideoTransformerInitOptions extends TrackTransformerInitOptions
 
 export interface AudioTransformerInitOptions extends TrackTransformerInitOptions {}
 
-export interface VideoTrackTransformer
-  extends TrackTransformer<VideoTransformerInitOptions, VideoFrame> {
+export interface VideoTrackTransformer<Options extends Record<string, unknown>>
+  extends BaseTrackTransformer<VideoTransformerInitOptions, VideoFrame> {
   init: (options: VideoTransformerInitOptions) => void;
   destroy: () => void;
   restart: (options: VideoTransformerInitOptions) => void;
   transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
+  update: (options: Options) => void;
 }
 
-export interface AudioTrackTransformer
-  extends TrackTransformer<AudioTransformerInitOptions, AudioData> {
+export interface AudioTrackTransformer<Options extends Record<string, unknown>>
+  extends BaseTrackTransformer<AudioTransformerInitOptions, AudioData> {
   init: (options: AudioTransformerInitOptions) => void;
   destroy: () => void;
   restart: (options: AudioTransformerInitOptions) => void;
   transform: (frame: AudioData, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
+  update: (options: Options) => void;
 }
 
-export interface TrackTransformer<
+export type TrackTransformer<Options extends Record<string, unknown>> =
+  | VideoTrackTransformer<Options>
+  | AudioTrackTransformer<Options>;
+
+export interface BaseTrackTransformer<
   T extends TrackTransformerInitOptions,
   DataType extends VideoFrame | AudioData,
 > {

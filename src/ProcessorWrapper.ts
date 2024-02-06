@@ -1,13 +1,8 @@
 import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
-import {
-  AudioTrackTransformer,
-  AudioTransformerInitOptions,
-  VideoTrackTransformer,
-} from './transformers';
+import { TrackTransformer } from './transformers';
 
-export default class ProcessorPipeline<
-  TransformerType extends VideoTrackTransformer | AudioTrackTransformer,
-> implements TrackProcessor<Track.Kind>
+export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
+  implements TrackProcessor<Track.Kind>
 {
   static get isSupported() {
     return (
@@ -32,9 +27,9 @@ export default class ProcessorPipeline<
 
   processedTrack?: MediaStreamTrack;
 
-  transformer: TransformerType;
+  transformer: TrackTransformer<TransformerOptions>;
 
-  constructor(transformer: TransformerType, name: string) {
+  constructor(transformer: TrackTransformer<TransformerOptions>, name: string) {
     this.name = name;
     this.transformer = transformer;
     this.transformer.restart;
@@ -88,8 +83,6 @@ export default class ProcessorPipeline<
     });
     readableStream = readableStream.pipeThrough(this.transformer!.transformer!);
 
-    this.transformer.restart();
-
     readableStream
       .pipeTo(this.trackGenerator.writable)
       .catch((e) => console.error('error when trying to pipe', e))
@@ -97,16 +90,17 @@ export default class ProcessorPipeline<
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
   }
 
-  async restart(opts: ProcessorOptions<Track.Kind>, forceDestroy?: boolean) {
-    if (forceDestroy) {
-      await this.destroy();
-      return this.init(opts);
-    }
+  async restart(opts: ProcessorOptions<Track.Kind>) {
+    await this.destroy();
+    return this.init(opts);
   }
 
-  async update(options: Parameters<TransformerType['restart']>) {
+  async restartTransformer(...options: Parameters<(typeof this.transformer)['restart']>) {
+    // @ts-ignore unclear why the restart method only accepts VideoTransformerInitOptions instead of either those or AudioTransformerInitOptions
     this.transformer.restart(options[0]);
   }
+
+  async updateTransformerOptions(...options: Parameters<(typeof this.transformer)['update']>) {}
 
   async destroy() {
     await this.transformer.destroy();
