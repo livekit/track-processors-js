@@ -100,7 +100,9 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     this.transformer.restart(options[0]);
   }
 
-  async updateTransformerOptions(...options: Parameters<(typeof this.transformer)['update']>) {}
+  async updateTransformerOptions(...options: Parameters<(typeof this.transformer)['update']>) {
+    this.transformer.update(options[0]);
+  }
 
   async destroy() {
     await this.transformer.destroy();
