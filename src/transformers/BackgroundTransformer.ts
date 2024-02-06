@@ -3,12 +3,12 @@ import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
 import { VideoTransformerInitOptions } from './types';
 
-export type SegmenterBaseOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
+export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
 
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
-  segmenterOptions?: SegmenterBaseOptions;
+  segmenterOptions?: SegmenterOptions;
 };
 
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
