@@ -6,7 +6,7 @@ import BackgroundTransformer, {
 
 export * from './transformers/types';
 export { default as VideoTransformer } from './transformers/VideoTransformer';
-export { ProcessorWrapper, BackgroundOptions, SegmenterOptions, BackgroundTransformer };
+export { ProcessorWrapper, type BackgroundOptions, type SegmenterOptions, BackgroundTransformer };
 
 export const BackgroundBlur = (blurRadius: number = 10, segmenterOptions?: SegmenterOptions) => {
   return BackgroundProcessor({ blurRadius, segmenterOptions }, 'background-blur');
