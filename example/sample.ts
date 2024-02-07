@@ -32,6 +32,7 @@ const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
   blur: BackgroundBlur(10, { delegate: 'GPU' }),
+  virtualBackground: VirtualBackground('/samantha-gades-BlIhVfXbi9s-unsplash.jpg'),
 };
 let currentRoom: Room | undefined;
 
@@ -266,7 +267,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
-        await camTrack.setProcessor(VirtualBackground('/samantha-gades-BlIhVfXbi9s-unsplash.jpg'));
+        await camTrack.setProcessor(state.virtualBackground);
       } else {
         await camTrack.stopProcessor();
       }
@@ -278,6 +279,26 @@ const appActions = {
       updateButtonsForPublishState();
     }
   },
+
+  updateVirtualBackgroundImage: async (imagePath: string) => {
+    if (!currentRoom) return;
+
+    try {
+      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+        .track as LocalVideoTrack;
+      await state.virtualBackground.updateTransformerOptions({ imagePath });
+      if (camTrack.getProcessor()?.name !== 'virtual-background') {
+        await camTrack.setProcessor(state.virtualBackground);
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      setButtonDisabled('toggle-blur-button', false);
+      renderParticipant(currentRoom.localParticipant);
+      updateButtonsForPublishState();
+    }
+  },
+
   startAudio: () => {
     currentRoom?.startAudio();
   },

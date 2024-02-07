@@ -1,7 +1,9 @@
 import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
-import { VideoTrackTransformer } from './transformers';
+import { TrackTransformer } from './transformers';
 
-export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
+export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
+  implements TrackProcessor<Track.Kind>
+{
   static get isSupported() {
     return (
       typeof MediaStreamTrackGenerator !== 'undefined' &&
@@ -25,11 +27,12 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
 
   processedTrack?: MediaStreamTrack;
 
-  transformers: Array<VideoTrackTransformer>;
+  transformer: TrackTransformer<TransformerOptions>;
 
-  constructor(transformers: Array<VideoTrackTransformer>, name: string) {
+  constructor(transformer: TrackTransformer<TransformerOptions>, name: string) {
     this.name = name;
-    this.transformers = transformers;
+    this.transformer = transformer;
+    this.transformer.restart;
   }
 
   private async setup(opts: ProcessorOptions<Track.Kind>) {
@@ -73,13 +76,13 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
     }
 
     let readableStream = this.processor.readable;
-    for (const transformer of this.transformers) {
-      await transformer.init({
-        outputCanvas: this.canvas,
-        inputElement: this.sourceDummy as HTMLVideoElement,
-      });
-      readableStream = readableStream.pipeThrough(transformer!.transformer!);
-    }
+
+    await this.transformer.init({
+      outputCanvas: this.canvas,
+      inputElement: this.sourceDummy as HTMLVideoElement,
+    });
+    readableStream = readableStream.pipeThrough(this.transformer!.transformer!);
+
     readableStream
       .pipeTo(this.trackGenerator.writable)
       .catch((e) => console.error('error when trying to pipe', e))
@@ -92,10 +95,17 @@ export default class ProcessorPipeline implements TrackProcessor<Track.Kind> {
     return this.init(opts);
   }
 
+  async restartTransformer(...options: Parameters<(typeof this.transformer)['restart']>) {
+    // @ts-ignore unclear why the restart method only accepts VideoTransformerInitOptions instead of either those or AudioTransformerInitOptions
+    this.transformer.restart(options[0]);
+  }
+
+  async updateTransformerOptions(...options: Parameters<(typeof this.transformer)['update']>) {
+    this.transformer.update(options[0]);
+  }
+
   async destroy() {
-    for (const transformer of this.transformers) {
-      await transformer.destroy();
-    }
+    await this.transformer.destroy();
     this.trackGenerator?.stop();
   }
 }
