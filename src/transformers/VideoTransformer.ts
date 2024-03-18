@@ -9,6 +9,8 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   ctx?: OffscreenCanvasRenderingContext2D;
 
+  gl?: WebGL2RenderingContext;
+
   inputVideo?: HTMLVideoElement;
 
   protected isDisabled?: Boolean = false;
@@ -24,8 +26,9 @@ export default abstract class VideoTransformer<Options extends Record<string, un
       transform: (frame, controller) => this.transform(frame, controller),
     });
     this.canvas = outputCanvas || null;
-    if (outputCanvas) {
-      this.ctx = this.canvas?.getContext('2d') || undefined;
+    if (this.canvas) {
+      this.ctx = this.canvas.getContext('2d') || undefined;
+      this.gl = this.canvas.getContext('webgl2') || undefined;
     }
     this.inputVideo = inputVideo;
     this.isDisabled = false;
@@ -34,7 +37,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
   async restart({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
     this.canvas = outputCanvas || null;
     this.ctx = this.canvas.getContext('2d') || undefined;
-
+    this.gl = this.canvas.getContext('webgl2') || undefined;
     this.inputVideo = inputVideo;
     this.isDisabled = false;
   }
