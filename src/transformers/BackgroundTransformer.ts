@@ -8,7 +8,10 @@ export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
+  /** cannot be updated through the `update` method, needs a restart */
   segmenterOptions?: SegmenterOptions;
+  /** cannot be updated through the `update` method, needs a restart */
+  assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
 };
 
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
@@ -36,12 +39,14 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     await super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
-      `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
+      this.options.assetPaths?.tasksVisionFileSet ??
+        `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
     );
 
     this.imageSegmenter = await vision.ImageSegmenter.createFromOptions(fileSet, {
       baseOptions: {
         modelAssetPath:
+          this.options.assetPaths?.modelAssetPath ??
           'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
         delegate: 'GPU',
         ...this.options.segmenterOptions,
