@@ -180,7 +180,7 @@ const appActions = {
     window.currentRoom = room;
     setButtonsForState(true);
 
-    room.participants.forEach((participant) => {
+    room.remoteParticipants.forEach((participant) => {
       participantConnected(participant);
     });
     participantConnected(room.localParticipant);
@@ -221,7 +221,7 @@ const appActions = {
   },
 
   flipVideo: () => {
-    const videoPub = currentRoom?.localParticipant.getTrack(Track.Source.Camera);
+    const videoPub = currentRoom?.localParticipant.getTrackPublication(Track.Source.Camera);
     if (!videoPub) {
       return;
     }
@@ -244,7 +244,7 @@ const appActions = {
     setButtonDisabled('toggle-blur-button', true);
 
     try {
-      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'background-blur') {
         await camTrack.setProcessor(state.blur);
@@ -264,7 +264,7 @@ const appActions = {
     if (!currentRoom) return;
     setButtonDisabled('toggle-blur-button', true);
     try {
-      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
         await camTrack.setProcessor(state.virtualBackground);
@@ -284,7 +284,7 @@ const appActions = {
     if (!currentRoom) return;
 
     try {
-      const camTrack = currentRoom.localParticipant.getTrack(Track.Source.Camera)!
+      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       await state.virtualBackground.updateTransformerOptions({ imagePath });
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
@@ -369,7 +369,7 @@ function handleRoomDisconnect(reason?: DisconnectReason) {
   appendLog('disconnected from room', { reason });
   setButtonsForState(false);
   renderParticipant(currentRoom.localParticipant, true);
-  currentRoom.participants.forEach((p) => {
+  currentRoom.remoteParticipants.forEach((p) => {
     renderParticipant(p, true);
   });
 
@@ -469,8 +469,8 @@ function renderParticipant(participant: Participant, remove: boolean = false) {
   }
   const micElm = $(`mic-${identity}`)!;
   const signalElm = $(`signal-${identity}`)!;
-  const cameraPub = participant.getTrack(Track.Source.Camera);
-  const micPub = participant.getTrack(Track.Source.Microphone);
+  const cameraPub = participant.getTrackPublication(Track.Source.Camera);
+  const micPub = participant.getTrackPublication(Track.Source.Microphone);
   if (participant.isSpeaking) {
     div!.classList.add('speaking');
   } else {
@@ -553,13 +553,13 @@ function renderBitrate() {
   if (!currentRoom || currentRoom.state !== ConnectionState.Connected) {
     return;
   }
-  const participants: Participant[] = [...currentRoom.participants.values()];
+  const participants: Participant[] = [...currentRoom.remoteParticipants.values()];
   participants.push(currentRoom.localParticipant);
 
   for (const p of participants) {
     const elm = $(`bitrate-${p.identity}`);
     let totalBitrate = 0;
-    for (const t of p.tracks.values()) {
+    for (const t of p.trackPublications.values()) {
       if (t.track) {
         totalBitrate += t.track.currentBitrate;
       }
