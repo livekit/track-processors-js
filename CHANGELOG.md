@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.3.1
+
+### Patch Changes
+
+- Allow configurable asset paths for task vision assets - [#35](https://github.com/livekit/track-processors-js/pull/35) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.3.0
 
 ### Minor Changes
