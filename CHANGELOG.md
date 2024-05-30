@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.3.2
+
+### Patch Changes
+
+- Reload the background image when needed during processor initialization - [#42](https://github.com/livekit/track-processors-js/pull/42) ([@kyleparrott](https://github.com/kyleparrott))
+
 ## 0.3.1
 
 ### Patch Changes
