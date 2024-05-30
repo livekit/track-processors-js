@@ -56,7 +56,10 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       outputConfidenceMasks: false,
     });
 
-    // this.loadBackground(opts.backgroundUrl).catch((e) => console.error(e));
+    // Skip loading the image here if update already loaded the image below
+    if (this.options?.imagePath && !this.backgroundImage) {
+      await this.loadBackground(this.options.imagePath).catch((err) => console.error("Error while loading processor background image: ", err));
+    }
   }
 
   async destroy() {
