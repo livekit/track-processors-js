@@ -247,6 +247,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'background-blur') {
+        await camTrack.stopProcessor();
         await camTrack.setProcessor(state.blur);
       } else {
         await camTrack.stopProcessor();
@@ -267,6 +268,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
+        await camTrack.stopProcessor();
         await camTrack.setProcessor(state.virtualBackground);
       } else {
         await camTrack.stopProcessor();
@@ -288,6 +290,7 @@ const appActions = {
         .track as LocalVideoTrack;
       await state.virtualBackground.updateTransformerOptions({ imagePath });
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
+        await camTrack.stopProcessor();
         await camTrack.setProcessor(state.virtualBackground);
       }
     } catch (e: any) {
