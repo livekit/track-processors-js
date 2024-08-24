@@ -10,7 +10,7 @@ npm add @livekit/track-processors
 
 ### Available processors
 
-This package exposes `BackgroundBlur` and `VirtualBackground` as pre-prepared processor pipelines.
+This package exposes the `BackgroundBlur` and `VirtualBackground` pre-prepared processor pipelines.
 
 - `BackgroundBlur(blurRadius)`
 - `VirtualBackground(imagePath)`
@@ -51,3 +51,13 @@ export const VirtualBackground = (imagePath: string) => {
 ### Available base transformers
 
 - BackgroundTransformer (can blur background or use a virtual background);
+
+
+## Running the sample app
+
+This repository includes a small example app built on [Vite](https://vitejs.dev/). Run it with:
+
+```
+npm install
+npm run sample
+```
