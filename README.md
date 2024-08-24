@@ -55,7 +55,7 @@ export const VirtualBackground = (imagePath: string) => {
 
 ## Running the sample app
 
-This repository includes a small example app build on [Vite](https://vitejs.dev/). Run it with
+This repository includes a small example app built on [Vite](https://vitejs.dev/). Run it with:
 
 ```
 npm install
