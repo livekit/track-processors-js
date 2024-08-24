@@ -10,7 +10,7 @@ npm add @livekit/track-processors
 
 ### Available processors
 
-This package exposes the `BackgroundBlur` and `VirtualBackground` as pre-prepared processor pipelines.
+This package exposes the `BackgroundBlur` and `VirtualBackground` pre-prepared processor pipelines.
 
 - `BackgroundBlur(blurRadius)`
 - `VirtualBackground(imagePath)`
