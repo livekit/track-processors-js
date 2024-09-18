@@ -30,7 +30,7 @@ async function disableBackgroundBlur() {
 }
 
 async updateBlurRadius(radius) {
-  return blur.updateTransformerOptions({blurRadius: blur})
+  return blur.updateTransformerOptions({blurRadius: radius})
 }
 
 
