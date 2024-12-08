@@ -113,7 +113,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       });
       controller.enqueue(newFrame);
     } finally {
-      frame.close();
+      frame?.close();
     }
   }
 
