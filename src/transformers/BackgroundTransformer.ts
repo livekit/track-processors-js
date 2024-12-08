@@ -84,11 +84,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
-    if (!(frame instanceof VideoFrame)) {
-      console.debug('empty frame detected, ignoring');
-      return;
-    }
     try {
+      if (!(frame instanceof VideoFrame)) {
+        console.debug('empty frame detected, ignoring');
+        return;
+      }
       if (this.isDisabled) {
         controller.enqueue(frame);
         return;

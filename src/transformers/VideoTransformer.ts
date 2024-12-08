@@ -20,6 +20,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     if (!(inputVideo instanceof HTMLVideoElement)) {
       throw TypeError('Video transformer needs a HTMLVideoElement as input');
     }
+
     this.transformer = new TransformStream({
       transform: (frame, controller) => this.transform(frame, controller),
     });
