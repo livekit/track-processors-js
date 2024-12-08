@@ -58,7 +58,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
     // Skip loading the image here if update already loaded the image below
     if (this.options?.imagePath && !this.backgroundImage) {
-      await this.loadBackground(this.options.imagePath).catch((err) => console.error("Error while loading processor background image: ", err));
+      await this.loadBackground(this.options.imagePath).catch((err) =>
+        console.error('Error while loading processor background image: ', err),
+      );
     }
   }
 
@@ -82,6 +84,10 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
+    if (!(frame instanceof VideoFrame)) {
+      console.debug('empty frame detected, ignoring');
+      return;
+    }
     try {
       if (this.isDisabled) {
         controller.enqueue(frame);
