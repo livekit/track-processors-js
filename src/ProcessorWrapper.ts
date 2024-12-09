@@ -32,7 +32,6 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   constructor(transformer: TrackTransformer<TransformerOptions>, name: string) {
     this.name = name;
     this.transformer = transformer;
-    this.transformer.restart;
   }
 
   private async setup(opts: ProcessorOptions<Track.Kind>) {
@@ -46,15 +45,19 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       // in order to prevent this, we force the resize mode to "none"
       resizeMode: 'none',
     });
+
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
+
+    if (!(this.sourceDummy instanceof HTMLVideoElement)) {
+      throw TypeError('Currently only video transformers are supported');
+    }
+
     if (this.sourceDummy instanceof HTMLVideoElement) {
       this.sourceDummy.height = this.sourceSettings.height ?? 300;
       this.sourceDummy.width = this.sourceSettings.width ?? 300;
     }
-    if (!(this.sourceDummy instanceof HTMLVideoElement)) {
-      throw TypeError('Currently only video transformers are supported');
-    }
+
     // TODO explore if we can do all the processing work in a webworker
     this.processor = new MediaStreamTrackProcessor({ track: this.source });
 
@@ -75,15 +78,16 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       throw new TypeError('Expected both canvas and processor to be defined after setup');
     }
 
-    let readableStream = this.processor.readable;
+    const readableStream = this.processor.readable;
 
     await this.transformer.init({
       outputCanvas: this.canvas,
       inputElement: this.sourceDummy as HTMLVideoElement,
     });
-    readableStream = readableStream.pipeThrough(this.transformer!.transformer!);
 
-    readableStream
+    const pipedStream = readableStream.pipeThrough(this.transformer!.transformer!);
+
+    pipedStream
       .pipeTo(this.trackGenerator.writable)
       .catch((e) => console.error('error when trying to pipe', e))
       .finally(() => this.destroy());
