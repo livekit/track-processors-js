@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.3.3
+
+### Patch Changes
+
+- Ignore empty video frames - [#52](https://github.com/livekit/track-processors-js/pull/52) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.3.2
 
 ### Patch Changes
