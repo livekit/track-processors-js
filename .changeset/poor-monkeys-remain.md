@@ -2,4 +2,6 @@
 '@livekit/track-processors': minor
 ---
 
-increase rendering performance and add a crisper edge between object and background. With a filter unwanted pixels which are discoverd are removed
+* increase rendering performance
+* add a crisper edge between object and background
+* add a filter to remove unwanted pixels which are discoverd from the algorithm
