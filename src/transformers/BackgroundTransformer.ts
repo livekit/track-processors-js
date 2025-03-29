@@ -209,7 +209,7 @@ function maskToBitmap(
       const i = index(x, y);
       let alpha = result[i];
 
-      // **Effiziente Ausreißer-Erkennung**
+      // **remove pixels which are not corecly indentified**
       const neighbors = [
         result[index(x - 1, y)], result[index(x + 1, y)], // Links, Rechts
         result[index(x, y - 1)], result[index(x, y + 1)], // Oben, Unten
@@ -220,7 +220,7 @@ function maskToBitmap(
         alpha = avg; // Pixel angleichen, falls es stark abweicht
       }
 
-      // **Scharfer Rand mit leichtem Übergang**
+      // **share cut with a small fading only 5px**
       if (alpha < 120) {
         alpha = 0;
       } else if (alpha > 140) {
