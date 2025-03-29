@@ -131,7 +131,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.segmentationResults?.categoryMask) {
-      this.ctx.filter = 'blur(10px)';
       this.ctx.globalCompositeOperation = 'copy';
       const bitmap = await maskToBitmap(
         this.segmentationResults.categoryMask,
@@ -183,7 +182,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.segmentationResults.categoryMask.height,
     );
 
-    this.ctx.filter = 'blur(3px)';
     this.ctx.globalCompositeOperation = 'copy';
     this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
     this.ctx.filter = 'none';
@@ -201,15 +199,43 @@ function maskToBitmap(
   videoWidth: number,
   videoHeight: number,
 ): Promise<ImageBitmap> {
-  const dataArray: Uint8ClampedArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
+  const dataArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
   const result = mask.getAsUint8Array();
-  for (let i = 0; i < result.length; i += 1) {
-    dataArray[i * 4] = result[i];
-    dataArray[i * 4 + 1] = result[i];
-    dataArray[i * 4 + 2] = result[i];
-    dataArray[i * 4 + 3] = result[i];
-  }
-  const dataNew = new ImageData(dataArray, videoWidth, videoHeight);
 
-  return createImageBitmap(dataNew);
+  const index = (x: number, y: number) => y * videoWidth + x;
+
+  for (let y = 1; y < videoHeight - 1; y++) {
+    for (let x = 1; x < videoWidth - 1; x++) {
+      const i = index(x, y);
+      let alpha = result[i];
+
+      // **Effiziente Ausreißer-Erkennung**
+      const neighbors = [
+        result[index(x - 1, y)], result[index(x + 1, y)], // Links, Rechts
+        result[index(x, y - 1)], result[index(x, y + 1)], // Oben, Unten
+      ];
+      const avg = (neighbors[0] + neighbors[1] + neighbors[2] + neighbors[3]) / 4;
+
+      if (Math.abs(alpha - avg) > 50) {
+        alpha = avg; // Pixel angleichen, falls es stark abweicht
+      }
+
+      // **Scharfer Rand mit leichtem Übergang**
+      if (alpha < 120) {
+        alpha = 0;
+      } else if (alpha > 140) {
+        alpha = 255;
+      } else {
+        alpha = ((alpha - 120) / 20) * 255;
+      }
+
+      const pixelOffset = i * 4;
+      dataArray[pixelOffset] = 255;
+      dataArray[pixelOffset + 1] = 255;
+      dataArray[pixelOffset + 2] = 255;
+      dataArray[pixelOffset + 3] = alpha;
+    }
+  }
+
+  return createImageBitmap(new ImageData(dataArray, videoWidth, videoHeight));
 }
