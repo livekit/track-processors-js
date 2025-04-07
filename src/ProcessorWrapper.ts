@@ -36,15 +36,6 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
   private async setup(opts: ProcessorOptions<Track.Kind>) {
     this.source = opts.track as MediaStreamVideoTrack;
-    const origConstraints = this.source.getConstraints();
-    await this.source.applyConstraints({
-      ...origConstraints,
-      // @ts-expect-error when a mediastream track is resized and/or cropped, the `VideoFrame` will have a coded height/width of the original video size
-      // this leads to a shift of the underlying video as the frame itself is being rendered with the coded size
-      // but image segmentation is based on the display dimensions (-> the cropped version)
-      // in order to prevent this, we force the resize mode to "none"
-      resizeMode: 'none',
-    });
 
     this.sourceSettings = this.source.getSettings();
     this.sourceDummy = opts.element;
