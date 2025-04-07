@@ -1,5 +1,6 @@
 import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
 import { TrackTransformer } from './transformers';
+import { waitForTrackResolution } from './utils';
 
 export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
   implements TrackProcessor<Track.Kind>
@@ -14,8 +15,6 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   name: string;
 
   source?: MediaStreamVideoTrack;
-
-  sourceSettings?: MediaTrackSettings;
 
   processor?: MediaStreamTrackProcessor<VideoFrame>;
 
@@ -37,7 +36,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   private async setup(opts: ProcessorOptions<Track.Kind>) {
     this.source = opts.track as MediaStreamVideoTrack;
 
-    this.sourceSettings = this.source.getSettings();
+    const { width, height } = await waitForTrackResolution(this.source);
     this.sourceDummy = opts.element;
 
     if (!(this.sourceDummy instanceof HTMLVideoElement)) {
@@ -45,8 +44,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     }
 
     if (this.sourceDummy instanceof HTMLVideoElement) {
-      this.sourceDummy.height = this.sourceSettings.height ?? 300;
-      this.sourceDummy.width = this.sourceSettings.width ?? 300;
+      this.sourceDummy.height = height ?? 300;
+      this.sourceDummy.width = width ?? 300;
     }
 
     // TODO explore if we can do all the processing work in a webworker
@@ -57,10 +56,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       signalTarget: this.source,
     });
 
-    this.canvas = new OffscreenCanvas(
-      this.sourceSettings.width ?? 300,
-      this.sourceSettings.height ?? 300,
-    );
+    this.canvas = new OffscreenCanvas(width ?? 300, height ?? 300);
   }
 
   async init(opts: ProcessorOptions<Track.Kind>) {
