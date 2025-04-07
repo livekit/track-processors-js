@@ -130,8 +130,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.segmentationResults?.categoryMask) {
-      this.ctx.filter = 'blur(10px)';
+    if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
       this.ctx.globalCompositeOperation = 'copy';
       const bitmap = await maskToBitmap(
         this.segmentationResults.categoryMask,
@@ -177,22 +176,23 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.ctx.save();
     this.ctx.globalCompositeOperation = 'copy';
 
-    const bitmap = await maskToBitmap(
-      this.segmentationResults.categoryMask,
-      this.segmentationResults.categoryMask.width,
-      this.segmentationResults.categoryMask.height,
-    );
+    if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
+      const bitmap = await maskToBitmap(
+        this.segmentationResults.categoryMask,
+        this.segmentationResults.categoryMask.width,
+        this.segmentationResults.categoryMask.height,
+      );
 
-    this.ctx.filter = 'blur(3px)';
-    this.ctx.globalCompositeOperation = 'copy';
-    this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.filter = 'none';
-    this.ctx.globalCompositeOperation = 'source-out';
-    this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.globalCompositeOperation = 'destination-over';
-    this.ctx.filter = `blur(${this.blurRadius}px)`;
-    this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.restore();
+      this.ctx.globalCompositeOperation = 'copy';
+      this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.filter = 'none';
+      this.ctx.globalCompositeOperation = 'source-out';
+      this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.globalCompositeOperation = 'destination-over';
+      this.ctx.filter = `blur(${this.blurRadius}px)`;
+      this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
   }
 }
 
