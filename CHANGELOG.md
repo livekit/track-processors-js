@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.4.1
+
+### Patch Changes
+
+- Use putImageData instead of creating new bitmap - [#61](https://github.com/livekit/track-processors-js/pull/61) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.4.0
 
 ### Minor Changes
