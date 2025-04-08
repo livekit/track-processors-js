@@ -14,9 +14,6 @@ export type BackgroundOptions = {
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
 };
 
-const blurBackgroundTimes: number[] = [];
-const drawVirtualBackgroundTimes: number[] = [];
-
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
     return typeof OffscreenCanvas !== 'undefined';
@@ -130,18 +127,21 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async drawVirtualBackground(frame: VideoFrame) {
-    const startTime = performance.now();
     if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
       this.ctx.globalCompositeOperation = 'copy';
-      const bitmap = await maskToBitmap(
-        this.segmentationResults.categoryMask,
-        this.segmentationResults.categoryMask.width,
-        this.segmentationResults.categoryMask.height,
+
+      this.ctx.putImageData(
+        maskToImageData(
+          this.segmentationResults.categoryMask,
+          this.segmentationResults.categoryMask.width,
+          this.segmentationResults.categoryMask.height,
+        ),
+        0,
+        0,
       );
-      this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.filter = 'none';
       this.ctx.globalCompositeOperation = 'source-in';
       if (this.backgroundImage) {
@@ -164,20 +164,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.ctx.globalCompositeOperation = 'destination-over';
     }
     this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-    const endTime = performance.now();
-    drawVirtualBackgroundTimes.push(endTime - startTime);
-    if (drawVirtualBackgroundTimes.length % 100 === 0) {
-      console.log(
-        `Draw virtual background time: ${
-          drawVirtualBackgroundTimes.reduce((a, b) => a + b, 0) / drawVirtualBackgroundTimes.length
-        }ms`,
-      );
-      drawVirtualBackgroundTimes.length = 0;
-    }
   }
 
   async blurBackground(frame: VideoFrame) {
-    const startTime = performance.now();
     if (
       !this.ctx ||
       !this.canvas ||
@@ -191,14 +180,15 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.ctx.globalCompositeOperation = 'copy';
 
     if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
-      const bitmap = await maskToBitmap(
-        this.segmentationResults.categoryMask,
-        this.segmentationResults.categoryMask.width,
-        this.segmentationResults.categoryMask.height,
+      this.ctx.putImageData(
+        maskToImageData(
+          this.segmentationResults.categoryMask,
+          this.segmentationResults.categoryMask.width,
+          this.segmentationResults.categoryMask.height,
+        ),
+        0,
+        0,
       );
-
-      this.ctx.globalCompositeOperation = 'copy';
-      this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.filter = 'none';
       this.ctx.globalCompositeOperation = 'source-out';
       this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
@@ -207,33 +197,18 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.restore();
     }
-    const endTime = performance.now();
-    blurBackgroundTimes.push(endTime - startTime);
-    if (blurBackgroundTimes.length % 100 === 0) {
-      console.log(
-        `Blur background time: ${
-          blurBackgroundTimes.reduce((a, b) => a + b, 0) / blurBackgroundTimes.length
-        }ms`,
-      );
-      blurBackgroundTimes.length = 0;
-    }
   }
 }
 
-function maskToBitmap(
-  mask: vision.MPMask,
-  videoWidth: number,
-  videoHeight: number,
-): Promise<ImageBitmap> {
+function maskToImageData(mask: vision.MPMask, videoWidth: number, videoHeight: number): ImageData {
   const dataArray: Uint8ClampedArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
   const result = mask.getAsUint8Array();
   for (let i = 0; i < result.length; i += 1) {
-    dataArray[i * 4] = result[i];
-    dataArray[i * 4 + 1] = result[i];
-    dataArray[i * 4 + 2] = result[i];
-    dataArray[i * 4 + 3] = result[i];
+    const offset = i * 4;
+    dataArray[offset] = result[i];
+    dataArray[offset + 1] = result[i];
+    dataArray[offset + 2] = result[i];
+    dataArray[offset + 3] = result[i];
   }
-  const dataNew = new ImageData(dataArray, videoWidth, videoHeight);
-
-  return createImageBitmap(dataNew);
+  return new ImageData(dataArray, videoWidth, videoHeight);
 }
