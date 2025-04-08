@@ -14,6 +14,9 @@ export type BackgroundOptions = {
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
 };
 
+const blurBackgroundTimes: number[] = [];
+const drawVirtualBackgroundTimes: number[] = [];
+
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
     return typeof OffscreenCanvas !== 'undefined';
@@ -127,6 +130,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async drawVirtualBackground(frame: VideoFrame) {
+    const startTime = performance.now();
     if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
     // this.ctx.save();
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -160,10 +164,20 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.ctx.globalCompositeOperation = 'destination-over';
     }
     this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-    // this.ctx.restore();
+    const endTime = performance.now();
+    drawVirtualBackgroundTimes.push(endTime - startTime);
+    if (drawVirtualBackgroundTimes.length % 100 === 0) {
+      console.log(
+        `Draw virtual background time: ${
+          drawVirtualBackgroundTimes.reduce((a, b) => a + b, 0) / drawVirtualBackgroundTimes.length
+        }ms`,
+      );
+      drawVirtualBackgroundTimes.length = 0;
+    }
   }
 
   async blurBackground(frame: VideoFrame) {
+    const startTime = performance.now();
     if (
       !this.ctx ||
       !this.canvas ||
@@ -192,6 +206,16 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.ctx.filter = `blur(${this.blurRadius}px)`;
       this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.restore();
+    }
+    const endTime = performance.now();
+    blurBackgroundTimes.push(endTime - startTime);
+    if (blurBackgroundTimes.length % 100 === 0) {
+      console.log(
+        `Blur background time: ${
+          blurBackgroundTimes.reduce((a, b) => a + b, 0) / blurBackgroundTimes.length
+        }ms`,
+      );
+      blurBackgroundTimes.length = 0;
     }
   }
 }
