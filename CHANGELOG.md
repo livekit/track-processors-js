@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.4.0
+
+### Minor Changes
+
+- Update tasks-vision dependency and remove blurred outlines - [#59](https://github.com/livekit/track-processors-js/pull/59) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.3.3
 
 ### Patch Changes
