@@ -366,54 +366,47 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
 
     if (image) {
       try {
-        // Determine appropriate size to avoid performance issues
         // Get current canvas dimensions
         const canvasWidth = canvas.width;
         const canvasHeight = canvas.height;
 
-        // Only resize if the image is significantly larger than the canvas
-        // A reasonable threshold is 1.5x the canvas size
-        const shouldResize = image.width > canvasWidth * 1.5 || image.height > canvasHeight * 1.5;
+        // Calculate dimensions and crop for "cover" mode
+        const imgAspect = image.width / image.height;
+        const canvasAspect = canvasWidth / canvasHeight;
 
-        if (shouldResize) {
-          // Calculate new dimensions while maintaining aspect ratio
-          const aspectRatio = image.width / image.height;
-          let newWidth = canvasWidth;
-          let newHeight = canvasHeight;
+        let sx = 0;
+        let sy = 0;
+        let sWidth = image.width;
+        let sHeight = image.height;
 
-          if (aspectRatio > 1) {
-            // Landscape orientation
-            newHeight = canvasWidth / aspectRatio;
-          } else {
-            // Portrait or square orientation
-            newWidth = canvasHeight * aspectRatio;
-          }
-
-          // Resize the image using createImageBitmap with resize option
-          const resizedImage = await createImageBitmap(image, {
-            resizeWidth: Math.round(newWidth),
-            resizeHeight: Math.round(newHeight),
-            resizeQuality: 'medium',
-          });
-
-          // Store the resized image
-          customBackgroundImage = resizedImage;
-
-          // Load the resized image into the texture
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, bgTexture);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, resizedImage);
-        } else {
-          // Use original image if it's already an appropriate size
-          customBackgroundImage = image;
-
-          // Load the image into the texture
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, bgTexture);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        // For cover mode, we need to crop some parts of the image
+        // to ensure it covers the canvas while maintaining aspect ratio
+        if (imgAspect > canvasAspect) {
+          // Image is wider than canvas - crop the sides
+          sWidth = Math.round(image.height * canvasAspect);
+          sx = Math.round((image.width - sWidth) / 2); // Center the crop horizontally
+        } else if (imgAspect < canvasAspect) {
+          // Image is taller than canvas - crop the top/bottom
+          sHeight = Math.round(image.width / canvasAspect);
+          sy = Math.round((image.height - sHeight) / 2); // Center the crop vertically
         }
+
+        // Create a new ImageBitmap with the cropped portion
+        const croppedImage = await createImageBitmap(image, sx, sy, sWidth, sHeight, {
+          resizeWidth: canvasWidth,
+          resizeHeight: canvasHeight,
+          resizeQuality: 'medium',
+        });
+
+        // Store the cropped and resized image
+        customBackgroundImage = croppedImage;
+
+        // Load the image into the texture
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, croppedImage);
       } catch (error) {
-        console.error('Error resizing background image:', error);
+        console.error('Error processing background image:', error);
         // Fallback to original image on error
         customBackgroundImage = image;
         gl.activeTexture(gl.TEXTURE0);
