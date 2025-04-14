@@ -5,6 +5,12 @@ import { VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
 
+export interface FrameProcessingStats {
+  processingTimeMs: number;
+  segmentationTimeMs: number;
+  filterTimeMs: number;
+}
+
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
@@ -12,6 +18,8 @@ export type BackgroundOptions = {
   segmenterOptions?: SegmenterOptions;
   /** cannot be updated through the `update` method, needs a restart */
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  /** called when a new frame is processed */
+  onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
@@ -97,11 +105,13 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         throw TypeError('Canvas needs to be initialized first');
       }
       let startTimeMs = performance.now();
+
       this.imageSegmenter?.segmentForVideo(
         this.inputVideo!,
         startTimeMs,
         (result) => (this.segmentationResults = result),
       );
+      const segmentationTimeMs = performance.now() - startTimeMs;
 
       if (this.blurRadius) {
         await this.blurBackground(frame);
@@ -111,7 +121,15 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       const newFrame = new VideoFrame(this.canvas, {
         timestamp: frame.timestamp || Date.now(),
       });
+      const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
+
       controller.enqueue(newFrame);
+      const stats: FrameProcessingStats = {
+        processingTimeMs: performance.now() - startTimeMs,
+        segmentationTimeMs,
+        filterTimeMs,
+      };
+      this.options.onFrameProcessed?.(stats);
     } finally {
       frame?.close();
     }
