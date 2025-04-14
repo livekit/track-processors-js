@@ -31,8 +31,18 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(10, { delegate: 'GPU' }),
-  virtualBackground: VirtualBackground('/samantha-gades-BlIhVfXbi9s-unsplash.jpg'),
+  blur: BackgroundBlur(10, { delegate: 'GPU' }, (stats) => {
+    console.log('frame processing stats', stats);
+  }),
+  virtualBackground: VirtualBackground(
+    '/samantha-gades-BlIhVfXbi9s-unsplash.jpg',
+    {
+      delegate: 'GPU',
+    },
+    (stats) => {
+      console.log('frame processing stats', stats);
+    },
+  ),
 };
 let currentRoom: Room | undefined;
 
