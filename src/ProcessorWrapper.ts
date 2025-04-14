@@ -78,6 +78,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       .pipeTo(this.trackGenerator.writable)
       .catch((e) => console.error('error when trying to pipe', e))
       .finally(() => this.destroy());
+
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
   }
 
@@ -96,7 +97,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   }
 
   async destroy() {
-    await this.transformer.destroy();
+    await this.processor?.writableControl?.close();
     this.trackGenerator?.stop();
+    await this.transformer.destroy();
   }
 }

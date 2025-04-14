@@ -1,3 +1,4 @@
+import { createBlurPipeline } from '../utils';
 import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
 export default abstract class VideoTransformer<Options extends Record<string, unknown>>
@@ -7,9 +8,11 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   canvas?: OffscreenCanvas;
 
-  ctx?: OffscreenCanvasRenderingContext2D;
+  // ctx?: OffscreenCanvasRenderingContext2D;
 
   inputVideo?: HTMLVideoElement;
+
+  gl?: ReturnType<typeof createBlurPipeline>;
 
   protected isDisabled?: Boolean = false;
 
@@ -26,7 +29,10 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     });
     this.canvas = outputCanvas || null;
     if (outputCanvas) {
-      this.ctx = this.canvas?.getContext('2d') || undefined;
+      // this.ctx = this.canvas?.getContext('2d') || undefined;
+      this.gl = createBlurPipeline(
+        this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
+      );
     }
     this.inputVideo = inputVideo;
     this.isDisabled = false;
@@ -34,7 +40,11 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   async restart({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
     this.canvas = outputCanvas || null;
-    this.ctx = this.canvas.getContext('2d') || undefined;
+    this.gl?.cleanup();
+    // this.ctx = this.canvas.getContext('2d') || undefined;
+    this.gl = createBlurPipeline(
+      this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
+    );
 
     this.inputVideo = inputVideo;
     this.isDisabled = false;
@@ -43,7 +53,8 @@ export default abstract class VideoTransformer<Options extends Record<string, un
   async destroy() {
     this.isDisabled = true;
     this.canvas = undefined;
-    this.ctx = undefined;
+    this.gl?.cleanup();
+    this.gl = undefined;
   }
 
   abstract transform(
