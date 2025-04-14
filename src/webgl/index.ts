@@ -56,7 +56,6 @@ const createShaderProgram = (gl: WebGL2RenderingContext) => {
       
         float a = maskTex.r;
   
-        //gl_FragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), a);
         gl_FragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - a);
       
       }
@@ -235,17 +234,17 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   const frameTexture = initTexture(gl, 1);
   const vertexBuffer = createVertexBuffer(gl);
 
-  // Create additional textures and framebuffers for blur pass if enabled
-  let blurTextures: WebGLTexture[] = [];
-  let blurFramebuffers: WebGLFramebuffer[] = [];
+  // Create additional textures and framebuffers for processing
+  let processTextures: WebGLTexture[] = [];
+  let processFramebuffers: WebGLFramebuffer[] = [];
 
-  // Create two textures for blur passes (horizontal and vertical)
-  blurTextures.push(initTexture(gl, 3));
-  blurTextures.push(initTexture(gl, 4));
+  // Create textures for processing (blur)
+  processTextures.push(initTexture(gl, 3));
+  processTextures.push(initTexture(gl, 4));
 
-  // Create framebuffers for blur passes
-  blurFramebuffers.push(createFramebuffer(gl, blurTextures[0], canvas.width, canvas.height));
-  blurFramebuffers.push(createFramebuffer(gl, blurTextures[1], canvas.width, canvas.height));
+  // Create framebuffers for processing
+  processFramebuffers.push(createFramebuffer(gl, processTextures[0], canvas.width, canvas.height));
+  processFramebuffers.push(createFramebuffer(gl, processTextures[1], canvas.width, canvas.height));
 
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
@@ -270,7 +269,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     const texelHeight = 1.0 / height;
 
     // First pass - horizontal blur
-    gl.bindFramebuffer(gl.FRAMEBUFFER, blurFramebuffers[0]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, processFramebuffers[0]);
     gl.viewport(0, 0, width, height);
 
     gl.activeTexture(gl.TEXTURE0);
@@ -283,11 +282,11 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     // Second pass - vertical blur
-    gl.bindFramebuffer(gl.FRAMEBUFFER, blurFramebuffers[1]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, processFramebuffers[1]);
     gl.viewport(0, 0, width, height);
 
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, blurTextures[0]);
+    gl.bindTexture(gl.TEXTURE_2D, processTextures[0]);
     gl.uniform1i(blurUniforms.texture, 0);
     gl.uniform2f(blurUniforms.direction, 0.0, 1.0); // Vertical
 
@@ -296,7 +295,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     // Reset framebuffer
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    return blurTextures[1];
+    return processTextures[1];
   }
 
   function render(frame: VideoFrame, mask: MPMask) {
@@ -326,6 +325,9 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       backgroundTexture = applyBlur(frameTexture, width, height);
     }
 
+    // Get the mask texture
+    const maskTexture = mask.getAsWebGLTexture();
+
     // Render the final composite
     gl.viewport(0, 0, width, height);
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
@@ -347,7 +349,6 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.uniform1i(frameTextureLocation, 1);
 
     // Set mask texture
-    const maskTexture = mask.getAsWebGLTexture();
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, maskTexture);
     gl.uniform1i(maskTextureLocation, 2);
@@ -431,9 +432,6 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     setBackgroundImage(null);
   }
 
-  /**
-   * Cleans up all WebGL resources to prevent memory leaks
-   */
   function cleanup() {
     // Clean up shader programs
     if (compositeProgram) {
@@ -453,13 +451,13 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       gl.deleteTexture(frameTexture);
     }
 
-    // Clean up blur textures
-    for (const texture of blurTextures) {
+    // Clean up process textures
+    for (const texture of processTextures) {
       gl.deleteTexture(texture);
     }
 
     // Clean up framebuffers
-    for (const framebuffer of blurFramebuffers) {
+    for (const framebuffer of processFramebuffers) {
       gl.deleteFramebuffer(framebuffer);
     }
 
@@ -475,8 +473,8 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     }
 
     // Clear arrays
-    blurTextures = [];
-    blurFramebuffers = [];
+    processTextures = [];
+    processFramebuffers = [];
   }
 
   return { render, setBackgroundImage, setBlurRadius, cleanup };
