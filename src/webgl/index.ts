@@ -257,7 +257,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   let customBackgroundImage: ImageBitmap | null = null;
 
   function applyBlur(sourceTexture: WebGLTexture, width: number, height: number) {
-    if (!blurRadius || !blurProgram || !blurUniforms) return sourceTexture;
+    if (!blurRadius || !blurProgram || !blurUniforms) return bgTexture;
 
     gl.useProgram(blurProgram);
 
@@ -351,8 +351,9 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, maskTexture);
     gl.uniform1i(maskTextureLocation, 2);
-
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    mask.close();
   }
 
   /**
@@ -419,6 +420,16 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
         gl.bindTexture(gl.TEXTURE_2D, bgTexture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
       }
+    } else {
+      // set the background texture to an empty 2x2 image
+      const emptyImage = new ImageData(2, 2);
+      emptyImage.data[0] = 0;
+      emptyImage.data[1] = 0;
+      emptyImage.data[2] = 0;
+      emptyImage.data[3] = 0;
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, emptyImage);
     }
   }
 
@@ -427,5 +438,53 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     setBackgroundImage(null);
   }
 
-  return { render, setBackgroundImage, setBlurRadius };
+  /**
+   * Cleans up all WebGL resources to prevent memory leaks
+   */
+  function cleanup() {
+    // Clean up shader programs
+    if (compositeProgram) {
+      gl.deleteProgram(compositeProgram);
+    }
+
+    if (blurProgram) {
+      gl.deleteProgram(blurProgram);
+    }
+
+    // Clean up textures
+    if (bgTexture) {
+      gl.deleteTexture(bgTexture);
+    }
+
+    if (frameTexture) {
+      gl.deleteTexture(frameTexture);
+    }
+
+    // Clean up blur textures
+    for (const texture of blurTextures) {
+      gl.deleteTexture(texture);
+    }
+
+    // Clean up framebuffers
+    for (const framebuffer of blurFramebuffers) {
+      gl.deleteFramebuffer(framebuffer);
+    }
+
+    // Clean up vertex buffer
+    if (vertexBuffer) {
+      gl.deleteBuffer(vertexBuffer);
+    }
+
+    // Release any ImageBitmap resources
+    if (customBackgroundImage) {
+      customBackgroundImage.close();
+      customBackgroundImage = null;
+    }
+
+    // Clear arrays
+    blurTextures = [];
+    blurFramebuffers = [];
+  }
+
+  return { render, setBackgroundImage, setBlurRadius, cleanup };
 };

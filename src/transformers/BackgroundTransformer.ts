@@ -57,6 +57,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.options.assetPaths?.modelAssetPath ??
           'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
         delegate: 'GPU',
+        ...this.options.segmenterOptions,
       },
       canvas: this.canvas,
       runningMode: 'VIDEO',
@@ -78,6 +79,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   async destroy() {
     await super.destroy();
     await this.imageSegmenter?.close();
+    this.gl?.cleanup();
     this.backgroundImage = null;
   }
 
@@ -134,19 +136,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         }
         frame.close();
       });
-
-      // if (this.blurRadius) {
-      //   await this.drawFrame(frame);
-      // } else {
-      //   await this.drawFrame(frame);
-      // }
-      // const newFrame = new VideoFrame(this.canvas, {
-      //   timestamp: frame.timestamp || Date.now(),
-      // });
-
-      // controller.enqueue(newFrame);
-    } finally {
-      // frame?.close();
+    } catch (e) {
+      console.error('Error while processing frame: ', e);
+      frame?.close();
     }
   }
 
@@ -167,90 +159,4 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.gl.render(frame, mask);
     }
   }
-
-  //   async drawVirtualBackground(frame: VideoFrame) {
-  //     if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
-  //     // this.ctx.save();
-  //     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-  //     if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
-  //       this.ctx.globalCompositeOperation = 'copy';
-
-  //       this.ctx.putImageData(
-  //         maskToImageData(
-  //           this.segmentationResults.categoryMask,
-  //           this.segmentationResults.categoryMask.width,
-  //           this.segmentationResults.categoryMask.height,
-  //         ),
-  //         0,
-  //         0,
-  //       );
-  //       this.ctx.filter = 'none';
-  //       this.ctx.globalCompositeOperation = 'source-in';
-  //       if (this.backgroundImage) {
-  //         this.ctx.drawImage(
-  //           this.backgroundImage,
-  //           0,
-  //           0,
-  //           this.backgroundImage.width,
-  //           this.backgroundImage.height,
-  //           0,
-  //           0,
-  //           this.canvas.width,
-  //           this.canvas.height,
-  //         );
-  //       } else {
-  //         this.ctx.fillStyle = '#00FF00';
-  //         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-  //       }
-
-  //       this.ctx.globalCompositeOperation = 'destination-over';
-  //     }
-  //     this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-  //   }
-
-  //   async blurBackground(frame: VideoFrame) {
-  //     if (
-  //       !this.ctx ||
-  //       !this.canvas ||
-  //       !this.segmentationResults?.categoryMask?.canvas ||
-  //       !this.inputVideo
-  //     ) {
-  //       return;
-  //     }
-
-  //     this.ctx.save();
-  //     this.ctx.globalCompositeOperation = 'copy';
-
-  //     if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
-  //       this.ctx.putImageData(
-  //         maskToImageData(
-  //           this.segmentationResults.categoryMask,
-  //           this.segmentationResults.categoryMask.width,
-  //           this.segmentationResults.categoryMask.height,
-  //         ),
-  //         0,
-  //         0,
-  //       );
-  //       this.ctx.filter = 'none';
-  //       this.ctx.globalCompositeOperation = 'source-out';
-  //       this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-  //       this.ctx.globalCompositeOperation = 'destination-over';
-  //       this.ctx.filter = `blur(${this.blurRadius}px)`;
-  //       this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-  //       this.ctx.restore();
-  //     }
-  //   }
 }
-
-// function maskToImageData(mask: vision.MPMask, videoWidth: number, videoHeight: number): ImageData {
-//   const dataArray: Uint8ClampedArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
-//   const result = mask.getAsUint8Array();
-//   for (let i = 0; i < result.length; i += 1) {
-//     const offset = i * 4;
-//     dataArray[offset] = result[i];
-//     dataArray[offset + 1] = result[i];
-//     dataArray[offset + 2] = result[i];
-//     dataArray[offset + 3] = result[i];
-//   }
-//   return new ImageData(dataArray, videoWidth, videoHeight);
-// }
