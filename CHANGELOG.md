@@ -1,5 +1,17 @@
 # @livekit/track-processors
 
+## 0.5.0
+
+### Minor Changes
+
+- Add captureStream fallback for other browsers - [#65](https://github.com/livekit/track-processors-js/pull/65) ([@lukasIO](https://github.com/lukasIO))
+
+- Use webGL for video processors - [#64](https://github.com/livekit/track-processors-js/pull/64) ([@lukasIO](https://github.com/lukasIO))
+
+### Patch Changes
+
+- Expose frame processing stats via optional callback - [#63](https://github.com/livekit/track-processors-js/pull/63) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.4.1
 
 ### Patch Changes
