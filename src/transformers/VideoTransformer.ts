@@ -40,7 +40,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   async restart({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
     this.canvas = outputCanvas || null;
-    // this.gl?.cleanup();
+    this.gl?.cleanup();
     this.gl = setupWebGL(
       this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
     );
@@ -52,7 +52,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
   async destroy() {
     this.isDisabled = true;
     this.canvas = undefined;
-    // this.gl?.cleanup();
+    this.gl?.cleanup();
     this.gl = undefined;
   }
 
