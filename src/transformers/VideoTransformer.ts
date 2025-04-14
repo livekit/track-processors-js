@@ -1,4 +1,4 @@
-import { createBlurPipeline } from '../utils';
+import { setupWebGL } from '../webgl/index';
 import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
 export default abstract class VideoTransformer<Options extends Record<string, unknown>>
@@ -12,7 +12,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   inputVideo?: HTMLVideoElement;
 
-  gl?: ReturnType<typeof createBlurPipeline>;
+  gl?: ReturnType<typeof setupWebGL>;
 
   protected isDisabled?: Boolean = false;
 
@@ -30,7 +30,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.canvas = outputCanvas || null;
     if (outputCanvas) {
       // this.ctx = this.canvas?.getContext('2d') || undefined;
-      this.gl = createBlurPipeline(
+      this.gl = setupWebGL(
         this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
       );
     }
@@ -40,9 +40,8 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   async restart({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
     this.canvas = outputCanvas || null;
-    this.gl?.cleanup();
-    // this.ctx = this.canvas.getContext('2d') || undefined;
-    this.gl = createBlurPipeline(
+    // this.gl?.cleanup();
+    this.gl = setupWebGL(
       this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
     );
 
@@ -53,7 +52,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
   async destroy() {
     this.isDisabled = true;
     this.canvas = undefined;
-    this.gl?.cleanup();
+    // this.gl?.cleanup();
     this.gl = undefined;
   }
 

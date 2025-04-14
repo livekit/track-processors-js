@@ -57,8 +57,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.options.assetPaths?.modelAssetPath ??
           'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
         delegate: 'GPU',
-        ...this.options.segmenterOptions,
       },
+      canvas: this.canvas,
       runningMode: 'VIDEO',
       outputCategoryMask: true,
       outputConfidenceMasks: false,
@@ -93,10 +93,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
     try {
-      if (!(frame instanceof VideoFrame)) {
+      if (!(frame instanceof VideoFrame) || frame.codedWidth === 0 || frame.codedHeight === 0) {
         console.debug('empty frame detected, ignoring');
         return;
       }
+
       if (this.isDisabled) {
         controller.enqueue(frame);
         return;
@@ -104,34 +105,45 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       if (!this.canvas) {
         throw TypeError('Canvas needs to be initialized first');
       }
+      this.canvas.width = frame.displayWidth;
+      this.canvas.height = frame.displayHeight;
       let startTimeMs = performance.now();
 
-      this.imageSegmenter?.segmentForVideo(
-        this.inputVideo!,
-        startTimeMs,
-        (result) => (this.segmentationResults = result),
-      );
-      const segmentationTimeMs = performance.now() - startTimeMs;
+      this.imageSegmenter?.segmentForVideo(frame, startTimeMs, (result) => {
+        const segmentationTimeMs = performance.now() - startTimeMs;
+        this.segmentationResults = result;
+        this.drawFrame(frame);
+        if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+          const newFrame = new VideoFrame(this.canvas, {
+            timestamp: frame.timestamp || Date.now(),
+          });
+          const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
+          const stats: FrameProcessingStats = {
+            processingTimeMs: performance.now() - startTimeMs,
+            segmentationTimeMs,
+            filterTimeMs,
+          };
+          this.options.onFrameProcessed?.(stats);
 
-      if (this.blurRadius) {
-        await this.drawFrame(frame);
-      } else {
-        await this.drawFrame(frame);
-      }
-      const newFrame = new VideoFrame(this.canvas, {
-        timestamp: frame.timestamp || Date.now(),
+          controller.enqueue(newFrame);
+        } else {
+          controller.enqueue(frame);
+        }
+        frame.close();
       });
-      const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
 
-      controller.enqueue(newFrame);
-      const stats: FrameProcessingStats = {
-        processingTimeMs: performance.now() - startTimeMs,
-        segmentationTimeMs,
-        filterTimeMs,
-      };
-      this.options.onFrameProcessed?.(stats);
+      // if (this.blurRadius) {
+      //   await this.drawFrame(frame);
+      // } else {
+      //   await this.drawFrame(frame);
+      // }
+      // const newFrame = new VideoFrame(this.canvas, {
+      //   timestamp: frame.timestamp || Date.now(),
+      // });
+
+      // controller.enqueue(newFrame);
     } finally {
-      frame?.close();
+      // frame?.close();
     }
   }
 
@@ -146,7 +158,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   async drawFrame(frame: VideoFrame) {
     if (!this.canvas || !this.gl || !this.segmentationResults || !this.inputVideo) return;
-    this.gl.render(frame, 10, this.segmentationResults.categoryMask?.getAsWebGLTexture());
+
+    const mask = this.segmentationResults.categoryMask;
+    if (mask) {
+      this.gl.render(frame, mask);
+    }
   }
 
   //   async drawVirtualBackground(frame: VideoFrame) {

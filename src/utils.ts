@@ -1,3 +1,5 @@
+import { MPMask } from '@mediapipe/tasks-vision';
+
 /* eslint-disable @typescript-eslint/naming-convention */
 export const supportsProcessor = typeof MediaStreamTrackGenerator !== 'undefined';
 export const supportsOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
@@ -130,7 +132,7 @@ export function initWebGL(canvas: OffscreenCanvas): WebGLRenderer {
 }
 
 type BlurPipeline = {
-  render: (frame: VideoFrame, radius: number, mask?: TexImageSource) => void;
+  render: (frame: VideoFrame, radius: number, mask: MPMask) => void;
   cleanup: () => void;
 };
 
@@ -189,8 +191,8 @@ export function createBlurPipeline(canvas: OffscreenCanvas): BlurPipeline {
   void main() {
     vec4 orig = texture2D(u_original, v_texCoord);
     vec4 blur = texture2D(u_blurred, v_texCoord);
-    float mask = texture2D(u_mask, v_texCoord).r;
-    gl_FragColor = mix(blur, orig, mask);
+    vec4 mask = texture2D(u_mask, v_texCoord);
+    gl_FragColor = vec4(mask.r * 10.0, mask.g * 10.0, mask.b * 10.0, orig.a);
   }
 `;
 
@@ -270,83 +272,112 @@ export function createBlurPipeline(canvas: OffscreenCanvas): BlurPipeline {
     null,
   );
 
+  // const maskTexture = gl.createTexture()!;
+  // gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+  // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
   const blurFBO = gl.createFramebuffer()!;
   gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, blurTexture, 0);
 
-  const maskTex = gl.createTexture()!;
-  gl.bindTexture(gl.TEXTURE_2D, maskTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
   // === Render Function ===
-  function render(frame: VideoFrame, radius: number, mask?: TexImageSource) {
-    canvas.width = frame.displayWidth;
-    canvas.height = frame.displayHeight;
+  function render(frame: VideoFrame, radius: number, mask: MPMask) {
+    if (!mask.canvas) {
+      console.warn('MPMask does not have a canvas, skipping render');
+      return;
+    }
 
-    const texW = canvas.width;
-    const texH = canvas.height;
+    const maskContext = mask.canvas.getContext('webgl') as WebGLRenderingContext | null;
+    if (!maskContext) {
+      console.warn('MPMask canvas does not have WebGL context, skipping render');
+      return;
+    }
 
-    gl.viewport(0, 0, texW, texH);
+    // Bind the framebuffer for horizontal blur
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
-    // Upload frame to texture
+    // Use the blur program for horizontal pass
+    gl.useProgram(program);
+
+    // Set up vertex attributes
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(texCoordLoc);
+    gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 16, 8);
+
+    // Set uniforms for horizontal blur
+    gl.uniform1i(u_texture, 0);
+    gl.uniform2f(u_texelSize, 1.0 / canvas.width, 1.0 / canvas.height);
+    gl.uniform2f(u_direction, 1.0, 0.0);
+    gl.uniform1f(u_radius, radius);
+    gl.uniform1f(u_flipY, 1.0);
+
+    // Bind and upload the frame to texture
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
 
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-    gl.enableVertexAttribArray(positionLoc);
-    gl.enableVertexAttribArray(texCoordLoc);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 16, 8);
+    // Draw horizontal blur
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    // === Pass 1: Horizontal Blur ===
+    // Bind the framebuffer for vertical blur
     gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(u_texture, 0);
-    gl.uniform2f(u_texelSize, 1 / texW, 1 / texH);
-    gl.uniform2f(u_direction, 1.0, 0.0); // horizontal
-    gl.uniform1f(u_radius, radius);
-    gl.uniform1f(u_flipY, 0.0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    // === Pass 2: Vertical Blur ===
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.bindTexture(gl.TEXTURE_2D, blurTexture);
-    gl.uniform2f(u_direction, 0.0, 1.0); // vertical
-    gl.uniform1f(u_flipY, 1.0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // Set uniforms for vertical blur
+    gl.uniform2f(u_direction, 0.0, 1.0);
 
-    // === Composite ===
-    gl.bindTexture(gl.TEXTURE_2D, maskTex);
-    if (mask) {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, mask);
-    }
-    // === Final Pass: Composite original + blurred using mask ===
-    gl.useProgram(compositeProgram);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 16, 8);
-
-    // Bind original texture
+    // Bind the horizontally blurred texture
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Draw vertical blur
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // Now use the composite program to blend with mask
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(compositeProgram);
+
+    // Set up vertex attributes for composite
+    gl.enableVertexAttribArray(gl.getAttribLocation(compositeProgram, 'a_position'));
+    gl.vertexAttribPointer(
+      gl.getAttribLocation(compositeProgram, 'a_position'),
+      2,
+      gl.FLOAT,
+      false,
+      16,
+      0,
+    );
+    gl.enableVertexAttribArray(gl.getAttribLocation(compositeProgram, 'a_texCoord'));
+    gl.vertexAttribPointer(
+      gl.getAttribLocation(compositeProgram, 'a_texCoord'),
+      2,
+      gl.FLOAT,
+      false,
+      16,
+      8,
+    );
+
+    // Set uniforms for composite
     gl.uniform1i(gl.getUniformLocation(compositeProgram, 'u_original'), 0);
-
-    // Bind blurred texture
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurTexture);
     gl.uniform1i(gl.getUniformLocation(compositeProgram, 'u_blurred'), 1);
-
-    // Bind mask texture
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, maskTex);
     gl.uniform1i(gl.getUniformLocation(compositeProgram, 'u_mask'), 2);
 
+    // Bind textures
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, blurTexture);
+    gl.activeTexture(gl.TEXTURE2);
+    // The mask texture is already bound to mask.canvas, so we can use it directly
+    const maskTexture = maskContext.getParameter(maskContext.TEXTURE_BINDING_2D);
+    gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+
+    // Draw final composite
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
