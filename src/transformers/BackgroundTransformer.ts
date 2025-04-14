@@ -33,8 +33,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   backgroundImage: ImageBitmap | null = null;
 
-  blurRadius?: number;
-
   options: BackgroundOptions;
 
   constructor(opts: BackgroundOptions) {
@@ -44,6 +42,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
+    // Initialize WebGL with appropriate options based on our current state
+
     await super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
@@ -59,6 +59,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         delegate: 'GPU',
         ...this.options.segmenterOptions,
       },
+      canvas: this.canvas,
       runningMode: 'VIDEO',
       outputCategoryMask: true,
       outputConfidenceMasks: false,
@@ -69,6 +70,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       await this.loadBackground(this.options.imagePath).catch((err) =>
         console.error('Error while loading processor background image: ', err),
       );
+    }
+    if (this.options.blurRadius) {
+      this.gl?.setBlurRadius(this.options.blurRadius);
     }
   }
 
@@ -88,15 +92,16 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       img.src = path;
     });
     const imageData = await createImageBitmap(img);
-    this.backgroundImage = imageData;
+    this.gl?.setBackgroundImage(imageData);
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
     try {
-      if (!(frame instanceof VideoFrame)) {
+      if (!(frame instanceof VideoFrame) || frame.codedWidth === 0 || frame.codedHeight === 0) {
         console.debug('empty frame detected, ignoring');
         return;
       }
+
       if (this.isDisabled) {
         controller.enqueue(frame);
         return;
@@ -104,129 +109,53 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       if (!this.canvas) {
         throw TypeError('Canvas needs to be initialized first');
       }
+      this.canvas.width = frame.displayWidth;
+      this.canvas.height = frame.displayHeight;
       let startTimeMs = performance.now();
 
-      this.imageSegmenter?.segmentForVideo(
-        this.inputVideo!,
-        startTimeMs,
-        (result) => (this.segmentationResults = result),
-      );
-      const segmentationTimeMs = performance.now() - startTimeMs;
+      this.imageSegmenter?.segmentForVideo(frame, startTimeMs, (result) => {
+        const segmentationTimeMs = performance.now() - startTimeMs;
+        this.segmentationResults = result;
+        this.drawFrame(frame);
+        if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+          const newFrame = new VideoFrame(this.canvas, {
+            timestamp: frame.timestamp || Date.now(),
+          });
+          const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
+          const stats: FrameProcessingStats = {
+            processingTimeMs: performance.now() - startTimeMs,
+            segmentationTimeMs,
+            filterTimeMs,
+          };
+          this.options.onFrameProcessed?.(stats);
 
-      if (this.blurRadius) {
-        await this.blurBackground(frame);
-      } else {
-        await this.drawVirtualBackground(frame);
-      }
-      const newFrame = new VideoFrame(this.canvas, {
-        timestamp: frame.timestamp || Date.now(),
+          controller.enqueue(newFrame);
+        } else {
+          controller.enqueue(frame);
+        }
+        frame.close();
       });
-      const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
-
-      controller.enqueue(newFrame);
-      const stats: FrameProcessingStats = {
-        processingTimeMs: performance.now() - startTimeMs,
-        segmentationTimeMs,
-        filterTimeMs,
-      };
-      this.options.onFrameProcessed?.(stats);
-    } finally {
+    } catch (e) {
+      console.error('Error while processing frame: ', e);
       frame?.close();
     }
   }
 
   async update(opts: BackgroundOptions) {
-    this.options = opts;
+    this.options = { ...this.options, ...opts };
     if (opts.blurRadius) {
-      this.blurRadius = opts.blurRadius;
+      this.gl?.setBlurRadius(opts.blurRadius);
     } else if (opts.imagePath) {
       await this.loadBackground(opts.imagePath);
     }
   }
 
-  async drawVirtualBackground(frame: VideoFrame) {
-    if (!this.canvas || !this.ctx || !this.segmentationResults || !this.inputVideo) return;
-    // this.ctx.save();
-    // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
-      this.ctx.globalCompositeOperation = 'copy';
+  async drawFrame(frame: VideoFrame) {
+    if (!this.canvas || !this.gl || !this.segmentationResults || !this.inputVideo) return;
 
-      this.ctx.putImageData(
-        maskToImageData(
-          this.segmentationResults.categoryMask,
-          this.segmentationResults.categoryMask.width,
-          this.segmentationResults.categoryMask.height,
-        ),
-        0,
-        0,
-      );
-      this.ctx.filter = 'none';
-      this.ctx.globalCompositeOperation = 'source-in';
-      if (this.backgroundImage) {
-        this.ctx.drawImage(
-          this.backgroundImage,
-          0,
-          0,
-          this.backgroundImage.width,
-          this.backgroundImage.height,
-          0,
-          0,
-          this.canvas.width,
-          this.canvas.height,
-        );
-      } else {
-        this.ctx.fillStyle = '#00FF00';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      }
-
-      this.ctx.globalCompositeOperation = 'destination-over';
-    }
-    this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  async blurBackground(frame: VideoFrame) {
-    if (
-      !this.ctx ||
-      !this.canvas ||
-      !this.segmentationResults?.categoryMask?.canvas ||
-      !this.inputVideo
-    ) {
-      return;
-    }
-
-    this.ctx.save();
-    this.ctx.globalCompositeOperation = 'copy';
-
-    if (this.segmentationResults?.categoryMask && this.segmentationResults.categoryMask.width > 0) {
-      this.ctx.putImageData(
-        maskToImageData(
-          this.segmentationResults.categoryMask,
-          this.segmentationResults.categoryMask.width,
-          this.segmentationResults.categoryMask.height,
-        ),
-        0,
-        0,
-      );
-      this.ctx.filter = 'none';
-      this.ctx.globalCompositeOperation = 'source-out';
-      this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.globalCompositeOperation = 'destination-over';
-      this.ctx.filter = `blur(${this.blurRadius}px)`;
-      this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.restore();
+    const mask = this.segmentationResults.categoryMask;
+    if (mask) {
+      this.gl.render(frame, mask);
     }
   }
-}
-
-function maskToImageData(mask: vision.MPMask, videoWidth: number, videoHeight: number): ImageData {
-  const dataArray: Uint8ClampedArray = new Uint8ClampedArray(videoWidth * videoHeight * 4);
-  const result = mask.getAsUint8Array();
-  for (let i = 0; i < result.length; i += 1) {
-    const offset = i * 4;
-    dataArray[offset] = result[i];
-    dataArray[offset + 1] = result[i];
-    dataArray[offset + 2] = result[i];
-    dataArray[offset + 3] = result[i];
-  }
-  return new ImageData(dataArray, videoWidth, videoHeight);
 }
