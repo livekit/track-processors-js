@@ -433,46 +433,23 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }
 
   function cleanup() {
-    // Clean up shader programs
-    if (compositeProgram) {
-      gl.deleteProgram(compositeProgram);
-    }
-
-    if (blurProgram) {
-      gl.deleteProgram(blurProgram);
-    }
-
-    // Clean up textures
-    if (bgTexture) {
-      gl.deleteTexture(bgTexture);
-    }
-
-    if (frameTexture) {
-      gl.deleteTexture(frameTexture);
-    }
-
-    // Clean up process textures
+    gl.deleteProgram(compositeProgram);
+    gl.deleteProgram(blurProgram);
+    gl.deleteTexture(bgTexture);
+    gl.deleteTexture(frameTexture);
     for (const texture of processTextures) {
       gl.deleteTexture(texture);
     }
-
-    // Clean up framebuffers
     for (const framebuffer of processFramebuffers) {
       gl.deleteFramebuffer(framebuffer);
     }
-
-    // Clean up vertex buffer
-    if (vertexBuffer) {
-      gl.deleteBuffer(vertexBuffer);
-    }
+    gl.deleteBuffer(vertexBuffer);
 
     // Release any ImageBitmap resources
     if (customBackgroundImage) {
       customBackgroundImage.close();
       customBackgroundImage = null;
     }
-
-    // Clear arrays
     processTextures = [];
     processFramebuffers = [];
   }
