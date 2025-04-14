@@ -24,7 +24,8 @@ export type BackgroundOptions = {
 
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
-    return typeof OffscreenCanvas !== 'undefined';
+    // We need OffscreenCanvas support for both implementation paths
+    return typeof OffscreenCanvas !== 'undefined' && typeof VideoFrame !== 'undefined';
   }
 
   imageSegmenter?: vision.ImageSegmenter;
