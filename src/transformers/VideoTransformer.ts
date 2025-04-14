@@ -32,7 +32,6 @@ export default abstract class VideoTransformer<Options extends Record<string, un
       // this.ctx = this.canvas?.getContext('2d') || undefined;
       this.gl = setupWebGL(
         this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
-        { enableBlur: true },
       );
     }
     this.inputVideo = inputVideo;
@@ -44,7 +43,6 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     // this.gl?.cleanup();
     this.gl = setupWebGL(
       this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
-      { enableBlur: true },
     );
 
     this.inputVideo = inputVideo;

@@ -70,6 +70,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         console.error('Error while loading processor background image: ', err),
       );
     }
+    if (this.options.blurRadius) {
+      this.gl?.setBlurRadius(this.options.blurRadius);
+    }
   }
 
   async destroy() {
@@ -148,7 +151,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async update(opts: BackgroundOptions) {
-    this.options = opts;
+    this.options = { ...this.options, ...opts };
     if (opts.blurRadius) {
       this.gl?.setBlurRadius(opts.blurRadius);
     } else if (opts.imagePath) {

@@ -30,11 +30,7 @@ const blurFragmentShader = `
   }
 `;
 
-interface ShaderProgramOptions {
-  enableBlur?: boolean;
-}
-
-const createShaderProgram = (gl: WebGL2RenderingContext, options: ShaderProgramOptions = {}) => {
+const createShaderProgram = (gl: WebGL2RenderingContext) => {
   const vs = `
       attribute vec2 position;
       varying vec2 texCoords;
@@ -95,52 +91,49 @@ const createShaderProgram = (gl: WebGL2RenderingContext, options: ShaderProgramO
   let blurFrag = null;
   let blurUniforms = null;
 
-  if (options.enableBlur) {
-    // Create blur shader if enabled
-    blurFrag = gl.createShader(gl.FRAGMENT_SHADER);
-    if (!blurFrag) {
-      throw Error('can not create blur shader');
-    }
-    gl.shaderSource(blurFrag, blurFragmentShader);
-    gl.compileShader(blurFrag);
-
-    // Get compile status and log errors if any
-    if (!gl.getShaderParameter(blurFrag, gl.COMPILE_STATUS)) {
-      const info = gl.getShaderInfoLog(blurFrag);
-      throw Error(`Failed to compile blur shader: ${info}`);
-    }
-
-    // Create blur program
-    blurVertexShader = gl.createShader(gl.VERTEX_SHADER);
-    if (!blurVertexShader) {
-      throw Error('can not create blur vertex shader');
-    }
-    gl.shaderSource(blurVertexShader, vs);
-    gl.compileShader(blurVertexShader);
-
-    blurProgram = gl.createProgram();
-    if (!blurProgram) {
-      throw Error('can not create blur program');
-    }
-    gl.attachShader(blurProgram, blurVertexShader);
-    gl.attachShader(blurProgram, blurFrag);
-    gl.linkProgram(blurProgram);
-
-    // Check blur program link status
-    if (!gl.getProgramParameter(blurProgram, gl.LINK_STATUS)) {
-      const info = gl.getProgramInfoLog(blurProgram);
-      throw Error(`Failed to link blur program: ${info}`);
-    }
-
-    gl.useProgram(blurProgram);
-    blurUniforms = {
-      position: gl.getAttribLocation(blurProgram, 'position'),
-      texture: gl.getUniformLocation(blurProgram, 'u_texture'),
-      texelSize: gl.getUniformLocation(blurProgram, 'u_texelSize'),
-      direction: gl.getUniformLocation(blurProgram, 'u_direction'),
-      radius: gl.getUniformLocation(blurProgram, 'u_radius'),
-    };
+  // Create blur shader if enabled
+  blurFrag = gl.createShader(gl.FRAGMENT_SHADER);
+  if (!blurFrag) {
+    throw Error('can not create blur shader');
   }
+  gl.shaderSource(blurFrag, blurFragmentShader);
+  gl.compileShader(blurFrag);
+
+  // Get compile status and log errors if any
+  if (!gl.getShaderParameter(blurFrag, gl.COMPILE_STATUS)) {
+    const info = gl.getShaderInfoLog(blurFrag);
+    throw Error(`Failed to compile blur shader: ${info}`);
+  }
+
+  // Create blur program
+  blurVertexShader = gl.createShader(gl.VERTEX_SHADER);
+  if (!blurVertexShader) {
+    throw Error('can not create blur vertex shader');
+  }
+  gl.shaderSource(blurVertexShader, vs);
+  gl.compileShader(blurVertexShader);
+
+  blurProgram = gl.createProgram();
+  if (!blurProgram) {
+    throw Error('can not create blur program');
+  }
+  gl.attachShader(blurProgram, blurVertexShader);
+  gl.attachShader(blurProgram, blurFrag);
+  gl.linkProgram(blurProgram);
+
+  // Check blur program link status
+  if (!gl.getProgramParameter(blurProgram, gl.LINK_STATUS)) {
+    const info = gl.getProgramInfoLog(blurProgram);
+    throw Error(`Failed to link blur program: ${info}`);
+  }
+
+  blurUniforms = {
+    position: gl.getAttribLocation(blurProgram, 'position'),
+    texture: gl.getUniformLocation(blurProgram, 'u_texture'),
+    texelSize: gl.getUniformLocation(blurProgram, 'u_texelSize'),
+    direction: gl.getUniformLocation(blurProgram, 'u_direction'),
+    radius: gl.getUniformLocation(blurProgram, 'u_radius'),
+  };
 
   return {
     vertexShader,
@@ -214,13 +207,10 @@ const createVertexBuffer = (gl: WebGL2RenderingContext) => {
   return vertexBuffer;
 };
 
-export interface WebGLSetupOptions {
-  enableBlur?: boolean;
-  blurRadius?: number;
-}
-
-export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions = {}) => {
+export const setupWebGL = (canvas: OffscreenCanvas) => {
   const gl = canvas.getContext('webgl2', { premultipliedAlpha: false }) as WebGL2RenderingContext;
+
+  let blurRadius: number | null = null;
 
   if (!gl) {
     return undefined;
@@ -228,9 +218,6 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
 
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-  const enableBlur = options.enableBlur ?? false;
-  let blurRadius = options.blurRadius ?? 10.0;
 
   const {
     compositeProgram,
@@ -242,7 +229,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
       background: bgTextureLocation,
     },
     blurUniforms,
-  } = createShaderProgram(gl, { enableBlur });
+  } = createShaderProgram(gl);
 
   const bgTexture = initTexture(gl, 0);
   const frameTexture = initTexture(gl, 1);
@@ -252,15 +239,13 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
   let blurTextures: WebGLTexture[] = [];
   let blurFramebuffers: WebGLFramebuffer[] = [];
 
-  if (enableBlur) {
-    // Create two textures for blur passes (horizontal and vertical)
-    blurTextures.push(initTexture(gl, 3));
-    blurTextures.push(initTexture(gl, 4));
+  // Create two textures for blur passes (horizontal and vertical)
+  blurTextures.push(initTexture(gl, 3));
+  blurTextures.push(initTexture(gl, 4));
 
-    // Create framebuffers for blur passes
-    blurFramebuffers.push(createFramebuffer(gl, blurTextures[0], canvas.width, canvas.height));
-    blurFramebuffers.push(createFramebuffer(gl, blurTextures[1], canvas.width, canvas.height));
-  }
+  // Create framebuffers for blur passes
+  blurFramebuffers.push(createFramebuffer(gl, blurTextures[0], canvas.width, canvas.height));
+  blurFramebuffers.push(createFramebuffer(gl, blurTextures[1], canvas.width, canvas.height));
 
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
@@ -272,7 +257,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
   let customBackgroundImage: ImageBitmap | null = null;
 
   function applyBlur(sourceTexture: WebGLTexture, width: number, height: number) {
-    if (!enableBlur || !blurProgram || !blurUniforms) return sourceTexture;
+    if (!blurRadius || !blurProgram || !blurUniforms) return sourceTexture;
 
     gl.useProgram(blurProgram);
 
@@ -336,7 +321,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
       gl.bindTexture(gl.TEXTURE_2D, bgTexture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
       backgroundTexture = bgTexture;
-    } else if (enableBlur) {
+    } else if (blurRadius) {
       // Otherwise, if blur is enabled, apply blur effect to the frame
       backgroundTexture = applyBlur(frameTexture, width, height);
     }
@@ -437,7 +422,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
     }
   }
 
-  function setBlurRadius(radius: number) {
+  function setBlurRadius(radius: number | null) {
     blurRadius = radius;
     setBackgroundImage(null);
   }
