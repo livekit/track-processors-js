@@ -24,8 +24,12 @@ export type BackgroundOptions = {
 
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
-    // We need OffscreenCanvas support for both implementation paths
-    return typeof OffscreenCanvas !== 'undefined' && typeof VideoFrame !== 'undefined';
+    return (
+      typeof OffscreenCanvas !== 'undefined' &&
+      typeof VideoFrame !== 'undefined' &&
+      typeof createImageBitmap !== 'undefined' &&
+      !!document.createElement('canvas').getContext('webgl2')
+    );
   }
 
   imageSegmenter?: vision.ImageSegmenter;

@@ -18,7 +18,15 @@ This package exposes the `BackgroundBlur` and `VirtualBackground` pre-prepared p
 ### Usage example
 
 ```ts
-import { BackgroundBlur } from '@livekit/track-processors';
+import { BackgroundBlur, supportsBackgroundProcessors, supportsModernBackgroundProcessors } from '@livekit/track-processors';
+
+if(!supportsBackgroundProcessors()) {
+  throw new Error("this browser does not support background processors")
+}
+
+if(supportsModernBackgroundProcessors()) {
+  console.log("this browser supports modern APIs that are more performant");
+}
 
 const videoTrack = await createLocalVideoTrack();
 const blur = BackgroundBlur(10);
