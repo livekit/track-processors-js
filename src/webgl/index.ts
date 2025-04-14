@@ -230,7 +230,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
   const enableBlur = options.enableBlur ?? false;
-  const blurRadius = options.blurRadius ?? 5.0;
+  let blurRadius = options.blurRadius ?? 10.0;
 
   const {
     compositeProgram,
@@ -267,6 +267,9 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
   gl.uniform1i(bgTextureLocation, 0);
   gl.uniform1i(frameTextureLocation, 1);
   gl.uniform1i(maskTextureLocation, 2);
+
+  // Store custom background image
+  let customBackgroundImage: ImageBitmap | null = null;
 
   function applyBlur(sourceTexture: WebGLTexture, width: number, height: number) {
     if (!enableBlur || !blurProgram || !blurUniforms) return sourceTexture;
@@ -324,9 +327,17 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
 
-    // Apply blur if enabled
+    // Apply blur if enabled (and no custom background is set)
     let backgroundTexture = bgTexture;
-    if (enableBlur) {
+
+    // If we have a custom background image, use that
+    if (customBackgroundImage) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
+      backgroundTexture = bgTexture;
+    } else if (enableBlur) {
+      // Otherwise, if blur is enabled, apply blur effect to the frame
       backgroundTexture = applyBlur(frameTexture, width, height);
     }
 
@@ -340,7 +351,7 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLocation);
 
-    // Set background texture (either original or blurred)
+    // Set background texture (either original, blurred or custom)
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, backgroundTexture);
     gl.uniform1i(bgTextureLocation, 0);
@@ -359,5 +370,77 @@ export const setupWebGL = (canvas: OffscreenCanvas, options: WebGLSetupOptions =
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
-  return { render };
+  /**
+   * Set or update the background image
+   * @param image The background image to use, or null to clear
+   */
+  async function setBackgroundImage(image: ImageBitmap | null) {
+    // Clear existing background
+    customBackgroundImage = null;
+
+    if (image) {
+      try {
+        // Determine appropriate size to avoid performance issues
+        // Get current canvas dimensions
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        // Only resize if the image is significantly larger than the canvas
+        // A reasonable threshold is 1.5x the canvas size
+        const shouldResize = image.width > canvasWidth * 1.5 || image.height > canvasHeight * 1.5;
+
+        if (shouldResize) {
+          // Calculate new dimensions while maintaining aspect ratio
+          const aspectRatio = image.width / image.height;
+          let newWidth = canvasWidth;
+          let newHeight = canvasHeight;
+
+          if (aspectRatio > 1) {
+            // Landscape orientation
+            newHeight = canvasWidth / aspectRatio;
+          } else {
+            // Portrait or square orientation
+            newWidth = canvasHeight * aspectRatio;
+          }
+
+          // Resize the image using createImageBitmap with resize option
+          const resizedImage = await createImageBitmap(image, {
+            resizeWidth: Math.round(newWidth),
+            resizeHeight: Math.round(newHeight),
+            resizeQuality: 'medium',
+          });
+
+          // Store the resized image
+          customBackgroundImage = resizedImage;
+
+          // Load the resized image into the texture
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, resizedImage);
+        } else {
+          // Use original image if it's already an appropriate size
+          customBackgroundImage = image;
+
+          // Load the image into the texture
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        }
+      } catch (error) {
+        console.error('Error resizing background image:', error);
+        // Fallback to original image on error
+        customBackgroundImage = image;
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      }
+    }
+  }
+
+  function setBlurRadius(radius: number) {
+    blurRadius = radius;
+    setBackgroundImage(null);
+  }
+
+  return { render, setBackgroundImage, setBlurRadius };
 };

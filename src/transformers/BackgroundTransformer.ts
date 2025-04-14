@@ -33,8 +33,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   backgroundImage: ImageBitmap | null = null;
 
-  blurRadius?: number;
-
   options: BackgroundOptions;
 
   constructor(opts: BackgroundOptions) {
@@ -44,6 +42,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
+    // Initialize WebGL with appropriate options based on our current state
+
     await super.init({ outputCanvas, inputElement: inputVideo });
 
     const fileSet = await vision.FilesetResolver.forVisionTasks(
@@ -88,7 +88,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       img.src = path;
     });
     const imageData = await createImageBitmap(img);
-    this.backgroundImage = imageData;
+    this.gl?.setBackgroundImage(imageData);
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
@@ -150,7 +150,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   async update(opts: BackgroundOptions) {
     this.options = opts;
     if (opts.blurRadius) {
-      this.blurRadius = opts.blurRadius;
+      this.gl?.setBlurRadius(opts.blurRadius);
     } else if (opts.imagePath) {
       await this.loadBackground(opts.imagePath);
     }
