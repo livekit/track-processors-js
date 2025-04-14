@@ -13,6 +13,9 @@ export interface ProcessorWrapperOptions {
 export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
   implements TrackProcessor<Track.Kind>
 {
+  /**
+   * Determines if the Processor is supported on the current browser
+   */
   static get isSupported() {
     // Check for primary implementation support
     const hasStreamProcessor =
@@ -29,7 +32,9 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     return hasStreamProcessor || hasFallbackSupport;
   }
 
-  // Method to determine if the modern APIs are supported
+  /**
+   * Determines if modern browser APIs are supported, which yield better performance
+   */
   static get hasModernApiSupport() {
     return (
       typeof MediaStreamTrackGenerator !== 'undefined' &&

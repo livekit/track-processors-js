@@ -15,6 +15,18 @@ export {
   type ProcessorWrapperOptions,
 };
 
+/**
+ * Determines if the current browser supports background processors
+ */
+export const supportsBackgroundProcessors = () =>
+  BackgroundTransformer.isSupported && ProcessorWrapper.isSupported;
+
+/**
+ * Determines if the current browser supports modern background processors, which yield better performance
+ */
+export const supportsModernBackgroundProcessors = () =>
+  BackgroundTransformer.isSupported && ProcessorWrapper.hasModernApiSupport;
+
 export interface BackgroundProcessorOptions extends ProcessorWrapperOptions {
   blurRadius?: number;
   imagePath?: string;
