@@ -246,6 +246,12 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
         return;
       }
 
+      if (this.sourceDummy.paused) {
+        console.warn('Video is paused, trying to play');
+        this.sourceDummy.play();
+        return;
+      }
+
       // Only process a new frame if the video has actually updated
       const videoTime = videoElement.currentTime;
       const now = performance.now();
@@ -304,12 +310,13 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
         try {
           // Create a VideoFrame from the video element
-          const frame = new VideoFrame(videoElement);
-
-          if (this.frameCallback) {
-            this.frameCallback(frame);
-          } else {
-            frame.close();
+          if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            const frame = new VideoFrame(videoElement);
+            if (this.frameCallback) {
+              this.frameCallback(frame);
+            } else {
+              frame.close();
+            }
           }
         } catch (e) {
           console.error('Error in render loop:', e);
