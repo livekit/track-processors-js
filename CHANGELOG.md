@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.1
+
+### Patch Changes
+
+- Adds missing object variable "assetPaths" for configurable asset paths in BackgroundProcessor. - [#68](https://github.com/livekit/track-processors-js/pull/68) ([@jonkad](https://github.com/jonkad))
+
 ## 0.5.0
 
 ### Minor Changes
