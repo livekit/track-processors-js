@@ -31,6 +31,7 @@ export interface BackgroundProcessorOptions extends ProcessorWrapperOptions {
   blurRadius?: number;
   imagePath?: string;
   segmenterOptions?: SegmenterOptions;
+  assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 }
 
@@ -86,10 +87,23 @@ export const BackgroundProcessor = (
   }
 
   // Extract transformer-specific options and processor options
-  const { blurRadius, imagePath, segmenterOptions, onFrameProcessed, ...processorOpts } = options;
+  const {
+    blurRadius,
+    imagePath,
+    segmenterOptions,
+    assetPaths,
+    onFrameProcessed,
+    ...processorOpts
+  } = options;
 
   const processor = new ProcessorWrapper(
-    new BackgroundTransformer({ blurRadius, imagePath, segmenterOptions, onFrameProcessed }),
+    new BackgroundTransformer({
+      blurRadius,
+      imagePath,
+      segmenterOptions,
+      assetPaths,
+      onFrameProcessed,
+    }),
     name,
     processorOpts,
   );
