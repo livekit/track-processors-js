@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.2
+
+### Patch Changes
+
+- Fix device switching on Safari - [#70](https://github.com/livekit/track-processors-js/pull/70) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.1
 
 ### Patch Changes
