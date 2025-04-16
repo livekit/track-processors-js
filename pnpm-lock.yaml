@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@mediapipe/tasks-vision':
-        specifier: ^0.10.22-rc.20250304
-        version: 0.10.22-rc.20250304
+        specifier: 0.10.14
+        version: 0.10.14
       livekit-client:
         specifier: ^1.12.0 || ^2.1.0
         version: 2.11.2
@@ -387,8 +387,8 @@ packages:
   '@mdn/browser-compat-data@5.2.55':
     resolution: {integrity: sha512-V5y5VhgXobwZl817zn+iAlCSTbXIXBMRHbL2WDyjJyMMgcHZoQTk6db1y3ZxBUo/H23MXgTKBo7bQ9S8aEfs2A==}
 
-  '@mediapipe/tasks-vision@0.10.22-rc.20250304':
-    resolution: {integrity: sha512-dElxVXMFGthshfIj+qAVm8KE2jmNo2p8oXFib8WzEjb7GNaX/ClWBc8UJfoSZwjEMVrdHJ4YUfa7P3ifl6MIWw==}
+  '@mediapipe/tasks-vision@0.10.14':
+    resolution: {integrity: sha512-vOifgZhkndgybdvoRITzRkIueWWSiCKuEUXXK6Q4FaJsFvRJuwgg++vqFUMlL0Uox62U5aEXFhHxlhV7Ja5e3Q==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -2486,7 +2486,7 @@ snapshots:
 
   '@mdn/browser-compat-data@5.2.55': {}
 
-  '@mediapipe/tasks-vision@0.10.22-rc.20250304': {}
+  '@mediapipe/tasks-vision@0.10.14': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
