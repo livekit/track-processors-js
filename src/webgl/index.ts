@@ -15,6 +15,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   let blurRadius: number | null = null;
 
   if (!gl) {
+    console.error('Failed to create WebGL context');
     return undefined;
   }
 
@@ -150,7 +151,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
         customBackgroundImage = croppedImage;
       } catch (error) {
         console.error(
-          'Error processing background image, falling bakc to black background:',
+          'Error processing background image, falling back to black background:',
           error,
         );
       }
