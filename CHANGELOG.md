@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.3
+
+### Patch Changes
+
+- Dowgrade mediapipe to 0.10.14 - [#72](https://github.com/livekit/track-processors-js/pull/72) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.2
 
 ### Patch Changes
