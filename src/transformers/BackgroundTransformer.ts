@@ -46,6 +46,10 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.update(opts);
   }
 
+  setStepWidth(stepWidth: number) {
+    this.gl?.setStepWidth(stepWidth);
+  }
+
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
     // Initialize WebGL with appropriate options based on our current state
 

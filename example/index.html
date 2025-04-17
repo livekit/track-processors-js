@@ -159,6 +159,17 @@
                 <option selected>Audio Output (default)</option>
               </select>
             </div>
+            <div>
+              <input
+                type="range"
+                id="step-width"
+                min="0"
+                max="10"
+                value="1"
+                step="0.1"
+                onchange="appActions.setStepWidth(event)"
+              />
+            </div>
           </div>
         </div>
       </div>

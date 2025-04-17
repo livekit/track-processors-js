@@ -1,21 +1,32 @@
+import { glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 // Fragment shader source for compositing
-export const compositeFragmentShader = `
+export const compositeFragmentShader = glsl`#version 300 es
   precision highp float;
-  varying vec2 texCoords;
+  in vec2 texCoords;
   uniform sampler2D background;
   uniform sampler2D frame;
   uniform sampler2D mask;
-  void main() {
-      vec4 maskTex = texture2D(mask, texCoords); 
-      vec4 frameTex = texture2D(frame, texCoords);
-      vec4 bgTex = texture2D(background, texCoords);
-   
+  out vec4 fragColor;
   
-    float a = maskTex.r;
+  void main() {
+      
+    vec4 frameTex = texture(frame, texCoords);
+    vec4 bgTex = texture(background, texCoords);
 
-    gl_FragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - a);
+    float maskVal = texture(mask, texCoords).r;
+
+    // Compute screen-space gradient to detect edge sharpness
+    float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
+    
+    // Create a smooth edge around binary transition
+    float smoothAlpha = smoothstep(0.5 - grad, 0.5 + grad, maskVal);
+
+    // Optional: preserve frame alpha, or override as fully opaque
+    vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), smoothAlpha);
+    
+    fragColor = blended;
   
   }
 `;
@@ -29,7 +40,7 @@ export function createCompositeProgram(gl: WebGL2RenderingContext) {
   if (!vertexShader) {
     throw Error('cannot create vertex shader');
   }
-  gl.shaderSource(vertexShader, vertexShaderSource);
+  gl.shaderSource(vertexShader, vertexShaderSource());
   gl.compileShader(vertexShader);
 
   // Check vertex shader compilation
@@ -76,6 +87,7 @@ export function createCompositeProgram(gl: WebGL2RenderingContext) {
     mask: gl.getUniformLocation(compositeProgram, 'mask')!,
     frame: gl.getUniformLocation(compositeProgram, 'frame')!,
     background: gl.getUniformLocation(compositeProgram, 'background')!,
+    stepWidth: gl.getUniformLocation(compositeProgram, 'u_stepWidth')!,
   };
 
   return {

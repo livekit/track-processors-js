@@ -1,6 +1,6 @@
 import { MPMask } from '@mediapipe/tasks-vision';
-import { applyBlur, createBlurProgram } from './blurShader';
-import { createCompositeProgram } from './compositeShader';
+import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
+import { createCompositeProgram } from './shader-programs/compositeShader';
 import {
   createFramebuffer,
   createVertexBuffer,
@@ -10,9 +10,13 @@ import {
 } from './utils';
 
 export const setupWebGL = (canvas: OffscreenCanvas) => {
-  const gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
+  const gl = canvas.getContext('webgl2', {
+    antialias: true,
+    premultipliedAlpha: true,
+  }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
+  let stepWidth = 1.0;
 
   if (!gl) {
     console.error('Failed to create WebGL context');
@@ -30,6 +34,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     mask: maskTextureLocation,
     frame: frameTextureLocation,
     background: bgTextureLocation,
+    stepWidth: smoothStepWidthLocation,
   } = composite.uniformLocations;
 
   // Create the blur program using the same vertex shader source
@@ -49,13 +54,15 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   let processTextures: WebGLTexture[] = [];
   let processFramebuffers: WebGLFramebuffer[] = [];
 
-  // Create textures for processing (blur)
-  processTextures.push(initTexture(gl, 3));
-  processTextures.push(initTexture(gl, 4));
+  // Create textures for processing (blur and bilateral filter)
+  processTextures.push(initTexture(gl, 3)); // For blur pass 1
+  processTextures.push(initTexture(gl, 4)); // For blur pass 2
+  processTextures.push(initTexture(gl, 5)); // For bilateral filter output
 
   // Create framebuffers for processing
   processFramebuffers.push(createFramebuffer(gl, processTextures[0], canvas.width, canvas.height));
   processFramebuffers.push(createFramebuffer(gl, processTextures[1], canvas.width, canvas.height));
+  processFramebuffers.push(createFramebuffer(gl, processTextures[2], canvas.width, canvas.height));
 
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
@@ -125,7 +132,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.uniform1i(frameTextureLocation, 1);
 
-    // Set mask texture
+    // Set mask texture (either original or filtered)
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, maskTexture);
     gl.uniform1i(maskTextureLocation, 2);
@@ -167,6 +174,10 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     setBackgroundImage(null);
   }
 
+  function setStepWidth(_stepWidth: number) {
+    stepWidth = _stepWidth;
+  }
+
   function cleanup() {
     gl.deleteProgram(compositeProgram);
     gl.deleteProgram(blurProgram);
@@ -191,5 +202,5 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     processFramebuffers = [];
   }
 
-  return { render, setBackgroundImage, setBlurRadius, cleanup };
+  return { render, setBackgroundImage, setBlurRadius, cleanup, setStepWidth };
 };

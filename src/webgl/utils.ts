@@ -105,4 +105,6 @@ emptyImageData.data[1] = 0;
 emptyImageData.data[2] = 0;
 emptyImageData.data[3] = 0;
 
-export { emptyImageData };
+const glsl = (source: any) => source;
+
+export { emptyImageData, glsl };

@@ -96,17 +96,15 @@ export const BackgroundProcessor = (
     ...processorOpts
   } = options;
 
-  const processor = new ProcessorWrapper(
-    new BackgroundTransformer({
-      blurRadius,
-      imagePath,
-      segmenterOptions,
-      assetPaths,
-      onFrameProcessed,
-    }),
-    name,
-    processorOpts,
-  );
+  const transformer = new BackgroundTransformer({
+    blurRadius,
+    imagePath,
+    segmenterOptions,
+    assetPaths,
+    onFrameProcessed,
+  });
 
-  return processor;
+  const processor = new ProcessorWrapper(transformer, name, processorOpts);
+
+  return { processor, setStepWidth: transformer.setStepWidth };
 };

@@ -24,25 +24,25 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundBlur, VirtualBackground } from '../src';
+import { BackgroundProcessor } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(10, { delegate: 'GPU' }, (stats) => {
-    console.log('frame processing stats', stats);
+  blur: BackgroundProcessor({
+    blurRadius: 10,
+    onFrameProcessed: (stats) => {
+      // console.log('frame processing stats', stats);
+    },
   }),
-  virtualBackground: VirtualBackground(
-    '/samantha-gades-BlIhVfXbi9s-unsplash.jpg',
-    {
-      delegate: 'GPU',
+  virtualBackground: BackgroundProcessor({
+    imagePath: '/samantha-gades-BlIhVfXbi9s-unsplash.jpg',
+    onFrameProcessed: (stats) => {
+      // console.log('frame processing stats', stats);
     },
-    (stats) => {
-      console.log('frame processing stats', stats);
-    },
-  ),
+  }),
 };
 let currentRoom: Room | undefined;
 
@@ -258,7 +258,7 @@ const appActions = {
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'background-blur') {
         await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.blur);
+        await camTrack.setProcessor(state.blur.processor);
       } else {
         await camTrack.stopProcessor();
       }
@@ -279,7 +279,7 @@ const appActions = {
         .track as LocalVideoTrack;
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
         await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.virtualBackground);
+        await camTrack.setProcessor(state.virtualBackground.processor);
       } else {
         await camTrack.stopProcessor();
       }
@@ -298,10 +298,10 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      await state.virtualBackground.updateTransformerOptions({ imagePath });
+      await state.virtualBackground.processor.updateTransformerOptions({ imagePath });
       if (camTrack.getProcessor()?.name !== 'virtual-background') {
         await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.virtualBackground);
+        await camTrack.setProcessor(state.virtualBackground.processor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
@@ -310,6 +310,13 @@ const appActions = {
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
     }
+  },
+
+  setStepWidth: (stepWidth: number) => {
+    if (!currentRoom) return;
+
+    state.blur.setStepWidth(stepWidth);
+    state.virtualBackground.setStepWidth(stepWidth);
   },
 
   startAudio: () => {

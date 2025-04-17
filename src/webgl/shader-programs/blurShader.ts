@@ -1,13 +1,15 @@
+import { glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 // Define the blur fragment shader
-export const blurFragmentShader = `
+export const blurFragmentShader = glsl`#version 300 es
   precision highp float;
-  varying vec2 texCoords;
+  in vec2 texCoords;
   uniform sampler2D u_texture;
   uniform vec2 u_texelSize;
   uniform vec2 u_direction;
   uniform float u_radius;
+  out vec4 fragColor;
 
   void main() {
     float sigma = u_radius;
@@ -22,11 +24,11 @@ export const blurFragmentShader = `
       if (abs(offset) > float(radius)) continue;
       float weight = exp(-(offset * offset) / twoSigmaSq);
       vec2 sampleCoord = texCoords + u_direction * u_texelSize * offset;
-      result += texture2D(u_texture, sampleCoord).rgb * weight;
+      result += texture(u_texture, sampleCoord).rgb * weight;
       totalWeight += weight;
     }
 
-    gl_FragColor = vec4(result / totalWeight, 1.0);
+    fragColor = vec4(result / totalWeight, 1.0);
   }
 `;
 
@@ -50,7 +52,7 @@ export function createBlurProgram(gl: WebGL2RenderingContext) {
   if (!blurVertexShader) {
     throw Error('cannot create blur vertex shader');
   }
-  gl.shaderSource(blurVertexShader, vertexShaderSource);
+  gl.shaderSource(blurVertexShader, vertexShaderSource());
   gl.compileShader(blurVertexShader);
 
   // Create blur program
@@ -90,16 +92,13 @@ export function applyBlur(
   sourceTexture: WebGLTexture,
   width: number,
   height: number,
-  blurRadius: number | null,
+  blurRadius: number,
   blurProgram: WebGLProgram,
   blurUniforms: any,
   vertexBuffer: WebGLBuffer,
   processFramebuffers: WebGLFramebuffer[],
   processTextures: WebGLTexture[],
 ) {
-  // Return early if no blur radius
-  if (!blurRadius) return sourceTexture;
-
   gl.useProgram(blurProgram);
 
   // Set common attributes
