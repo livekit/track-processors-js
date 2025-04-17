@@ -1,5 +1,6 @@
 import { MPMask } from '@mediapipe/tasks-vision';
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
+import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
 import {
   createFramebuffer,
@@ -16,7 +17,6 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
-  let stepWidth = 1.0;
 
   if (!gl) {
     console.error('Failed to create WebGL context');
@@ -34,13 +34,17 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     mask: maskTextureLocation,
     frame: frameTextureLocation,
     background: bgTextureLocation,
-    stepWidth: smoothStepWidthLocation,
   } = composite.uniformLocations;
 
   // Create the blur program using the same vertex shader source
   const blur = createBlurProgram(gl);
   const blurProgram = blur.program;
   const blurUniforms = blur.uniforms;
+
+  // Create the box blur program
+  const boxBlur = createBoxBlurProgram(gl);
+  const boxBlurProgram = boxBlur.program;
+  const boxBlurUniforms = boxBlur.uniforms;
 
   const bgTexture = initTexture(gl, 0);
   const frameTexture = initTexture(gl, 1);
@@ -51,18 +55,30 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }
 
   // Create additional textures and framebuffers for processing
-  let processTextures: WebGLTexture[] = [];
-  let processFramebuffers: WebGLFramebuffer[] = [];
+  let bgBlurTextures: WebGLTexture[] = [];
+  let bgBlurFrameBuffers: WebGLFramebuffer[] = [];
+  let maskBlurTextures: WebGLTexture[] = [];
+  let maskBlurFrameBuffers: WebGLFramebuffer[] = [];
 
-  // Create textures for processing (blur and bilateral filter)
-  processTextures.push(initTexture(gl, 3)); // For blur pass 1
-  processTextures.push(initTexture(gl, 4)); // For blur pass 2
-  processTextures.push(initTexture(gl, 5)); // For bilateral filter output
+  // Create textures for background processing (blur)
+  bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
+  bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
 
-  // Create framebuffers for processing
-  processFramebuffers.push(createFramebuffer(gl, processTextures[0], canvas.width, canvas.height));
-  processFramebuffers.push(createFramebuffer(gl, processTextures[1], canvas.width, canvas.height));
-  processFramebuffers.push(createFramebuffer(gl, processTextures[2], canvas.width, canvas.height));
+  // Create framebuffers for background processing
+  bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[0], canvas.width, canvas.height));
+  bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[1], canvas.width, canvas.height));
+
+  // Create textures for mask processing (blur)
+  maskBlurTextures.push(initTexture(gl, 5)); // For mask blur pass 1
+  maskBlurTextures.push(initTexture(gl, 6)); // For mask blur pass 2
+
+  // Create framebuffers for mask processing
+  maskBlurFrameBuffers.push(
+    createFramebuffer(gl, maskBlurTextures[0], canvas.width, canvas.height),
+  );
+  maskBlurFrameBuffers.push(
+    createFramebuffer(gl, maskBlurTextures[1], canvas.width, canvas.height),
+  );
 
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
@@ -99,8 +115,8 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
         blurProgram,
         blurUniforms,
         vertexBuffer!,
-        processFramebuffers,
-        processTextures,
+        bgBlurFrameBuffers,
+        bgBlurTextures,
       );
     } else {
       gl.activeTexture(gl.TEXTURE0);
@@ -109,8 +125,19 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       backgroundTexture = bgTexture;
     }
 
-    // Get the mask texture
-    const maskTexture = mask.getAsWebGLTexture();
+    // Apply box blur to mask texture
+    const blurredMaskTexture = applyBlur(
+      gl,
+      mask.getAsWebGLTexture(),
+      width,
+      height,
+      blurRadius || 1.0, // Use a default blur radius if not set
+      boxBlurProgram,
+      boxBlurUniforms,
+      vertexBuffer!,
+      maskBlurFrameBuffers,
+      maskBlurTextures,
+    );
 
     // Render the final composite
     gl.viewport(0, 0, width, height);
@@ -132,9 +159,9 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.uniform1i(frameTextureLocation, 1);
 
-    // Set mask texture (either original or filtered)
+    // Set blurred mask texture
     gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+    gl.bindTexture(gl.TEXTURE_2D, blurredMaskTexture);
     gl.uniform1i(maskTextureLocation, 2);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -174,19 +201,22 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     setBackgroundImage(null);
   }
 
-  function setStepWidth(_stepWidth: number) {
-    stepWidth = _stepWidth;
-  }
-
   function cleanup() {
     gl.deleteProgram(compositeProgram);
     gl.deleteProgram(blurProgram);
+    gl.deleteProgram(boxBlurProgram);
     gl.deleteTexture(bgTexture);
     gl.deleteTexture(frameTexture);
-    for (const texture of processTextures) {
+    for (const texture of bgBlurTextures) {
       gl.deleteTexture(texture);
     }
-    for (const framebuffer of processFramebuffers) {
+    for (const framebuffer of bgBlurFrameBuffers) {
+      gl.deleteFramebuffer(framebuffer);
+    }
+    for (const texture of maskBlurTextures) {
+      gl.deleteTexture(texture);
+    }
+    for (const framebuffer of maskBlurFrameBuffers) {
       gl.deleteFramebuffer(framebuffer);
     }
     gl.deleteBuffer(vertexBuffer);
@@ -198,9 +228,11 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       }
       customBackgroundImage = emptyImageData;
     }
-    processTextures = [];
-    processFramebuffers = [];
+    bgBlurTextures = [];
+    bgBlurFrameBuffers = [];
+    maskBlurTextures = [];
+    maskBlurFrameBuffers = [];
   }
 
-  return { render, setBackgroundImage, setBlurRadius, cleanup, setStepWidth };
+  return { render, setBackgroundImage, setBlurRadius, cleanup };
 };

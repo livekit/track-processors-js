@@ -106,5 +106,5 @@ export const BackgroundProcessor = (
 
   const processor = new ProcessorWrapper(transformer, name, processorOpts);
 
-  return { processor, setStepWidth: transformer.setStepWidth };
+  return processor;
 };
