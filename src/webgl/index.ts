@@ -1,4 +1,9 @@
-import { MPMask } from '@mediapipe/tasks-vision';
+/**
+ * WebGL setup for the mask processor
+ * potential improvements:
+ * - downsample the video texture in background blur scenario before applying the (gaussian) blur for better performance
+ *
+ */
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
@@ -59,7 +64,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   let bgBlurFrameBuffers: WebGLFramebuffer[] = [];
   let maskBlurTextures: WebGLTexture[] = [];
   let maskBlurFrameBuffers: WebGLFramebuffer[] = [];
-
+  let blurredMaskTexture: WebGLTexture | null = null;
   // Create textures for background processing (blur)
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
   bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
@@ -89,8 +94,8 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   // Store custom background image
   let customBackgroundImage: ImageBitmap | ImageData = emptyImageData;
 
-  function render(frame: VideoFrame, mask: MPMask) {
-    if (frame.codedWidth === 0 || mask.width === 0) {
+  function renderFrame(frame: VideoFrame) {
+    if (frame.codedWidth === 0 || !blurredMaskTexture) {
       return;
     }
 
@@ -125,20 +130,6 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       backgroundTexture = bgTexture;
     }
 
-    // Apply box blur to mask texture
-    const blurredMaskTexture = applyBlur(
-      gl,
-      mask.getAsWebGLTexture(),
-      width,
-      height,
-      blurRadius || 1.0, // Use a default blur radius if not set
-      boxBlurProgram,
-      boxBlurUniforms,
-      vertexBuffer!,
-      maskBlurFrameBuffers,
-      maskBlurTextures,
-    );
-
     // Render the final composite
     gl.viewport(0, 0, width, height);
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
@@ -164,8 +155,6 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.bindTexture(gl.TEXTURE_2D, blurredMaskTexture);
     gl.uniform1i(maskTextureLocation, 2);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-    mask.close();
   }
 
   /**
@@ -201,6 +190,21 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     setBackgroundImage(null);
   }
 
+  function updateMask(mask: WebGLTexture) {
+    blurredMaskTexture = applyBlur(
+      gl,
+      mask,
+      canvas.width,
+      canvas.height,
+      blurRadius || 1.0, // Use a default blur radius if not set
+      boxBlurProgram,
+      boxBlurUniforms,
+      vertexBuffer!,
+      maskBlurFrameBuffers,
+      maskBlurTextures,
+    );
+  }
+
   function cleanup() {
     gl.deleteProgram(compositeProgram);
     gl.deleteProgram(blurProgram);
@@ -221,6 +225,10 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     }
     gl.deleteBuffer(vertexBuffer);
 
+    if (blurredMaskTexture) {
+      gl.deleteTexture(blurredMaskTexture);
+    }
+
     // Release any ImageBitmap resources
     if (customBackgroundImage) {
       if (customBackgroundImage instanceof ImageBitmap) {
@@ -234,5 +242,5 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     maskBlurFrameBuffers = [];
   }
 
-  return { render, setBackgroundImage, setBlurRadius, cleanup };
+  return { renderFrame, updateMask, setBackgroundImage, setBlurRadius, cleanup };
 };

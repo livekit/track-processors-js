@@ -117,29 +117,32 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.canvas.width = frame.displayWidth;
       this.canvas.height = frame.displayHeight;
       let startTimeMs = performance.now();
-
+      let segmentationTimeMs = 0;
       this.imageSegmenter?.segmentForVideo(frame, startTimeMs, (result) => {
-        const segmentationTimeMs = performance.now() - startTimeMs;
+        segmentationTimeMs = performance.now() - startTimeMs;
         this.segmentationResults = result;
-        this.drawFrame(frame);
-        if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
-          const newFrame = new VideoFrame(this.canvas, {
-            timestamp: frame.timestamp || Date.now(),
-          });
-          const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
-          const stats: FrameProcessingStats = {
-            processingTimeMs: performance.now() - startTimeMs,
-            segmentationTimeMs,
-            filterTimeMs,
-          };
-          this.options.onFrameProcessed?.(stats);
-
-          controller.enqueue(newFrame);
-        } else {
-          controller.enqueue(frame);
-        }
-        frame.close();
+        this.updateMask(result.categoryMask);
+        result.close();
       });
+
+      this.drawFrame(frame);
+      if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+        const newFrame = new VideoFrame(this.canvas, {
+          timestamp: frame.timestamp || Date.now(),
+        });
+        const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
+        const stats: FrameProcessingStats = {
+          processingTimeMs: performance.now() - startTimeMs,
+          segmentationTimeMs,
+          filterTimeMs,
+        };
+        this.options.onFrameProcessed?.(stats);
+
+        controller.enqueue(newFrame);
+      } else {
+        controller.enqueue(frame);
+      }
+      frame.close();
     } catch (e) {
       console.error('Error while processing frame: ', e);
       frame?.close();
@@ -155,12 +158,17 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     }
   }
 
-  async drawFrame(frame: VideoFrame) {
+  private async drawFrame(frame: VideoFrame) {
     if (!this.canvas || !this.gl || !this.segmentationResults || !this.inputVideo) return;
 
     const mask = this.segmentationResults.categoryMask;
     if (mask) {
-      this.gl.render(frame, mask);
+      this.gl?.renderFrame(frame);
     }
+  }
+
+  private async updateMask(mask: vision.MPMask | undefined) {
+    if (!mask) return;
+    this.gl?.updateMask(mask.getAsWebGLTexture());
   }
 }
