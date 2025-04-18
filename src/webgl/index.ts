@@ -7,6 +7,7 @@
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
+import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
 import {
   createFramebuffer,
   createVertexBuffer,
@@ -23,7 +24,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
 
   let blurRadius: number | null = null;
   let maskBlurRadius: number | null = 8;
-  const downsampleFactor = 2;
+  const downsampleFactor = 4;
 
   if (!gl) {
     console.error('Failed to create WebGL context');
@@ -75,9 +76,12 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
   bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
 
-  // Create framebuffers for background processing
   const bgBlurTextureWidth = Math.floor(canvas.width / downsampleFactor);
   const bgBlurTextureHeight = Math.floor(canvas.height / downsampleFactor);
+
+  const downSampler = createDownSampler(gl, bgBlurTextureWidth, bgBlurTextureHeight);
+
+  // Create framebuffers for background processing
   bgBlurFrameBuffers.push(
     createFramebuffer(gl, bgBlurTextures[0], bgBlurTextureWidth, bgBlurTextureHeight),
   );
@@ -125,9 +129,17 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     let backgroundTexture = bgTexture;
 
     if (blurRadius) {
-      backgroundTexture = applyBlur(
+      const downSampledFrameTexture = applyDownsampling(
         gl,
         frameTexture,
+        downSampler,
+        vertexBuffer!,
+        bgBlurTextureWidth,
+        bgBlurTextureHeight,
+      );
+      backgroundTexture = applyBlur(
+        gl,
+        downSampledFrameTexture,
         bgBlurTextureWidth,
         bgBlurTextureHeight,
         blurRadius,
@@ -200,7 +212,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }
 
   function setBlurRadius(radius: number | null) {
-    blurRadius = radius ? Math.floor(radius / downsampleFactor) : null; // we are downsampling the blur texture, so decrease the radius here for better performance with a similar visual result
+    blurRadius = radius ? Math.max(1, Math.floor(radius / downsampleFactor)) : null; // we are downsampling the blur texture, so decrease the radius here for better performance with a similar visual result
     setBackgroundImage(null);
   }
 
