@@ -271,6 +271,12 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       gl.deleteTexture(blurredMaskTexture);
     }
 
+    if (downSampler) {
+      gl.deleteTexture(downSampler.texture);
+      gl.deleteFramebuffer(downSampler.framebuffer);
+      gl.deleteProgram(downSampler.program);
+    }
+
     // Release any ImageBitmap resources
     if (customBackgroundImage) {
       if (customBackgroundImage instanceof ImageBitmap) {
