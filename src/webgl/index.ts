@@ -62,9 +62,13 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   // Create additional textures and framebuffers for processing
   let bgBlurTextures: WebGLTexture[] = [];
   let bgBlurFrameBuffers: WebGLFramebuffer[] = [];
-  let maskBlurTextures: WebGLTexture[] = [];
-  let maskBlurFrameBuffers: WebGLFramebuffer[] = [];
   let blurredMaskTexture: WebGLTexture | null = null;
+
+  // For double buffering the final mask
+  let finalMaskTextures: WebGLTexture[] = [];
+  let readMaskIndex = 0; // Index for renderFrame to read from
+  let writeMaskIndex = 1; // Index for updateMask to write to
+
   // Create textures for background processing (blur)
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
   bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
@@ -73,17 +77,19 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[0], canvas.width, canvas.height));
   bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[1], canvas.width, canvas.height));
 
-  // Create textures for mask processing (blur)
-  maskBlurTextures.push(initTexture(gl, 5)); // For mask blur pass 1
-  maskBlurTextures.push(initTexture(gl, 6)); // For mask blur pass 2
+  // Initialize texture for the first mask blur pass
+  const tempMaskTexture = initTexture(gl, 5);
+  const tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, canvas.width, canvas.height);
 
-  // Create framebuffers for mask processing
-  maskBlurFrameBuffers.push(
-    createFramebuffer(gl, maskBlurTextures[0], canvas.width, canvas.height),
-  );
-  maskBlurFrameBuffers.push(
-    createFramebuffer(gl, maskBlurTextures[1], canvas.width, canvas.height),
-  );
+  // Initialize two textures for double-buffering the final mask
+  finalMaskTextures.push(initTexture(gl, 6)); // For reading in renderFrame
+  finalMaskTextures.push(initTexture(gl, 7)); // For writing in updateMask
+
+  // Create framebuffers for the final mask textures
+  const finalMaskFrameBuffers = [
+    createFramebuffer(gl, finalMaskTextures[0], canvas.width, canvas.height),
+    createFramebuffer(gl, finalMaskTextures[1], canvas.width, canvas.height),
+  ];
 
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
@@ -95,7 +101,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   let customBackgroundImage: ImageBitmap | ImageData = emptyImageData;
 
   function renderFrame(frame: VideoFrame) {
-    if (frame.codedWidth === 0 || !blurredMaskTexture) {
+    if (frame.codedWidth === 0 || finalMaskTextures.length === 0) {
       return;
     }
 
@@ -150,9 +156,9 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.uniform1i(frameTextureLocation, 1);
 
-    // Set blurred mask texture
+    // Set mask texture - always read from the current read index
     gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, blurredMaskTexture);
+    gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[readMaskIndex]);
     gl.uniform1i(maskTextureLocation, 2);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
@@ -191,18 +197,31 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }
 
   function updateMask(mask: WebGLTexture) {
-    blurredMaskTexture = applyBlur(
+    // Use the existing applyBlur function to apply the first blur pass
+    // The second blur pass will be written to finalMaskTextures[writeMaskIndex]
+
+    // Create temporary arrays for the single blur operation
+    const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
+
+    const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
+
+    // Apply the blur using the existing function
+    applyBlur(
       gl,
       mask,
       canvas.width,
       canvas.height,
-      blurRadius || 1.0, // Use a default blur radius if not set
+      blurRadius || 1.0,
       boxBlurProgram,
       boxBlurUniforms,
       vertexBuffer!,
-      maskBlurFrameBuffers,
-      maskBlurTextures,
+      tempFramebuffers,
+      tempTextures,
     );
+
+    // Swap indices for the next frame
+    readMaskIndex = writeMaskIndex;
+    writeMaskIndex = 1 - writeMaskIndex;
   }
 
   function cleanup() {
@@ -211,16 +230,19 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     gl.deleteProgram(boxBlurProgram);
     gl.deleteTexture(bgTexture);
     gl.deleteTexture(frameTexture);
+    gl.deleteTexture(tempMaskTexture);
+    gl.deleteFramebuffer(tempMaskFrameBuffer);
+
     for (const texture of bgBlurTextures) {
       gl.deleteTexture(texture);
     }
     for (const framebuffer of bgBlurFrameBuffers) {
       gl.deleteFramebuffer(framebuffer);
     }
-    for (const texture of maskBlurTextures) {
+    for (const texture of finalMaskTextures) {
       gl.deleteTexture(texture);
     }
-    for (const framebuffer of maskBlurFrameBuffers) {
+    for (const framebuffer of finalMaskFrameBuffers) {
       gl.deleteFramebuffer(framebuffer);
     }
     gl.deleteBuffer(vertexBuffer);
@@ -238,8 +260,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
     }
     bgBlurTextures = [];
     bgBlurFrameBuffers = [];
-    maskBlurTextures = [];
-    maskBlurFrameBuffers = [];
+    finalMaskTextures = [];
   }
 
   return { renderFrame, updateMask, setBackgroundImage, setBlurRadius, cleanup };
