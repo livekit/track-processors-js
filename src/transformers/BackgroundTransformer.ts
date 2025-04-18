@@ -40,6 +40,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   options: BackgroundOptions;
 
+  segmentationTimeMs: number = 0;
+
   constructor(opts: BackgroundOptions) {
     super();
     this.options = opts;
@@ -111,38 +113,49 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         controller.enqueue(frame);
         return;
       }
+      const frameTimeMs = Date.now();
       if (!this.canvas) {
         throw TypeError('Canvas needs to be initialized first');
       }
       this.canvas.width = frame.displayWidth;
       this.canvas.height = frame.displayHeight;
-      let startTimeMs = performance.now();
-
-      this.imageSegmenter?.segmentForVideo(frame, startTimeMs, (result) => {
-        const segmentationTimeMs = performance.now() - startTimeMs;
-        this.segmentationResults = result;
-        this.drawFrame(frame);
-        if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
-          const newFrame = new VideoFrame(this.canvas, {
-            timestamp: frame.timestamp || Date.now(),
+      const segmentationPromise = new Promise<void>((resolve, reject) => {
+        try {
+          let segmentationStartTimeMs = performance.now();
+          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
+            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
+            this.segmentationResults = result;
+            this.updateMask(result.categoryMask);
+            result.close();
+            resolve();
           });
-          const filterTimeMs = performance.now() - startTimeMs - segmentationTimeMs;
-          const stats: FrameProcessingStats = {
-            processingTimeMs: performance.now() - startTimeMs,
-            segmentationTimeMs,
-            filterTimeMs,
-          };
-          this.options.onFrameProcessed?.(stats);
-
-          controller.enqueue(newFrame);
-        } else {
-          controller.enqueue(frame);
+        } catch (e) {
+          reject(e);
         }
-        frame.close();
       });
+
+      const filterStartTimeMs = performance.now();
+      this.drawFrame(frame);
+      if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+        const newFrame = new VideoFrame(this.canvas, {
+          timestamp: frame.timestamp || frameTimeMs,
+        });
+        controller.enqueue(newFrame);
+        const filterTimeMs = performance.now() - filterStartTimeMs;
+        const stats: FrameProcessingStats = {
+          processingTimeMs: this.segmentationTimeMs + filterTimeMs,
+          segmentationTimeMs: this.segmentationTimeMs,
+          filterTimeMs,
+        };
+        this.options.onFrameProcessed?.(stats);
+      } else {
+        controller.enqueue(frame);
+      }
+      await segmentationPromise;
     } catch (e) {
       console.error('Error while processing frame: ', e);
-      frame?.close();
+    } finally {
+      frame.close();
     }
   }
 
@@ -155,12 +168,13 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     }
   }
 
-  async drawFrame(frame: VideoFrame) {
-    if (!this.canvas || !this.gl || !this.segmentationResults || !this.inputVideo) return;
+  private async drawFrame(frame: VideoFrame) {
+    if (!this.gl) return;
+    this.gl?.renderFrame(frame);
+  }
 
-    const mask = this.segmentationResults.categoryMask;
-    if (mask) {
-      this.gl.render(frame, mask);
-    }
+  private async updateMask(mask: vision.MPMask | undefined) {
+    if (!mask) return;
+    this.gl?.updateMask(mask.getAsWebGLTexture());
   }
 }
