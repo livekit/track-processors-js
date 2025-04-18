@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.4
+
+### Patch Changes
+
+- Smoothen mask edges - [#74](https://github.com/livekit/track-processors-js/pull/74) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.3
 
 ### Patch Changes
