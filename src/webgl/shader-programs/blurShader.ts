@@ -1,4 +1,4 @@
-import { glsl } from '../utils';
+import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 // Define the blur fragment shader
@@ -33,42 +33,10 @@ export const blurFragmentShader = glsl`#version 300 es
 `;
 
 export function createBlurProgram(gl: WebGL2RenderingContext) {
-  // Create blur shader
-  const blurFrag = gl.createShader(gl.FRAGMENT_SHADER);
-  if (!blurFrag) {
-    throw Error('cannot create blur shader');
-  }
-  gl.shaderSource(blurFrag, blurFragmentShader);
-  gl.compileShader(blurFrag);
+  const blurVertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource());
+  const blurFrag = createShader(gl, gl.FRAGMENT_SHADER, blurFragmentShader);
 
-  // Get compile status and log errors if any
-  if (!gl.getShaderParameter(blurFrag, gl.COMPILE_STATUS)) {
-    const info = gl.getShaderInfoLog(blurFrag);
-    throw Error(`Failed to compile blur shader: ${info}`);
-  }
-
-  // Create blur vertex shader
-  const blurVertexShader = gl.createShader(gl.VERTEX_SHADER);
-  if (!blurVertexShader) {
-    throw Error('cannot create blur vertex shader');
-  }
-  gl.shaderSource(blurVertexShader, vertexShaderSource());
-  gl.compileShader(blurVertexShader);
-
-  // Create blur program
-  const blurProgram = gl.createProgram();
-  if (!blurProgram) {
-    throw Error('cannot create blur program');
-  }
-  gl.attachShader(blurProgram, blurVertexShader);
-  gl.attachShader(blurProgram, blurFrag);
-  gl.linkProgram(blurProgram);
-
-  // Check blur program link status
-  if (!gl.getProgramParameter(blurProgram, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(blurProgram);
-    throw Error(`Failed to link blur program: ${info}`);
-  }
+  const blurProgram = createProgram(gl, blurVertexShader, blurFrag);
 
   // Get uniform locations
   const blurUniforms = {
