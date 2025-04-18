@@ -22,6 +22,8 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
+  let maskBlurRadius: number | null = 8;
+  const downsampleFactor = 2;
 
   if (!gl) {
     console.error('Failed to create WebGL context');
@@ -74,8 +76,14 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
 
   // Create framebuffers for background processing
-  bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[0], canvas.width, canvas.height));
-  bgBlurFrameBuffers.push(createFramebuffer(gl, bgBlurTextures[1], canvas.width, canvas.height));
+  const bgBlurTextureWidth = Math.floor(canvas.width / downsampleFactor);
+  const bgBlurTextureHeight = Math.floor(canvas.height / downsampleFactor);
+  bgBlurFrameBuffers.push(
+    createFramebuffer(gl, bgBlurTextures[0], bgBlurTextureWidth, bgBlurTextureHeight),
+  );
+  bgBlurFrameBuffers.push(
+    createFramebuffer(gl, bgBlurTextures[1], bgBlurTextureWidth, bgBlurTextureHeight),
+  );
 
   // Initialize texture for the first mask blur pass
   const tempMaskTexture = initTexture(gl, 5);
@@ -120,8 +128,8 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       backgroundTexture = applyBlur(
         gl,
         frameTexture,
-        width,
-        height,
+        bgBlurTextureWidth,
+        bgBlurTextureHeight,
         blurRadius,
         blurProgram,
         blurUniforms,
@@ -192,7 +200,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   }
 
   function setBlurRadius(radius: number | null) {
-    blurRadius = radius;
+    blurRadius = radius ? Math.floor(radius / downsampleFactor) : null; // we are downsampling the blur texture, so decrease the radius here for better performance with a similar visual result
     setBackgroundImage(null);
   }
 
@@ -211,7 +219,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       mask,
       canvas.width,
       canvas.height,
-      blurRadius || 1.0,
+      maskBlurRadius || 1.0,
       boxBlurProgram,
       boxBlurUniforms,
       vertexBuffer!,
