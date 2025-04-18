@@ -3,7 +3,7 @@ import { vertexShaderSource } from './vertexShader';
 
 // Define the blur fragment shader
 export const blurFragmentShader = glsl`#version 300 es
-  precision highp float;
+  precision mediump float;
   in vec2 texCoords;
   uniform sampler2D u_texture;
   uniform vec2 u_texelSize;

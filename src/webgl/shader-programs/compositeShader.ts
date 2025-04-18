@@ -3,7 +3,7 @@ import { vertexShaderSource } from './vertexShader';
 
 // Fragment shader source for compositing
 export const compositeFragmentShader = glsl`#version 300 es
-  precision highp float;
+  precision mediump float;
   in vec2 texCoords;
   uniform sampler2D background;
   uniform sampler2D frame;
