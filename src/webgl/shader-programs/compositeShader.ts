@@ -1,4 +1,4 @@
-import { glsl } from '../utils';
+import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 // Fragment shader source for compositing
@@ -37,48 +37,10 @@ export const compositeFragmentShader = glsl`#version 300 es
  * Create the composite shader program
  */
 export function createCompositeProgram(gl: WebGL2RenderingContext) {
-  // Create vertex shader
-  const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-  if (!vertexShader) {
-    throw Error('cannot create vertex shader');
-  }
-  gl.shaderSource(vertexShader, vertexShaderSource());
-  gl.compileShader(vertexShader);
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource());
+  const compositeShader = createShader(gl, gl.FRAGMENT_SHADER, compositeFragmentShader);
 
-  // Check vertex shader compilation
-  if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-    const info = gl.getShaderInfoLog(vertexShader);
-    throw Error(`Failed to compile vertex shader: ${info}`);
-  }
-
-  // Create fragment shader
-  const compositeShader = gl.createShader(gl.FRAGMENT_SHADER);
-  if (!compositeShader) {
-    throw Error('cannot create fragment shader');
-  }
-  gl.shaderSource(compositeShader, compositeFragmentShader);
-  gl.compileShader(compositeShader);
-
-  // Check fragment shader compilation
-  if (!gl.getShaderParameter(compositeShader, gl.COMPILE_STATUS)) {
-    const info = gl.getShaderInfoLog(compositeShader);
-    throw Error(`Failed to compile composite shader: ${info}`);
-  }
-
-  // Create the program
-  const compositeProgram = gl.createProgram();
-  if (!compositeProgram) {
-    throw Error('cannot create composite program');
-  }
-  gl.attachShader(compositeProgram, vertexShader);
-  gl.attachShader(compositeProgram, compositeShader);
-  gl.linkProgram(compositeProgram);
-
-  // Check program link status
-  if (!gl.getProgramParameter(compositeProgram, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(compositeProgram);
-    throw Error(`Failed to link composite program: ${info}`);
-  }
+  const compositeProgram = createProgram(gl, vertexShader, compositeShader);
 
   // Get attribute and uniform locations
   const attribLocations = {
