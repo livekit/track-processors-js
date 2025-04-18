@@ -113,24 +113,32 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         controller.enqueue(frame);
         return;
       }
+      const frameTimeMs = Date.now();
       if (!this.canvas) {
         throw TypeError('Canvas needs to be initialized first');
       }
       this.canvas.width = frame.displayWidth;
       this.canvas.height = frame.displayHeight;
-      let segmentationStartTimeMs = performance.now();
-      this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
-        this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
-        this.segmentationResults = result;
-        this.updateMask(result.categoryMask);
-        result.close();
+      const segmentationPromise = new Promise<void>((resolve, reject) => {
+        try {
+          let segmentationStartTimeMs = performance.now();
+          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
+            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
+            this.segmentationResults = result;
+            this.updateMask(result.categoryMask);
+            result.close();
+            resolve();
+          });
+        } catch (e) {
+          reject(e);
+        }
       });
 
       const filterStartTimeMs = performance.now();
       this.drawFrame(frame);
       if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
         const newFrame = new VideoFrame(this.canvas, {
-          timestamp: frame.timestamp || Date.now(),
+          timestamp: frame.timestamp || frameTimeMs,
         });
         controller.enqueue(newFrame);
         const filterTimeMs = performance.now() - filterStartTimeMs;
@@ -143,10 +151,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       } else {
         controller.enqueue(frame);
       }
-      frame.close();
+      await segmentationPromise;
     } catch (e) {
       console.error('Error while processing frame: ', e);
-      frame?.close();
+    } finally {
+      frame.close();
     }
   }
 
