@@ -1,5 +1,13 @@
 # @livekit/track-processors
 
+## 0.5.5
+
+### Patch Changes
+
+- Downsample background before applying blur - [#77](https://github.com/livekit/track-processors-js/pull/77) ([@lukasIO](https://github.com/lukasIO))
+
+- Update mask when ready - [#76](https://github.com/livekit/track-processors-js/pull/76) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.4
 
 ### Patch Changes
