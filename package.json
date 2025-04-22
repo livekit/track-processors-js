@@ -1,6 +1,6 @@
 {
   "name": "@livekit/track-processors",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "LiveKit track processors",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
