@@ -3,7 +3,7 @@ export type TrackTransformerInitOptions = {
 };
 
 export interface VideoTransformerInitOptions extends TrackTransformerInitOptions {
-  outputCanvas: OffscreenCanvas;
+  outputCanvas: OffscreenCanvas | HTMLCanvasElement;
   inputElement: HTMLVideoElement;
 }
 

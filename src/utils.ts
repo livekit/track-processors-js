@@ -23,3 +23,13 @@ export async function waitForTrackResolution(track: MediaStreamTrack) {
   }
   return { width: undefined, height: undefined };
 }
+
+export function createCanvas(width: number, height: number) {
+  if (supportsOffscreenCanvas) {
+    return new OffscreenCanvas(width, height);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
