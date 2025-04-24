@@ -131,12 +131,20 @@ export async function resizeImageToCover(
   });
 }
 
-const emptyImageData = new ImageData(2, 2);
-emptyImageData.data[0] = 0;
-emptyImageData.data[1] = 0;
-emptyImageData.data[2] = 0;
-emptyImageData.data[3] = 0;
+let emptyImageData: ImageData | undefined;
+
+function getEmptyImageData() {
+  if (!emptyImageData) {
+    emptyImageData = new ImageData(2, 2);
+    emptyImageData.data[0] = 0;
+    emptyImageData.data[1] = 0;
+    emptyImageData.data[2] = 0;
+    emptyImageData.data[3] = 0;
+  }
+
+  return emptyImageData;
+}
 
 const glsl = (source: any) => source;
 
-export { emptyImageData, glsl };
+export { getEmptyImageData, glsl };

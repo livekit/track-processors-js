@@ -11,7 +11,7 @@ import { applyDownsampling, createDownSampler } from './shader-programs/downSamp
 import {
   createFramebuffer,
   createVertexBuffer,
-  emptyImageData,
+  getEmptyImageData,
   initTexture,
   resizeImageToCover,
 } from './utils';
@@ -110,7 +110,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
   gl.uniform1i(maskTextureLocation, 2);
 
   // Store custom background image
-  let customBackgroundImage: ImageBitmap | ImageData = emptyImageData;
+  let customBackgroundImage: ImageBitmap | ImageData = getEmptyImageData();
 
   function renderFrame(frame: VideoFrame) {
     if (frame.codedWidth === 0 || finalMaskTextures.length === 0) {
@@ -189,7 +189,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
    */
   async function setBackgroundImage(image: ImageBitmap | null) {
     // Clear existing background
-    customBackgroundImage = emptyImageData;
+    customBackgroundImage = getEmptyImageData();
 
     if (image) {
       try {
@@ -282,7 +282,7 @@ export const setupWebGL = (canvas: OffscreenCanvas) => {
       if (customBackgroundImage instanceof ImageBitmap) {
         customBackgroundImage.close();
       }
-      customBackgroundImage = emptyImageData;
+      customBackgroundImage = getEmptyImageData();
     }
     bgBlurTextures = [];
     bgBlurFrameBuffers = [];
