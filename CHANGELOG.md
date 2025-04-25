@@ -1,5 +1,13 @@
 # @livekit/track-processors
 
+## 0.5.6
+
+### Patch Changes
+
+- Create empty ImageData helper lazily to avoid ssr build time errors - [#80](https://github.com/livekit/track-processors-js/pull/80) ([@lukasIO](https://github.com/lukasIO))
+
+- Add HTMLCanvas fallback if OffscreenCanvas is not available - [#81](https://github.com/livekit/track-processors-js/pull/81) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.5
 
 ### Patch Changes
