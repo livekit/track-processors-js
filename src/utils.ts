@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-export const supportsProcessor = typeof MediaStreamTrackGenerator !== 'undefined';
-export const supportsOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
+export const supportsOffscreenCanvas = () => typeof OffscreenCanvas !== 'undefined';
 
 async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time));
@@ -22,4 +21,14 @@ export async function waitForTrackResolution(track: MediaStreamTrack) {
     await sleep(50);
   }
   return { width: undefined, height: undefined };
+}
+
+export function createCanvas(width: number, height: number) {
+  if (supportsOffscreenCanvas()) {
+    return new OffscreenCanvas(width, height);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
 }

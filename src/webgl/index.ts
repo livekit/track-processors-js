@@ -16,7 +16,7 @@ import {
   resizeImageToCover,
 } from './utils';
 
-export const setupWebGL = (canvas: OffscreenCanvas) => {
+export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const gl = canvas.getContext('webgl2', {
     antialias: true,
     premultipliedAlpha: true,

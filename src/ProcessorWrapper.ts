@@ -1,6 +1,6 @@
 import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
 import { TrackTransformer } from './transformers';
-import { waitForTrackResolution } from './utils';
+import { createCanvas, waitForTrackResolution } from './utils';
 
 export interface ProcessorWrapperOptions {
   /**
@@ -50,7 +50,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
   trackGenerator?: MediaStreamTrackGenerator<VideoFrame>;
 
-  canvas?: OffscreenCanvas;
+  canvas?: OffscreenCanvas | HTMLCanvasElement;
 
   displayCanvas?: HTMLCanvasElement;
 
@@ -125,7 +125,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
       this.renderContext = this.displayCanvas.getContext('2d')!;
       this.capturedStream = this.displayCanvas.captureStream();
-      this.canvas = new OffscreenCanvas(width ?? 300, height ?? 300);
+      this.canvas = createCanvas(width ?? 300, height ?? 300);
     } else {
       // Use MediaStreamTrackProcessor API
       this.processor = new MediaStreamTrackProcessor({ track: this.source });
@@ -133,7 +133,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
         kind: 'video',
         signalTarget: this.source,
       });
-      this.canvas = new OffscreenCanvas(width ?? 300, height ?? 300);
+      this.canvas = createCanvas(width ?? 300, height ?? 300);
     }
   }
 

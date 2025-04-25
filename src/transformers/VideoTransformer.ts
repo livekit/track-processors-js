@@ -1,3 +1,4 @@
+import { createCanvas } from '../utils';
 import { setupWebGL } from '../webgl/index';
 import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
@@ -6,7 +7,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 {
   transformer?: TransformStream;
 
-  canvas?: OffscreenCanvas;
+  canvas?: OffscreenCanvas | HTMLCanvasElement;
 
   // ctx?: OffscreenCanvasRenderingContext2D;
 
@@ -31,7 +32,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     if (outputCanvas) {
       // this.ctx = this.canvas?.getContext('2d') || undefined;
       this.gl = setupWebGL(
-        this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
+        this.canvas || createCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
       );
     }
     this.inputVideo = inputVideo;
@@ -42,7 +43,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.canvas = outputCanvas || null;
     this.gl?.cleanup();
     this.gl = setupWebGL(
-      this.canvas || new OffscreenCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
+      this.canvas || createCanvas(inputVideo.videoWidth, inputVideo.videoHeight),
     );
 
     this.inputVideo = inputVideo;
