@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.7
+
+### Patch Changes
+
+- fix(deps): include dom-mediacapture-transform types as a dependency - [#86](https://github.com/livekit/track-processors-js/pull/86) ([@CSantosM](https://github.com/CSantosM))
+
 ## 0.5.6
 
 ### Patch Changes
