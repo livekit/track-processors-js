@@ -15,8 +15,8 @@ importers:
         specifier: ^0.1.9
         version: 0.1.11
       livekit-client:
-        specifier: file:../client-sdk-js
-        version: file:../client-sdk-js(@types/dom-mediacapture-record@1.0.22)
+        specifier: ^1.12.0 || ^2.1.0
+        version: 2.15.2(@types/dom-mediacapture-record@1.0.22)
     devDependencies:
       '@changesets/cli':
         specifier: ^2.26.2
@@ -1558,8 +1558,8 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  livekit-client@file:../client-sdk-js:
-    resolution: {directory: ../client-sdk-js, type: directory}
+  livekit-client@2.15.2:
+    resolution: {integrity: sha512-hf0A0JFN7M0iVGZxMfTk6a3cW7TNTVdqxkykjKBweORlqhQX1ITVloh6aLvplLZOxpkUE5ZVLz1DeS3+ERglog==}
     peerDependencies:
       '@types/dom-mediacapture-record': ^1
 
@@ -3865,7 +3865,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  livekit-client@file:../client-sdk-js(@types/dom-mediacapture-record@1.0.22):
+  livekit-client@2.15.2(@types/dom-mediacapture-record@1.0.22):
     dependencies:
       '@livekit/mutex': 1.1.1
       '@livekit/protocol': 1.39.3
