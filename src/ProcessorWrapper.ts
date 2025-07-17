@@ -77,6 +77,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   // FPS control for fallback implementation
   private maxFps: number;
 
+  private symbol?: Symbol;
+
   constructor(
     transformer: TrackTransformer<TransformerOptions>,
     name: string,
@@ -166,10 +168,22 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     const readableStream = this.processor.readable;
     const pipedStream = readableStream.pipeThrough(this.transformer!.transformer!);
 
+    const symbol = Symbol('stream');
+    this.symbol = symbol;
+
     pipedStream
       .pipeTo(this.trackGenerator.writable)
-      .catch((e) => console.error('error when trying to pipe', e))
-      .finally(() => this.destroy());
+      // destroy processor if stream finishes
+      .then(() => this.destroy(symbol))
+      // destroy processor if stream errors - unless it's an abort error
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          console.log('stream processor path aborted');
+        } else {
+          console.error('error when trying to pipe', e);
+          this.destroy(symbol);
+        }
+      });
 
     this.processedTrack = this.trackGenerator as MediaStreamVideoTrack;
   }
@@ -342,7 +356,11 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     await this.transformer.update(options[0]);
   }
 
-  async destroy() {
+  async destroy(symbol?: Symbol) {
+    if (symbol && this.symbol !== symbol) {
+      // If the symbol is provided, we only destroy if it matches the current symbol
+      return;
+    }
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
