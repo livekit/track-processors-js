@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.5.8
+
+### Patch Changes
+
+- Only destroy if no newer init method has been invoked - [#90](https://github.com/livekit/track-processors-js/pull/90) ([@lukasIO](https://github.com/lukasIO))
+
 ## 0.5.7
 
 ### Patch Changes
