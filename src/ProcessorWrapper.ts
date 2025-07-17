@@ -326,20 +326,6 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
           // Create a VideoFrame from the video element
           if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
             const frame = new VideoFrame(videoElement);
-            console.log(
-              'videoElement',
-              videoElement.videoWidth,
-              videoElement.videoHeight,
-              videoElement.width,
-              videoElement.height,
-            );
-            console.log(
-              'frame',
-              frame.codedWidth,
-              frame.codedHeight,
-              frame.displayWidth,
-              frame.displayHeight,
-            );
             if (this.frameCallback) {
               this.frameCallback(frame);
             } else {
