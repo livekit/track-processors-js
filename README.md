@@ -66,6 +66,7 @@ export const VirtualBackground = (imagePath: string) => {
 This repository includes a small example app built on [Vite](https://vitejs.dev/). Run it with:
 
 ```
-npm install
-npm run sample
+# install pnpm: https://pnpm.io/installation
+pnpm install
+pnpm sample
 ```
