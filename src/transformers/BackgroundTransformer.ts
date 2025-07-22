@@ -161,10 +161,12 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   async update(opts: BackgroundOptions) {
     this.options = { ...this.options, ...opts };
-    if (opts.blurRadius) {
-      this.gl?.setBlurRadius(opts.blurRadius);
-    } else if (opts.imagePath) {
+
+    this.gl?.setBlurRadius(opts.blurRadius ?? null);
+    if (opts.imagePath) {
       await this.loadBackground(opts.imagePath);
+    } else {
+      this.gl?.setBackgroundImage(null);
     }
   }
 
