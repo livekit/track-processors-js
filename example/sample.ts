@@ -24,18 +24,17 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundProcessor } from '../src';
+import { BackgroundProcessorManager } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BLUR_RADIUS = 10;
 const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
   backgroundProcessorMode: null as ('virtual-background' | 'background-blur' | null),
-  backgroundProcessor: BackgroundProcessor({
+  backgroundProcessor: BackgroundProcessorManager.withOptions({
     // onFrameProcessed: (stats) => console.log('frame processing stats', stats),
   }),
 };
