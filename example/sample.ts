@@ -24,7 +24,7 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundBlur, VirtualBackground } from '../src';
+import { VirtualBackground } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -34,9 +34,6 @@ const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(BLUR_RADIUS, undefined, (stats) => {
-    // console.log('frame processing stats', stats);
-  }),
   virtualBackground: VirtualBackground(IMAGE_PATH, undefined, (stats) => {
     // console.log('frame processing stats', stats);
   }),
@@ -260,10 +257,6 @@ const appActions = {
           break;
 
         case 'virtual-background':
-          // This could also work, but it results in a visual artifact when switching:
-          // await camTrack.setProcessor(state.blur);
-          // await camTrack.stopProcessor();
-
           const virtualBackgroundProcessor = processor as typeof state.virtualBackground;
           await virtualBackgroundProcessor.updateTransformerOptions({
             imagePath: undefined,
@@ -276,13 +269,13 @@ const appActions = {
         default:
           // NOTE: Since state.blur may have been updated ad-hoc in `toggleVirtualBackground`,
           // when switching, inject the right params in just to be 100% sure they are correct
-          await state.blur.updateTransformerOptions({
+          await state.virtualBackground.updateTransformerOptions({
             imagePath: undefined,
             blurRadius: BLUR_RADIUS,
           });
-          state.blur.name = 'background-blur';
+          state.virtualBackground.name = 'background-blur';
 
-          await camTrack.setProcessor(state.blur);
+          await camTrack.setProcessor(state.virtualBackground);
           break;
       }
     } catch (e: any) {
@@ -307,11 +300,7 @@ const appActions = {
           break;
 
         case 'background-blur':
-          // This could also work, but it results in a visual artifact when switching:
-          // await camTrack.setProcessor(state.virtualBackground);
-          // await camTrack.stopProcessor();
-
-          const blurProcessor = processor as typeof state.blur;
+          const blurProcessor = processor as typeof state.virtualBackground;
           await blurProcessor.updateTransformerOptions({
             imagePath: IMAGE_PATH,
             blurRadius: undefined,
