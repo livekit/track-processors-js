@@ -49,7 +49,7 @@ export const BackgroundBlur = (
     blurRadius,
     segmenterOptions,
     onFrameProcessed,
-    processorOptions
+    processorOptions,
   );
   processor.name = 'background-blur';
   return processor;
@@ -69,7 +69,7 @@ export const VirtualBackground = (
     imagePath,
     segmenterOptions,
     onFrameProcessed,
-    processorOptions
+    processorOptions,
   );
   processor.name = 'virtual-background';
   return processor;
@@ -86,8 +86,16 @@ export const BackgroundProcessor = (
   return BackgroundProcessorManager.withOptions(options, name);
 };
 
-
-export default class BackgroundProcessorManager extends ProcessorWrapper<BackgroundOptions> {
+/**
+ * A preconfigured background processor that supports blurring the background of a user's local
+ * video, or replacing the user's background with a virtual background image, and switching the
+ * active mode later on the fly to avoid visual artifacts.
+ *
+ * @example
+ * const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!.track as LocalVideoTrack;
+ * camTrack.setProcessor(BackgroundProcessorManager.withBackgroundBlur());
+ */
+export class BackgroundProcessorManager extends ProcessorWrapper<BackgroundOptions> {
   static withOptions(options: BackgroundProcessorOptions, name = 'background-processor') {
     const isTransformerSupported = BackgroundTransformer.isSupported;
     const isProcessorSupported = ProcessorWrapper.isSupported;
@@ -124,38 +132,40 @@ export default class BackgroundProcessorManager extends ProcessorWrapper<Backgro
     return instance;
   }
 
+  /**
+   * Creates a preconfigured background processor which blurs a user's background. To switch
+   * modes, see `switchToVirtualBackground`.
+   */
   static withBackgroundBlur(
     blurRadius: number = 10,
     segmenterOptions?: SegmenterOptions,
     onFrameProcessed?: (stats: FrameProcessingStats) => void,
     processorOptions?: ProcessorWrapperOptions,
   ) {
-    return this.withOptions(
-      {
-        blurRadius,
-        segmenterOptions,
-        onFrameProcessed,
-        ...processorOptions,
-      },
-      // 'background-blur'
-    );
+    return this.withOptions({
+      blurRadius,
+      segmenterOptions,
+      onFrameProcessed,
+      ...processorOptions,
+    });
   }
 
+  /**
+   * Creates a preconfigured background processor which replaces a user's background with a virtual
+   * image. To switch modes, see `switchToVirtualBackground`.
+   */
   static withVirtualBackground(
     imagePath: string,
     segmenterOptions?: SegmenterOptions,
     onFrameProcessed?: (stats: FrameProcessingStats) => void,
     processorOptions?: ProcessorWrapperOptions,
   ) {
-    return this.withOptions(
-      {
-        imagePath,
-        segmenterOptions,
-        onFrameProcessed,
-        ...processorOptions,
-      },
-      // 'virtual-background',
-    );
+    return this.withOptions({
+      imagePath,
+      segmenterOptions,
+      onFrameProcessed,
+      ...processorOptions,
+    });
   }
 
   async switchToBackgroundBlur(blurRadius: number = 10) {
