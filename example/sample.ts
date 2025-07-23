@@ -28,19 +28,18 @@ import { BackgroundBlur, VirtualBackground } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+const BLUR_RADIUS = 10;
+const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
+
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(10, undefined, (stats) => {
+  blur: BackgroundBlur(BLUR_RADIUS, undefined, (stats) => {
     // console.log('frame processing stats', stats);
   }),
-  virtualBackground: VirtualBackground(
-    '/samantha-gades-BlIhVfXbi9s-unsplash.jpg',
-    undefined,
-    (stats) => {
-      // console.log('frame processing stats', stats);
-    },
-  ),
+  virtualBackground: VirtualBackground(IMAGE_PATH, undefined, (stats) => {
+    // console.log('frame processing stats', stats);
+  }),
 };
 let currentRoom: Room | undefined;
 
@@ -254,11 +253,37 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      if (camTrack.getProcessor()?.name !== 'background-blur') {
-        await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.blur);
-      } else {
-        await camTrack.stopProcessor();
+      const processor = camTrack.getProcessor();
+      switch (processor?.name) {
+        case 'background-blur':
+          await camTrack.stopProcessor();
+          break;
+
+        case 'virtual-background':
+          // This could also work, but it results in a visual artifact when switching:
+          // await camTrack.setProcessor(state.blur);
+          // await camTrack.stopProcessor();
+
+          const virtualBackgroundProcessor = processor as typeof state.virtualBackground;
+          await virtualBackgroundProcessor.updateTransformerOptions({
+            imagePath: undefined,
+            blurRadius: BLUR_RADIUS,
+          });
+          virtualBackgroundProcessor.name = 'background-blur';
+          break;
+
+        case undefined:
+        default:
+          // NOTE: Since state.blur may have been updated ad-hoc in `toggleVirtualBackground`,
+          // when switching, inject the right params in just to be 100% sure they are correct
+          await state.blur.updateTransformerOptions({
+            imagePath: undefined,
+            blurRadius: BLUR_RADIUS,
+          });
+          state.blur.name = 'background-blur';
+
+          await camTrack.setProcessor(state.blur);
+          break;
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
@@ -271,20 +296,46 @@ const appActions = {
 
   toggleVirtualBackground: async () => {
     if (!currentRoom) return;
-    setButtonDisabled('toggle-blur-button', true);
+    setButtonDisabled('toggle-virtual-bg-button', true);
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      if (camTrack.getProcessor()?.name !== 'virtual-background') {
-        await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.virtualBackground);
-      } else {
-        await camTrack.stopProcessor();
+      const processor = camTrack.getProcessor();
+      switch (processor?.name) {
+        case 'virtual-background':
+          await camTrack.stopProcessor();
+          break;
+
+        case 'background-blur':
+          // This could also work, but it results in a visual artifact when switching:
+          // await camTrack.setProcessor(state.virtualBackground);
+          // await camTrack.stopProcessor();
+
+          const blurProcessor = processor as typeof state.blur;
+          await blurProcessor.updateTransformerOptions({
+            imagePath: IMAGE_PATH,
+            blurRadius: undefined,
+          });
+          blurProcessor.name = 'virtual-background';
+          break;
+
+        case undefined:
+        default:
+          // NOTE: Since state.virtualbackground may have been updated ad-hoc in `toggleBlur`,
+          // when switching, inject the right params in just to be 100% sure they are correct
+          await state.virtualBackground.updateTransformerOptions({
+            imagePath: IMAGE_PATH,
+            blurRadius: undefined,
+          });
+          state.virtualBackground.name = 'virtual-background';
+
+          await camTrack.setProcessor(state.virtualBackground);
+          break;
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-blur-button', false);
+      setButtonDisabled('toggle-virtual-bg-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
     }
