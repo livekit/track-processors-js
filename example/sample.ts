@@ -34,6 +34,7 @@ const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
+  backgroundProcessorMode: null as ('virtual-background' | 'background-blur' | null),
   backgroundProcessor: BackgroundProcessor({
     // onFrameProcessed: (stats) => console.log('frame processing stats', stats),
   }),
@@ -250,31 +251,21 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      const processor = camTrack.getProcessor();
-      switch (processor?.name) {
+      switch (state.backgroundProcessorMode) {
         case 'background-blur':
           await camTrack.stopProcessor();
+          state.backgroundProcessorMode = null;
           break;
 
         case 'virtual-background':
-          const virtualBackgroundProcessor = processor as typeof state.backgroundProcessor;
-          await virtualBackgroundProcessor.updateTransformerOptions({
-            imagePath: undefined,
-            blurRadius: BLUR_RADIUS,
-          });
-          virtualBackgroundProcessor.name = 'background-blur';
+          await state.backgroundProcessor.switchToBackgroundBlur();
+          state.backgroundProcessorMode = 'background-blur';
           break;
 
-        case undefined:
+        case null:
         default:
-          // NOTE: Since state.blur may have been updated ad-hoc in `toggleVirtualBackground`,
-          // when switching, inject the right params in just to be 100% sure they are correct
-          await state.backgroundProcessor.updateTransformerOptions({
-            imagePath: undefined,
-            blurRadius: BLUR_RADIUS,
-          });
-          state.backgroundProcessor.name = 'background-blur';
-
+          await state.backgroundProcessor.switchToBackgroundBlur();
+          state.backgroundProcessorMode = 'background-blur';
           await camTrack.setProcessor(state.backgroundProcessor);
           break;
       }
@@ -293,31 +284,21 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      const processor = camTrack.getProcessor();
-      switch (processor?.name) {
+      switch (state.backgroundProcessorMode) {
         case 'virtual-background':
           await camTrack.stopProcessor();
+          state.backgroundProcessorMode = null;
           break;
 
         case 'background-blur':
-          const blurProcessor = processor as typeof state.backgroundProcessor;
-          await blurProcessor.updateTransformerOptions({
-            imagePath: IMAGE_PATH,
-            blurRadius: undefined,
-          });
-          blurProcessor.name = 'virtual-background';
+          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
+          state.backgroundProcessorMode = 'virtual-background';
           break;
 
-        case undefined:
+        case null:
         default:
-          // NOTE: Since state.virtualbackground may have been updated ad-hoc in `toggleBlur`,
-          // when switching, inject the right params in just to be 100% sure they are correct
-          await state.backgroundProcessor.updateTransformerOptions({
-            imagePath: IMAGE_PATH,
-            blurRadius: undefined,
-          });
-          state.backgroundProcessor.name = 'virtual-background';
-
+          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
+          state.backgroundProcessorMode = 'virtual-background';
           await camTrack.setProcessor(state.backgroundProcessor);
           break;
       }

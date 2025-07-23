@@ -35,76 +35,140 @@ export interface BackgroundProcessorOptions extends ProcessorWrapperOptions {
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 }
 
+/**
+ * Instantiates a background processor that is configured in blur mode.
+ * @deprecated Use `BackgroundProcessorManager.withBackgroundBlur` instead.
+ */
 export const BackgroundBlur = (
   blurRadius: number = 10,
   segmenterOptions?: SegmenterOptions,
   onFrameProcessed?: (stats: FrameProcessingStats) => void,
   processorOptions?: ProcessorWrapperOptions,
 ) => {
-  return BackgroundProcessor(
-    {
-      blurRadius,
-      segmenterOptions,
-      onFrameProcessed,
-      ...processorOptions,
-    },
-    'background-blur',
+  const processor = BackgroundProcessorManager.withBackgroundBlur(
+    blurRadius,
+    segmenterOptions,
+    onFrameProcessed,
+    processorOptions
   );
+  processor.name = 'background-blur';
+  return processor;
 };
 
+/**
+ * Instantiates a background processor that is configured in virtual background mode.
+ * @deprecated Use `BackgroundProcessorManager.withVirtualBackground` instead.
+ */
 export const VirtualBackground = (
   imagePath: string,
   segmenterOptions?: SegmenterOptions,
   onFrameProcessed?: (stats: FrameProcessingStats) => void,
   processorOptions?: ProcessorWrapperOptions,
 ) => {
-  return BackgroundProcessor(
-    {
-      imagePath,
-      segmenterOptions,
-      onFrameProcessed,
-      ...processorOptions,
-    },
-    'virtual-background',
+  const processor = BackgroundProcessorManager.withVirtualBackground(
+    imagePath,
+    segmenterOptions,
+    onFrameProcessed,
+    processorOptions
   );
+  processor.name = 'virtual-background';
+  return processor;
 };
 
+/**
+ * Instantiates a background processor that is configured with raw underlying options.
+ * @deprecated Use `BackgroundProcessorManager.withOptions` instead.
+ */
 export const BackgroundProcessor = (
   options: BackgroundProcessorOptions,
   name = 'background-processor',
 ) => {
-  const isTransformerSupported = BackgroundTransformer.isSupported;
-  const isProcessorSupported = ProcessorWrapper.isSupported;
+  return BackgroundProcessorManager.withOptions(options, name);
+};
 
-  if (!isTransformerSupported) {
-    throw new Error('Background transformer is not supported in this browser');
+
+export default class BackgroundProcessorManager extends ProcessorWrapper<BackgroundOptions> {
+  static withOptions(options: BackgroundProcessorOptions, name = 'background-processor') {
+    const isTransformerSupported = BackgroundTransformer.isSupported;
+    const isProcessorSupported = ProcessorWrapper.isSupported;
+
+    if (!isTransformerSupported) {
+      throw new Error('Background transformer is not supported in this browser');
+    }
+
+    if (!isProcessorSupported) {
+      throw new Error(
+        'Neither MediaStreamTrackProcessor nor canvas.captureStream() fallback is supported in this browser',
+      );
+    }
+
+    // Extract transformer-specific options and processor options
+    const {
+      blurRadius,
+      imagePath,
+      segmenterOptions,
+      assetPaths,
+      onFrameProcessed,
+      ...processorOpts
+    } = options;
+
+    const transformer = new BackgroundTransformer({
+      blurRadius,
+      imagePath,
+      segmenterOptions,
+      assetPaths,
+      onFrameProcessed,
+    });
+
+    const instance = new this(transformer, name, processorOpts);
+    return instance;
   }
 
-  if (!isProcessorSupported) {
-    throw new Error(
-      'Neither MediaStreamTrackProcessor nor canvas.captureStream() fallback is supported in this browser',
+  static withBackgroundBlur(
+    blurRadius: number = 10,
+    segmenterOptions?: SegmenterOptions,
+    onFrameProcessed?: (stats: FrameProcessingStats) => void,
+    processorOptions?: ProcessorWrapperOptions,
+  ) {
+    return this.withOptions(
+      {
+        blurRadius,
+        segmenterOptions,
+        onFrameProcessed,
+        ...processorOptions,
+      },
+      // 'background-blur'
     );
   }
 
-  // Extract transformer-specific options and processor options
-  const {
-    blurRadius,
-    imagePath,
-    segmenterOptions,
-    assetPaths,
-    onFrameProcessed,
-    ...processorOpts
-  } = options;
+  static withVirtualBackground(
+    imagePath: string,
+    segmenterOptions?: SegmenterOptions,
+    onFrameProcessed?: (stats: FrameProcessingStats) => void,
+    processorOptions?: ProcessorWrapperOptions,
+  ) {
+    return this.withOptions(
+      {
+        imagePath,
+        segmenterOptions,
+        onFrameProcessed,
+        ...processorOptions,
+      },
+      // 'virtual-background',
+    );
+  }
 
-  const transformer = new BackgroundTransformer({
-    blurRadius,
-    imagePath,
-    segmenterOptions,
-    assetPaths,
-    onFrameProcessed,
-  });
+  async switchToBackgroundBlur(blurRadius: number = 10) {
+    await this.updateTransformerOptions({
+      imagePath: undefined,
+      blurRadius,
+    });
+  }
 
-  const processor = new ProcessorWrapper(transformer, name, processorOpts);
-
-  return processor;
-};
+  async switchToVirtualBackground(imagePath: string) {
+    await this.updateTransformerOptions({
+      imagePath,
+      blurRadius: undefined,
+    });
+  }
+}
