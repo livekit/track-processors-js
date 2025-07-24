@@ -42,6 +42,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   segmentationTimeMs: number = 0;
 
+  isFirstFrame = true;
+
   constructor(opts: BackgroundOptions) {
     super();
     this.options = opts;
@@ -103,7 +105,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.setBackgroundImage(imageData);
   }
 
-  isFirstFrame = true;
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
     let enqueuedFrame = false;
     try {
@@ -125,18 +126,50 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.canvas.width = frame.displayWidth;
       this.canvas.height = frame.displayHeight;
 
-      // 
+      // Render a copy of the first frame is rendered to the screen as soon as possible to act
+      // as a less jarring initial state than a solid color while the synchronous work below
+      // (segmentation + frame rendering) occurs.
+      //
+      // Ideally, these sync tasks could be offloaded to a webworker, but this is challenging
+      // given WebGLTextures cannot be easily passed in a `postMessage`.
       if (this.isFirstFrame) {
-        controller.enqueue(frame);
-        enqueuedFrame = true;
-        await new Promise(r => setTimeout(r, 10));
-        // await new Promise(r => this.inputVideo);
+        controller.enqueue(frame.clone());
+
+        // Wait for the frame that was enqueued above to render before doing the sync work
+        // below - otherwise, the sync work will take over the event loop and prevent the render
+        // from occurring
+        if (this.inputVideo) {
+          await new Promise((resolve) => {
+            this.inputVideo!.requestVideoFrameCallback((_now, e) => {
+              const durationUntilFrameRenderedInMs = e.expectedDisplayTime - e.presentationTime;
+              setTimeout(resolve, durationUntilFrameRenderedInMs);
+            });
+          });
+        }
       }
+      this.isFirstFrame = false;
 
       const filterStartTimeMs = performance.now();
+
+      const segmentationPromise = new Promise<void>((resolve, reject) => {
+        try {
+          let segmentationStartTimeMs = performance.now();
+          // NOTE: this.imageSegmenter?.segmentForVideo is synchronous, and blocks the event loop
+          // for 10s of ms! The promise wrapper is just used to flatten out the call hierarchy.
+          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
+            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
+            this.segmentationResults = result;
+            this.updateMask(result.categoryMask);
+            result.close();
+            resolve();
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+
       // NOTE: `this.drawFrame` is syncronous, and could take tens to hundreds of ms to run!
       this.drawFrame(frame);
-      this.isFirstFrame = false;
       if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
         const newFrame = new VideoFrame(this.canvas, {
           timestamp: frame.timestamp || frameTimeMs,
@@ -152,21 +185,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       } else {
         controller.enqueue(frame);
       }
-
-      const segmentationPromise = new Promise<void>((resolve, reject) => {
-        try {
-          let segmentationStartTimeMs = performance.now();
-          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
-            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
-            this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
-            result.close();
-            resolve();
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
       await segmentationPromise;
     } catch (e) {
       console.error('Error while processing frame: ', e);
