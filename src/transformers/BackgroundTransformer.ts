@@ -87,6 +87,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImage = null;
+    this.isFirstFrame = true;
   }
 
   async loadBackground(path: string) {
@@ -102,7 +103,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.setBackgroundImage(imageData);
   }
 
+  isFirstFrame = true;
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
+    let enqueuedFrame = false;
     try {
       if (!(frame instanceof VideoFrame) || frame.codedWidth === 0 || frame.codedHeight === 0) {
         console.debug('empty frame detected, ignoring');
@@ -111,31 +114,29 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
       if (this.isDisabled) {
         controller.enqueue(frame);
+        enqueuedFrame = true;
         return;
       }
+
       const frameTimeMs = Date.now();
       if (!this.canvas) {
         throw TypeError('Canvas needs to be initialized first');
       }
       this.canvas.width = frame.displayWidth;
       this.canvas.height = frame.displayHeight;
-      const segmentationPromise = new Promise<void>((resolve, reject) => {
-        try {
-          let segmentationStartTimeMs = performance.now();
-          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
-            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
-            this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
-            result.close();
-            resolve();
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
+
+      // 
+      if (this.isFirstFrame) {
+        controller.enqueue(frame);
+        enqueuedFrame = true;
+        await new Promise(r => setTimeout(r, 10));
+        // await new Promise(r => this.inputVideo);
+      }
 
       const filterStartTimeMs = performance.now();
+      // NOTE: `this.drawFrame` is syncronous, and could take tens to hundreds of ms to run!
       this.drawFrame(frame);
+      this.isFirstFrame = false;
       if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
         const newFrame = new VideoFrame(this.canvas, {
           timestamp: frame.timestamp || frameTimeMs,
@@ -151,11 +152,28 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       } else {
         controller.enqueue(frame);
       }
+
+      const segmentationPromise = new Promise<void>((resolve, reject) => {
+        try {
+          let segmentationStartTimeMs = performance.now();
+          this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
+            this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
+            this.segmentationResults = result;
+            this.updateMask(result.categoryMask);
+            result.close();
+            resolve();
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
       await segmentationPromise;
     } catch (e) {
       console.error('Error while processing frame: ', e);
     } finally {
-      frame.close();
+      if (!enqueuedFrame) {
+        frame.close();
+      }
     }
   }
 
