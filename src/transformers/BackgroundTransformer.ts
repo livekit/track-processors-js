@@ -155,7 +155,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         try {
           let segmentationStartTimeMs = performance.now();
           // NOTE: this.imageSegmenter?.segmentForVideo is synchronous, and blocks the event loop
-          // for 10s of ms! The promise wrapper is just used to flatten out the call hierarchy.
+          // for tens to ~100 ms! The promise wrapper is just used to flatten out the call hierarchy.
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
@@ -168,7 +168,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         }
       });
 
-      // NOTE: `this.drawFrame` is syncronous, and could take tens to hundreds of ms to run!
+      // NOTE: `this.drawFrame` is synchronous, and could take tens of ms to run!
       this.drawFrame(frame);
       if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
         const newFrame = new VideoFrame(this.canvas, {
