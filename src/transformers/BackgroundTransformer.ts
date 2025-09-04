@@ -36,7 +36,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   segmentationResults: vision.ImageSegmenterResult | undefined;
 
-  backgroundImage: ImageBitmap | null = null;
+  backgroundImage: HTMLImageElement | null = null;
 
   options: BackgroundOptions;
 
@@ -75,8 +75,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     });
 
     // Skip loading the image here if update already loaded the image below
-    if (this.options?.imagePath && !this.backgroundImage) {
-      await this.loadBackground(this.options.imagePath).catch((err) =>
+    if (this.options?.imagePath) {
+      await this.loadAndSetBackground(this.options.imagePath).catch((err) =>
         console.error('Error while loading processor background image: ', err),
       );
     }
@@ -92,16 +92,19 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.isFirstFrame = true;
   }
 
-  async loadBackground(path: string) {
-    const img = new Image();
+  async loadAndSetBackground(path: string) {
+    if (!this.backgroundImage || this.backgroundImage.src !== path) {
+      const img = new Image();
 
-    await new Promise((resolve, reject) => {
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = (err) => reject(err);
-      img.src = path;
-    });
-    const imageData = await createImageBitmap(img);
+      await new Promise((resolve, reject) => {
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(err);
+        img.src = path;
+      });
+      this.backgroundImage = img;
+    }
+    const imageData = await createImageBitmap(this.backgroundImage);
     this.gl?.setBackgroundImage(imageData);
   }
 
@@ -200,7 +203,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
     this.gl?.setBlurRadius(opts.blurRadius ?? null);
     if (opts.imagePath) {
-      await this.loadBackground(opts.imagePath);
+      await this.loadAndSetBackground(opts.imagePath);
     } else {
       this.gl?.setBackgroundImage(null);
     }
