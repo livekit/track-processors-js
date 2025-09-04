@@ -36,7 +36,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   segmentationResults: vision.ImageSegmenterResult | undefined;
 
-  backgroundImage: HTMLImageElement | null = null;
+  backgroundImageAndPath: { imageData: ImageBitmap, path: string } | null = null;
 
   options: BackgroundOptions;
 
@@ -88,12 +88,12 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   async destroy() {
     await super.destroy();
     await this.imageSegmenter?.close();
-    this.backgroundImage = null;
+    this.backgroundImageAndPath = null;
     this.isFirstFrame = true;
   }
 
   async loadAndSetBackground(path: string) {
-    if (!this.backgroundImage || this.backgroundImage.src !== path) {
+    if (!this.backgroundImageAndPath || this.backgroundImageAndPath?.path !== path) {
       const img = new Image();
 
       await new Promise((resolve, reject) => {
@@ -102,10 +102,10 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         img.onerror = (err) => reject(err);
         img.src = path;
       });
-      this.backgroundImage = img;
+      const imageData = await createImageBitmap(img);
+      this.backgroundImageAndPath = { imageData, path };
     }
-    const imageData = await createImageBitmap(this.backgroundImage);
-    this.gl?.setBackgroundImage(imageData);
+    this.gl?.setBackgroundImage(this.backgroundImageAndPath.imageData);
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
