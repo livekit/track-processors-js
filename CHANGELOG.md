@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.6.1
+
+### Patch Changes
+
+- cache background image rather than refetch it every time it is enabled - [#100](https://github.com/livekit/track-processors-js/pull/100) ([@1egoman](https://github.com/1egoman))
+
 ## 0.6.0
 
 ### Minor Changes
