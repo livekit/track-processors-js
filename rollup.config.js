@@ -6,7 +6,6 @@ import terser from '@rollup/plugin-terser';
 export default {
   input: 'src/index.ts',
   output: {
-    // dir: 'dist',
     file: 'dist/track-processor.js',
     format: 'umd',
     name: 'track_processor',
