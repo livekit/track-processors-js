@@ -3,22 +3,29 @@
 ## Install
 
 ```
-npm add @livekit/track-processors
+npm install @livekit/track-processors
 ```
 
-## Usage of prebuilt processors
+## Usage of prebuilt processor
 
 ### Available processors
 
-This package exposes the `BackgroundBlur` and `VirtualBackground` pre-prepared processor pipelines.
+This package exposes the `BackgroundProcessorManager` pre-prepared processor pipeline. This single
+processor pipeline supports both background blur and substituting a user's background for a virtual
+image:
 
-- `BackgroundBlur(blurRadius)`
-- `VirtualBackground(imagePath)`
+```typescript
+// Background Blur
+BackgroundProcessorManager.withBackgroundBlur(/* optional blurRadius */)
+
+// Virtual Background
+BackgroundProcessorManager.withVirtualBackground(imagePath)
+```
 
 ### Usage example
 
 ```ts
-import { BackgroundBlur, supportsBackgroundProcessors, supportsModernBackgroundProcessors } from '@livekit/track-processors';
+import { BackgroundProcessorManager, supportsBackgroundProcessors, supportsModernBackgroundProcessors } from '@livekit/track-processors';
 
 if(!supportsBackgroundProcessors()) {
   throw new Error("this browser does not support background processors")
@@ -29,8 +36,8 @@ if(supportsModernBackgroundProcessors()) {
 }
 
 const videoTrack = await createLocalVideoTrack();
-const blur = BackgroundBlur(10);
-await videoTrack.setProcessor(blur);
+const processor = BackgroundProcessorManager.withBackgroundBlur(10);
+await videoTrack.setProcessor(processor);
 room.localParticipant.publishTrack(videoTrack);
 
 async function disableBackgroundBlur() {
@@ -38,10 +45,12 @@ async function disableBackgroundBlur() {
 }
 
 async updateBlurRadius(radius) {
-  return blur.updateTransformerOptions({blurRadius: radius})
+  return processor.switchToBackgroundBlur(radius);
 }
 
-
+async liveUpdateToBackgroundImage(image) {
+  return processor.switchToVirtualBackground(image);
+}
 ```
 
 ## Developing your own processors
