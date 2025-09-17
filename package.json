@@ -1,51 +1,51 @@
 {
-    "name": "@livekit/track-processors",
-    "version": "0.6.1",
-    "description": "LiveKit track processors",
-    "main": "dist/index.js",
-    "module": "dist/index.mjs",
-    "source": "src/index.ts",
-    "types": "dist/src/index.d.ts",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/livekit/track-processors-js.git"
-    },
-    "author": "Lukas Seiler",
-    "license": "Apache-2.0",
-    "scripts": {
-        "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
-        "build-sample": "cd example && vite build",
-        "lint": "eslint src",
-        "release": "pnpm build && changeset publish",
-        "test": "jest",
-        "dev": "vite example -c vite.config.mjs --open",
-        "sample": "pnpm run dev"
-    },
-    "files": [
-        "dist",
-        "src"
-    ],
-    "dependencies": {
-        "@mediapipe/tasks-vision": "0.10.14"
-    },
-    "peerDependencies": {
-        "livekit-client": "^1.12.0 || ^2.1.0",
-        "@types/dom-mediacapture-transform": "^0.1.9"
-    },
-    "devDependencies": {
-        "@changesets/cli": "^2.26.2",
-        "@livekit/changesets-changelog-github": "^0.0.4",
-        "@trivago/prettier-plugin-sort-imports": "^4.2.1",
-        "@types/offscreencanvas": "^2019.7.3",
-        "@typescript-eslint/eslint-plugin": "^5.62.0",
-        "eslint": "8.39.0",
-        "eslint-config-airbnb-typescript": "17.0.0",
-        "eslint-config-prettier": "8.8.0",
-        "eslint-plugin-import": "2.27.5",
-        "prettier": "^2.8.8",
-        "tsup": "^7.2.0",
-        "typescript": "^5.8.3",
-        "vite": "^7.0.2"
-    },
-    "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
+  "name": "@livekit/track-processors",
+  "version": "0.6.1",
+  "description": "LiveKit track processors",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "source": "src/index.ts",
+  "types": "dist/src/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/livekit/track-processors-js.git"
+  },
+  "author": "Lukas Seiler",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
+    "build-sample": "cd example && vite build",
+    "lint": "eslint src",
+    "release": "pnpm build && changeset publish",
+    "test": "jest",
+    "dev": "vite example -c vite.config.mjs --open",
+    "sample": "pnpm run dev"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.14"
+  },
+  "peerDependencies": {
+    "livekit-client": "^1.12.0 || ^2.1.0",
+    "@types/dom-mediacapture-transform": "^0.1.9"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.26.2",
+    "@livekit/changesets-changelog-github": "^0.0.4",
+    "@trivago/prettier-plugin-sort-imports": "^4.2.1",
+    "@types/offscreencanvas": "^2019.7.3",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "eslint": "8.39.0",
+    "eslint-config-airbnb-typescript": "17.0.0",
+    "eslint-config-prettier": "8.8.0",
+    "eslint-plugin-import": "2.27.5",
+    "prettier": "^2.8.8",
+    "tsup": "^7.2.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.2"
+  },
+  "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
 }
