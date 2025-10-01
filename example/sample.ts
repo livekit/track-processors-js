@@ -255,6 +255,7 @@ const appActions = {
           state.backgroundMode = null;
           break;
 
+        case 'disabled':
         case 'virtual-background':
           await state.background.switchToBackgroundBlur(BLUR_RADIUS);
           state.backgroundMode = 'background-blur';
@@ -276,6 +277,40 @@ const appActions = {
     }
   },
 
+  toggleDisabledBackground: async () => {
+    if (!currentRoom) return;
+    setButtonDisabled('toggle-disabled-bg-button', true);
+    try {
+      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
+        .track as LocalVideoTrack;
+      switch (state.backgroundMode) {
+        case 'disabled':
+          await camTrack.stopProcessor();
+          state.backgroundMode = null;
+          break;
+
+        case 'virtual-background':
+        case 'background-blur':
+          await state.background.switchToDisabled();
+          state.backgroundMode = 'disabled';
+          break;
+
+        case null:
+        default:
+          await state.background.switchToDisabled();
+          await camTrack.setProcessor(state.background);
+          state.backgroundMode = 'disabled';
+          break;
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      setButtonDisabled('toggle-disabled-bg-button', false);
+      renderParticipant(currentRoom.localParticipant);
+      updateButtonsForPublishState();
+    }
+  },
+
   toggleVirtualBackground: async () => {
     if (!currentRoom) return;
     setButtonDisabled('toggle-virtual-bg-button', true);
@@ -288,6 +323,7 @@ const appActions = {
           state.backgroundMode = null;
           break;
 
+        case 'disabled':
         case 'background-blur':
           await state.background.switchToVirtualBackground(IMAGE_PATH);
           state.backgroundMode = 'virtual-background';
@@ -648,6 +684,7 @@ function setButtonsForState(connected: boolean) {
     'disconnect-room-button',
     'toggle-blur-button',
     'toggle-virtual-bg-button',
+    'toggle-disabled-bg-button',
   ];
   const disconnectedSet = ['connect-button'];
 
