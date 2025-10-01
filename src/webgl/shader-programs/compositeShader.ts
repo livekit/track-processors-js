@@ -6,6 +6,7 @@ export const compositeFragmentShader = glsl`#version 300 es
   precision mediump float;
   in vec2 texCoords;
   uniform sampler2D background;
+  uniform bool disableBackground;
   uniform sampler2D frame;
   uniform sampler2D mask;
   out vec4 fragColor;
@@ -25,10 +26,13 @@ export const compositeFragmentShader = glsl`#version 300 es
     // Create a smooth edge around binary transition
     float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
 
-    // Optional: preserve frame alpha, or override as fully opaque
-    vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
-    
-    fragColor = blended;
+    if (disableBackground) {
+      fragColor = frameTex;
+    } else {
+      // Optional: preserve frame alpha, or override as fully opaque
+      vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
+      fragColor = blended;
+    }
   
   }
 `;
@@ -51,6 +55,7 @@ export function createCompositeProgram(gl: WebGL2RenderingContext) {
     mask: gl.getUniformLocation(compositeProgram, 'mask')!,
     frame: gl.getUniformLocation(compositeProgram, 'frame')!,
     background: gl.getUniformLocation(compositeProgram, 'background')!,
+    disableBackground: gl.getUniformLocation(compositeProgram, 'disableBackground')!,
     stepWidth: gl.getUniformLocation(compositeProgram, 'u_stepWidth')!,
   };
 

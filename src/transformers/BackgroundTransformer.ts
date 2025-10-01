@@ -15,6 +15,7 @@ export interface FrameProcessingStats {
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
+  backgroundDisabled?: boolean;
   /** cannot be updated through the `update` method, needs a restart */
   segmenterOptions?: SegmenterOptions;
   /** cannot be updated through the `update` method, needs a restart */
@@ -83,9 +84,10 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         this.log.error('Error while loading processor background image: ', err),
       );
     }
-    if (this.options.blurRadius) {
+    if (typeof this.options.blurRadius === 'number') {
       this.gl?.setBlurRadius(this.options.blurRadius);
     }
+    this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
   }
 
   async destroy() {
@@ -215,6 +217,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     } else {
       this.gl?.setBackgroundImage(null);
     }
+    this.gl?.setBackgroundDisabled(opts.backgroundDisabled ?? false);
   }
 
   private async drawFrame(frame: VideoFrame) {
