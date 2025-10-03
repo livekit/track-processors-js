@@ -12,23 +12,23 @@ export const compositeFragmentShader = glsl`#version 300 es
   out vec4 fragColor;
   
   void main() {
-      
     vec4 frameTex = texture(frame, texCoords);
-    vec4 bgTex = texture(background, texCoords);
-
-    float maskVal = texture(mask, texCoords).r;
-
-    // Compute screen-space gradient to detect edge sharpness
-    float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
-
-    float edgeSoftness = 2.0; // higher = softer
-    
-    // Create a smooth edge around binary transition
-    float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
 
     if (disableBackground) {
       fragColor = frameTex;
     } else {
+      vec4 bgTex = texture(background, texCoords);
+
+      float maskVal = texture(mask, texCoords).r;
+
+      // Compute screen-space gradient to detect edge sharpness
+      float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
+
+      float edgeSoftness = 2.0; // higher = softer
+
+      // Create a smooth edge around binary transition
+      float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
+
       // Optional: preserve frame alpha, or override as fully opaque
       vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
       fragColor = blended;
