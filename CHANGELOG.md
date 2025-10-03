@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.7.0
+
+### Minor Changes
+
+- Faster disabling of background transformers - [#102](https://github.com/livekit/track-processors-js/pull/102) ([@holzgeist](https://github.com/holzgeist))
+
 ## 0.6.1
 
 ### Patch Changes
