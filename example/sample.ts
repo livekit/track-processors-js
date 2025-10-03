@@ -242,6 +242,35 @@ const appActions = {
     videoPub.videoTrack?.restartTrack(options);
   },
 
+  toggleTrackProcessorEnabled: async () => {
+    if (!currentRoom) return;
+
+    setButtonDisabled('insert-track-processor', true);
+    setButtonDisabled('remove-track-processor', true);
+
+    try {
+      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
+        .track as LocalVideoTrack;
+
+      if (state.backgroundMode === null) {
+        await state.background.switchToDisabled();
+        state.backgroundMode = 'disabled';
+        await camTrack.setProcessor(state.background);
+      } else {
+        await camTrack.stopProcessor();
+        state.backgroundMode = null;
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      setButtonDisabled('insert-track-processor', false);
+      setButtonDisabled('remove-track-processor', false);
+      renderParticipant(currentRoom.localParticipant);
+      updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
+    }
+  },
+
   toggleBlur: async () => {
     if (!currentRoom) return;
     setButtonDisabled('toggle-blur-button', true);
@@ -251,8 +280,6 @@ const appActions = {
         .track as LocalVideoTrack;
       switch (state.backgroundMode) {
         case 'background-blur':
-          await camTrack.stopProcessor();
-          state.backgroundMode = null;
           break;
 
         case 'disabled':
@@ -274,19 +301,18 @@ const appActions = {
       setButtonDisabled('toggle-blur-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
     }
   },
 
   toggleDisabledBackground: async () => {
     if (!currentRoom) return;
-    setButtonDisabled('toggle-disabled-bg-button', true);
+    setButtonDisabled('toggle-disabled-button', true);
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       switch (state.backgroundMode) {
         case 'disabled':
-          await camTrack.stopProcessor();
-          state.backgroundMode = null;
           break;
 
         case 'virtual-background':
@@ -305,9 +331,10 @@ const appActions = {
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-disabled-bg-button', false);
+      setButtonDisabled('toggle-disabled-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
     }
   },
 
@@ -319,8 +346,6 @@ const appActions = {
         .track as LocalVideoTrack;
       switch (state.backgroundMode) {
         case 'virtual-background':
-          await camTrack.stopProcessor();
-          state.backgroundMode = null;
           break;
 
         case 'disabled':
@@ -342,6 +367,7 @@ const appActions = {
       setButtonDisabled('toggle-virtual-bg-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
     }
   },
 
@@ -434,6 +460,8 @@ function handleRoomDisconnect(reason?: DisconnectReason) {
   if (!currentRoom) return;
   appendLog('disconnected from room', { reason });
   setButtonsForState(false);
+  state.backgroundMode = null;
+  updateTrackProcessorModeButtons();
   renderParticipant(currentRoom.localParticipant, true);
   currentRoom.remoteParticipants.forEach((p) => {
     renderParticipant(p, true);
@@ -682,9 +710,11 @@ function setButtonsForState(connected: boolean) {
     'toggle-video-button',
     'toggle-audio-button',
     'disconnect-room-button',
+    'insert-track-processor',
+    'remove-track-processor',
     'toggle-blur-button',
     'toggle-virtual-bg-button',
-    'toggle-disabled-bg-button',
+    'toggle-disabled-button',
   ];
   const disconnectedSet = ['connect-button'];
 
@@ -751,6 +781,42 @@ function updateButtonsForPublishState() {
     `${lp.isMicrophoneEnabled ? 'Disable' : 'Enable'} Audio`,
     lp.isMicrophoneEnabled,
   );
+}
+
+function updateTrackProcessorModeButtons() {
+  if (state.backgroundMode === null) {
+    $('insert-track-processor').style.display = 'block';
+    $('remove-track-processor').style.display = 'none';
+
+    $('track-processor-modes').style.display = 'none';
+  } else {
+    $('insert-track-processor').style.display = 'none';
+    $('remove-track-processor').style.display = 'block';
+
+    $('track-processor-modes').style.display = 'block';
+  }
+
+  const {active: activeButtonId, inactive: inactiveButtonIds} = {
+    'disabled': { active: 'toggle-disabled-button', inactive: ['toggle-virtual-bg-button', 'toggle-blur-button'] },
+    'virtual-background': { active: 'toggle-virtual-bg-button', inactive: ['toggle-disabled-button', 'toggle-blur-button'] },
+    'background-blur': { active: 'toggle-blur-button', inactive: ['toggle-virtual-bg-button', 'toggle-disabled-button'] },
+    'off': { active: null, inactive: [] },
+  }[state.backgroundMode ?? 'off'];
+
+  if (activeButtonId) {
+    $(activeButtonId).classList.remove('btn-secondary');
+    $(activeButtonId).classList.add('btn-primary');
+  }
+  for (const inactiveId of inactiveButtonIds) {
+    $(inactiveId).classList.remove('btn-primary');
+    $(inactiveId).classList.add('btn-secondary');
+  }
+
+  if (state.backgroundMode === 'virtual-background') {
+    setButtonDisabled('update-bg-button', false);
+  } else {
+    setButtonDisabled('update-bg-button', true);
+  }
 }
 
 async function acquireDeviceList() {
