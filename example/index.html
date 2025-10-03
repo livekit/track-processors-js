@@ -65,33 +65,62 @@
               >
                 Enable Camera
               </button>
-              <button
-                id="toggle-blur-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleBlur()"
-              >
-                Toggle BackgroundBlur
-              </button>
-              <button
-                id="toggle-virtual-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleVirtualBackground()"
-              >
-                Toggle virtual background
-              </button>
-              <button
-                id="toggle-disabled-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleDisabledBackground()"
-              >
-                Toggle disabled background
-              </button>
+
+              <div class="card mt-1 mb-1 mx-n2 p-2">
+                <div>
+                  <button
+                    id="insert-track-processor"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleTrackProcessorEnabled()"
+                  >
+                    Insert Track Processor
+                  </button>
+
+                  <button
+                    id="remove-track-processor"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleTrackProcessorEnabled()"
+                    style="display: none;"
+                  >
+                    Remove Track Processor
+                  </button>
+                </div>
+
+                <div class="btn-group mt-2" id="track-processor-modes" style="display: none;">
+                  <button
+                    id="toggle-disabled-button"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleDisabledBackground()"
+                  >
+                    Disabled
+                  </button>
+                  <button
+                    id="toggle-blur-button"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleBlur()"
+                  >
+                    Blur
+                  </button>
+                  <button
+                    id="toggle-virtual-bg-button"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleVirtualBackground()"
+                  >
+                    Virtual background
+                  </button>
+                </div>
+              </div>
+
               <button
                 id="flip-video-button"
                 class="btn btn-secondary mt-1"
@@ -113,6 +142,7 @@
               <button
                 id="update-bg-button"
                 class="btn btn-secondary mt-1"
+                disabled
                 type="button"
                 onclick="appActions.updateVirtualBackgroundImage('/ali-kazal-tbw_KQE3Cbg-unsplash.jpg')"
               >
