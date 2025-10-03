@@ -64,13 +64,13 @@ export type BackgroundProcessorOptions =
 
 class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions> {
   async switchToBackgroundBlur(blurRadius: number = DEFAULT_BLUR_RADIUS) {
-    await this.updateTransformerOptions({ imagePath: undefined, blurRadius });
+    await this.updateTransformerOptions({ imagePath: undefined, blurRadius, backgroundDisabled: false });
   }
   async switchToVirtualBackground(imagePath: string) {
-    await this.updateTransformerOptions({ imagePath, blurRadius: undefined });
+    await this.updateTransformerOptions({ imagePath, blurRadius: undefined, backgroundDisabled: false });
   }
   async switchToDisabled() {
-    await this.updateTransformerOptions({ imagePath: undefined, blurRadius: 0, backgroundDisabled: true });
+    await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
   }
 }
 

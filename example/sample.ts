@@ -352,7 +352,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       await state.background.switchToVirtualBackground(imagePath);
-      if (state.backgroundMode !== null) {
+      if (state.backgroundMode === null) {
         await camTrack.stopProcessor();
         await camTrack.setProcessor(state.background);
       }
