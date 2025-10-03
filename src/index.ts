@@ -65,9 +65,11 @@ class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions> {
   async switchToBackgroundBlur(blurRadius: number = DEFAULT_BLUR_RADIUS) {
     await this.updateTransformerOptions({ imagePath: undefined, blurRadius, backgroundDisabled: false });
   }
+
   async switchToVirtualBackground(imagePath: string) {
     await this.updateTransformerOptions({ imagePath, blurRadius: undefined, backgroundDisabled: false });
   }
+
   async switchToDisabled() {
     await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
   }
@@ -110,7 +112,8 @@ export const BackgroundProcessor = (
   switch (options.mode) {
     case 'background-blur': {
       const {
-        mode: _mode,
+        // eslint-disable-next-line no-unused-vars
+        mode,
         blurRadius,
         segmenterOptions,
         assetPaths,
@@ -130,7 +133,8 @@ export const BackgroundProcessor = (
 
     case 'virtual-background': {
       const {
-        mode: _mode,
+        // eslint-disable-next-line no-unused-vars
+        mode,
         imagePath,
         segmenterOptions,
         assetPaths,
