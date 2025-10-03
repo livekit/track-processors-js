@@ -15,7 +15,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
 
   gl?: ReturnType<typeof setupWebGL>;
 
-  protected isDisabled?: Boolean = false;
+  protected isDisabled?: boolean = false;
 
   async init({
     outputCanvas,

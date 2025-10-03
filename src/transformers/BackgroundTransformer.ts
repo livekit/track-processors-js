@@ -121,12 +121,12 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         return;
       }
 
-      let disabled = this.isDisabled ?? false;
-      if (this.options.blurRadius === null && this.options.imagePath === null) {
-        disabled = true;
+      let skipProcessingFrame = this.isDisabled ?? this.options.backgroundDisabled ?? false;
+      if (typeof this.options.blurRadius !== 'number' && typeof this.options.imagePath !== 'string') {
+        skipProcessingFrame = true;
       }
 
-      if (disabled) {
+      if (skipProcessingFrame) {
         controller.enqueue(frame);
         enqueuedFrame = true;
         return;
