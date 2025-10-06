@@ -66,6 +66,35 @@
                 Enable Camera
               </button>
 
+              <button
+                id="flip-video-button"
+                class="btn btn-secondary mt-1"
+                type="button"
+                onclick="appActions.flipVideo()"
+              >
+                Flip Video
+              </button>
+
+              <button
+                id="disconnect-room-button"
+                class="btn btn-danger mt-1"
+                disabled
+                type="button"
+                onclick="appActions.disconnectRoom()"
+              >
+                Disconnect
+              </button>
+
+              <button
+                id="start-audio-button"
+                class="btn btn-secondary mt-1"
+                disabled
+                type="button"
+                onclick="appActions.startAudio()"
+              >
+                Start Audio
+              </button>
+
               <div class="card mt-1 mb-1 mx-n2 p-2">
                 <div>
                   <button
@@ -91,7 +120,7 @@
                 </div>
 
                 <div id="track-processor-modes" style="display: none;">
-                  <div class="btn-group mt-2">
+                  <div class="btn-group mt-1">
                     <button
                       id="switch-to-disabled-button"
                       class="btn btn-secondary"
@@ -132,34 +161,6 @@
                   </button>
                 </div>
               </div>
-
-              <button
-                id="flip-video-button"
-                class="btn btn-secondary mt-1"
-                type="button"
-                onclick="appActions.flipVideo()"
-              >
-                Flip Video
-              </button>
-
-              <button
-                id="disconnect-room-button"
-                class="btn btn-danger mt-1"
-                disabled
-                type="button"
-                onclick="appActions.disconnectRoom()"
-              >
-                Disconnect
-              </button>
-              <button
-                id="start-audio-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.startAudio()"
-              >
-                Start Audio
-              </button>
             </div>
           </div>
 
