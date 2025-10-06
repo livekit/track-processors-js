@@ -35,7 +35,7 @@ const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
   backgroundMode: null as NonNullable<BackgroundProcessorOptions['mode']> | null,
-  background: BackgroundProcessor({ mode: 'background-blur', blurRadius: BLUR_RADIUS }),
+  backgroundProcessor: BackgroundProcessor({ mode: 'background-blur', blurRadius: BLUR_RADIUS }),
 };
 let currentRoom: Room | undefined;
 
@@ -253,9 +253,9 @@ const appActions = {
         .track as LocalVideoTrack;
 
       if (state.backgroundMode === null) {
-        await state.background.switchToDisabled();
+        await state.backgroundProcessor.switchToDisabled();
         state.backgroundMode = 'disabled';
-        await camTrack.setProcessor(state.background);
+        await camTrack.setProcessor(state.backgroundProcessor);
       } else {
         await camTrack.stopProcessor();
         state.backgroundMode = null;
@@ -284,14 +284,14 @@ const appActions = {
 
         case 'disabled':
         case 'virtual-background':
-          await state.background.switchToBackgroundBlur(BLUR_RADIUS);
+          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
           state.backgroundMode = 'background-blur';
           break;
 
         case null:
         default:
-          await state.background.switchToBackgroundBlur(BLUR_RADIUS);
-          await camTrack.setProcessor(state.background);
+          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
+          await camTrack.setProcessor(state.backgroundProcessor);
           state.backgroundMode = 'background-blur';
           break;
       }
@@ -317,14 +317,14 @@ const appActions = {
 
         case 'virtual-background':
         case 'background-blur':
-          await state.background.switchToDisabled();
+          await state.backgroundProcessor.switchToDisabled();
           state.backgroundMode = 'disabled';
           break;
 
         case null:
         default:
-          await state.background.switchToDisabled();
-          await camTrack.setProcessor(state.background);
+          await state.backgroundProcessor.switchToDisabled();
+          await camTrack.setProcessor(state.backgroundProcessor);
           state.backgroundMode = 'disabled';
           break;
       }
@@ -350,14 +350,14 @@ const appActions = {
 
         case 'disabled':
         case 'background-blur':
-          await state.background.switchToVirtualBackground(IMAGE_PATH);
+          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
           state.backgroundMode = 'virtual-background';
           break;
 
         case null:
         default:
-          await state.background.switchToVirtualBackground(IMAGE_PATH);
-          await camTrack.setProcessor(state.background);
+          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
+          await camTrack.setProcessor(state.backgroundProcessor);
           state.backgroundMode = 'virtual-background';
           break;
       }
@@ -377,10 +377,10 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      await state.background.switchToVirtualBackground(imagePath);
+      await state.backgroundProcessor.switchToVirtualBackground(imagePath);
       if (state.backgroundMode === null) {
         await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.background);
+        await camTrack.setProcessor(state.backgroundProcessor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
