@@ -34,7 +34,7 @@ const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  backgroundMode: null as NonNullable<BackgroundProcessorOptions['mode']> | null,
+  isBackgroundProcessorEnabled: false,
   backgroundProcessor: BackgroundProcessor({ mode: 'background-blur', blurRadius: BLUR_RADIUS }),
 };
 let currentRoom: Room | undefined;
@@ -252,13 +252,13 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
 
-      if (state.backgroundMode === null) {
-        await state.backgroundProcessor.switchToDisabled();
-        state.backgroundMode = 'disabled';
-        await camTrack.setProcessor(state.backgroundProcessor);
-      } else {
+      if (state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
-        state.backgroundMode = null;
+        state.isBackgroundProcessorEnabled = false;
+      } else {
+        await state.backgroundProcessor.switchToDisabled();
+        state.isBackgroundProcessorEnabled = true;
+        await camTrack.setProcessor(state.backgroundProcessor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
@@ -293,10 +293,10 @@ const appActions = {
           break;
       }
 
-      if (state.backgroundMode === null) {
+      if (!state.isBackgroundProcessorEnabled) {
         await camTrack.setProcessor(state.backgroundProcessor);
+        state.isBackgroundProcessorEnabled = true;
       }
-      state.backgroundMode = newMode;
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
@@ -314,7 +314,7 @@ const appActions = {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
       await state.backgroundProcessor.switchToVirtualBackground(imagePath);
-      if (state.backgroundMode === null) {
+      if (!state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
         await camTrack.setProcessor(state.backgroundProcessor);
       }
@@ -396,7 +396,7 @@ function handleRoomDisconnect(reason?: DisconnectReason) {
   if (!currentRoom) return;
   appendLog('disconnected from room', { reason });
   setButtonsForState(false);
-  state.backgroundMode = null;
+  state.isBackgroundProcessorEnabled = false;
   updateTrackProcessorModeButtons();
   renderParticipant(currentRoom.localParticipant, true);
   currentRoom.remoteParticipants.forEach((p) => {
@@ -720,24 +720,25 @@ function updateButtonsForPublishState() {
 }
 
 function updateTrackProcessorModeButtons() {
-  if (state.backgroundMode === null) {
-    $('insert-track-processor').style.display = 'block';
-    $('remove-track-processor').style.display = 'none';
-
-    $('track-processor-modes').style.display = 'none';
-  } else {
+  if (state.isBackgroundProcessorEnabled) {
     $('insert-track-processor').style.display = 'none';
     $('remove-track-processor').style.display = 'block';
 
     $('track-processor-modes').style.display = 'block';
+  } else {
+    $('insert-track-processor').style.display = 'block';
+    $('remove-track-processor').style.display = 'none';
+
+    $('track-processor-modes').style.display = 'none';
   }
 
   const {active: activeButtonId, inactive: inactiveButtonIds} = {
     'disabled': { active: 'switch-to-disabled-button', inactive: ['switch-to-virtual-background-button', 'switch-to-background-blur-button'] },
     'virtual-background': { active: 'switch-to-virtual-background-button', inactive: ['switch-to-disabled-button', 'switch-to-background-blur-button'] },
     'background-blur': { active: 'switch-to-background-blur-button', inactive: ['switch-to-virtual-background-button', 'switch-to-disabled-button'] },
+    'legacy': { active: null, inactive: [] }, // NOTE: should be impossible, but here for thoroughness
     'off': { active: null, inactive: [] },
-  }[state.backgroundMode ?? 'off'];
+  }[state.isBackgroundProcessorEnabled ? state.backgroundProcessor.mode : 'off'];
 
   if (activeButtonId) {
     $(activeButtonId).classList.remove('btn-secondary');
@@ -748,7 +749,7 @@ function updateTrackProcessorModeButtons() {
     $(inactiveId).classList.add('btn-secondary');
   }
 
-  if (state.backgroundMode === 'virtual-background') {
+  if (state.backgroundProcessor.mode === 'virtual-background') {
     setButtonDisabled('update-bg-button', false);
   } else {
     setButtonDisabled('update-bg-button', true);

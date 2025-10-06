@@ -30,26 +30,32 @@ export const supportsBackgroundProcessors = () =>
 export const supportsModernBackgroundProcessors = () =>
   BackgroundTransformer.isSupported && ProcessorWrapper.hasModernApiSupport;
 
+type SwitchBackgroundProcessorBackgroundBlurOptions = {
+  mode: 'background-blur';
+  blurRadius: number;
+};
+
+type SwitchBackgroundProcessorVirtualBackgroundOptions = {
+  mode: 'virtual-background';
+  imagePath: string;
+};
+
+type SwitchBackgroundProcessorDisabledOptions = {
+  mode: 'disabled';
+};
+
+export type SwitchBackgroundProcessorOptions =
+| SwitchBackgroundProcessorDisabledOptions
+| SwitchBackgroundProcessorBackgroundBlurOptions
+| SwitchBackgroundProcessorVirtualBackgroundOptions
+
 type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
-type BackgroundProcessorBackgroundBlurOptions = BackgroundProcessorCommonOptions & {
-  mode: 'background-blur';
-  blurRadius: number;
-};
-
-type BackgroundProcessorVirtualBackgroundOptions = BackgroundProcessorCommonOptions & {
-  mode: 'virtual-background';
-  imagePath: string;
-};
-
-type BackgroundProcessorDisabledOptions = BackgroundProcessorCommonOptions & {
-  mode: 'disabled';
-};
-
+type BackgroundProcessorModeOptions = BackgroundProcessorCommonOptions & SwitchBackgroundProcessorOptions;
 type BackgroundProcessorLegacyOptions = BackgroundProcessorCommonOptions & {
   mode?: never;
   blurRadius?: number;
@@ -57,22 +63,52 @@ type BackgroundProcessorLegacyOptions = BackgroundProcessorCommonOptions & {
 };
 
 export type BackgroundProcessorOptions =
-| BackgroundProcessorDisabledOptions
-| BackgroundProcessorBackgroundBlurOptions
-| BackgroundProcessorVirtualBackgroundOptions
-| BackgroundProcessorLegacyOptions;
+  | BackgroundProcessorModeOptions
+  | BackgroundProcessorLegacyOptions;
 
-class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions> {
+class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, BackgroundTransformer> {
+  get mode(): BackgroundProcessorModeOptions['mode'] | 'legacy' {
+    const options = this.transformer.options;
+
+    if (options.backgroundDisabled) {
+      return 'disabled';
+    }
+
+    if (typeof options.imagePath === 'string' && typeof options.blurRadius === 'undefined') {
+      return 'virtual-background';
+    }
+
+    if (typeof options.imagePath === 'undefined' && typeof options.blurRadius === 'number') {
+      return 'background-blur';
+    }
+
+    return 'legacy';
+  }
+
+  async switchToMode(options: SwitchBackgroundProcessorOptions) {
+    switch (options.mode) {
+      case 'background-blur':
+        await this.updateTransformerOptions({ imagePath: undefined, blurRadius: options.blurRadius, backgroundDisabled: false });
+        break;
+      case 'virtual-background':
+        await this.updateTransformerOptions({ imagePath: options.imagePath, blurRadius: undefined, backgroundDisabled: false });
+        break;
+      case 'disabled':
+        await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
+        break;
+    }
+  }
+
   async switchToBackgroundBlur(blurRadius: number = DEFAULT_BLUR_RADIUS) {
-    await this.updateTransformerOptions({ imagePath: undefined, blurRadius, backgroundDisabled: false });
+    await this.switchToMode({ mode: 'background-blur', blurRadius });
   }
 
   async switchToVirtualBackground(imagePath: string) {
-    await this.updateTransformerOptions({ imagePath, blurRadius: undefined, backgroundDisabled: false });
+    await this.switchToMode({ mode: 'virtual-background', imagePath });
   }
 
   async switchToDisabled() {
-    await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
+    await this.switchToMode({ mode: 'disabled' });
   }
 }
 
