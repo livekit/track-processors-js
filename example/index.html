@@ -90,33 +90,45 @@
                   </button>
                 </div>
 
-                <div class="btn-group mt-2" id="track-processor-modes" style="display: none;">
+                <div id="track-processor-modes" style="display: none;">
+                  <div class="btn-group mt-2">
+                    <button
+                      id="switch-to-disabled-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('disabled')"
+                    >
+                      Disabled
+                    </button>
+                    <button
+                      id="switch-to-background-blur-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('background-blur')"
+                    >
+                      Blur
+                    </button>
+                    <button
+                      id="switch-to-virtual-background-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('virtual-background')"
+                    >
+                      Virtual background
+                    </button>
+                  </div>
+
                   <button
-                    id="switch-to-disabled-button"
-                    class="btn btn-secondary"
+                    id="update-bg-button"
+                    class="btn btn-secondary mt-1"
                     disabled
                     type="button"
-                    onclick="appActions.switchBackgroundMode('disabled')"
+                    onclick="appActions.updateVirtualBackgroundImage('/ali-kazal-tbw_KQE3Cbg-unsplash.jpg')"
                   >
-                    Disabled
-                  </button>
-                  <button
-                    id="switch-to-background-blur-button"
-                    class="btn btn-secondary"
-                    disabled
-                    type="button"
-                    onclick="appActions.switchBackgroundMode('background-blur')"
-                  >
-                    Blur
-                  </button>
-                  <button
-                    id="switch-to-virtual-background-button"
-                    class="btn btn-secondary"
-                    disabled
-                    type="button"
-                    onclick="appActions.switchBackgroundMode('virtual-background')"
-                  >
-                    Virtual background
+                    Update Background Image
                   </button>
                 </div>
               </div>
@@ -128,25 +140,6 @@
                 onclick="appActions.flipVideo()"
               >
                 Flip Video
-              </button>
-
-              <button
-                id="toggle-virtual-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleVirtualBackground()"
-              >
-                Toggle Background
-              </button>
-              <button
-                id="update-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.updateVirtualBackgroundImage('/ali-kazal-tbw_KQE3Cbg-unsplash.jpg')"
-              >
-                Update Background Image
               </button>
 
               <button
