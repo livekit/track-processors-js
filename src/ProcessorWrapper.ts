@@ -11,7 +11,10 @@ export interface ProcessorWrapperOptions {
   maxFps?: number;
 }
 
-export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
+export default class ProcessorWrapper<
+  TransformerOptions extends Record<string, unknown>,
+  Transformer extends TrackTransformer<TransformerOptions> = TrackTransformer<TransformerOptions>,
+>
   implements TrackProcessor<Track.Kind>
 {
   /**
@@ -59,7 +62,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
   processedTrack?: MediaStreamTrack;
 
-  transformer: TrackTransformer<TransformerOptions>;
+  transformer: Transformer;
 
   // For tracking whether we're using the stream API fallback
   private useStreamFallback = false;
@@ -83,7 +86,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
   constructor(
-    transformer: TrackTransformer<TransformerOptions>,
+    transformer: Transformer,
     name: string,
     options: ProcessorWrapperOptions = {},
   ) {
