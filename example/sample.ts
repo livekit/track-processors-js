@@ -271,100 +271,36 @@ const appActions = {
     }
   },
 
-  toggleBlur: async () => {
+  switchBackgroundMode: async (newMode: NonNullable<BackgroundProcessorOptions['mode']>) => {
     if (!currentRoom) return;
-    setButtonDisabled('toggle-blur-button', true);
+
+    const controlButtonId = `switch-to-${newMode}-button`;
+    setButtonDisabled(controlButtonId, true);
 
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      switch (state.backgroundMode) {
-        case 'background-blur':
-          break;
 
+      switch (newMode) {
         case 'disabled':
-        case 'virtual-background':
-          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
-          state.backgroundMode = 'background-blur';
-          break;
-
-        case null:
-        default:
-          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
-          await camTrack.setProcessor(state.backgroundProcessor);
-          state.backgroundMode = 'background-blur';
-          break;
-      }
-    } catch (e: any) {
-      appendLog(`ERROR: ${e.message}`);
-    } finally {
-      setButtonDisabled('toggle-blur-button', false);
-      renderParticipant(currentRoom.localParticipant);
-      updateButtonsForPublishState();
-      updateTrackProcessorModeButtons();
-    }
-  },
-
-  toggleDisabledBackground: async () => {
-    if (!currentRoom) return;
-    setButtonDisabled('toggle-disabled-button', true);
-    try {
-      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
-        .track as LocalVideoTrack;
-      switch (state.backgroundMode) {
-        case 'disabled':
-          break;
-
-        case 'virtual-background':
-        case 'background-blur':
           await state.backgroundProcessor.switchToDisabled();
-          state.backgroundMode = 'disabled';
           break;
-
-        case null:
-        default:
-          await state.backgroundProcessor.switchToDisabled();
-          await camTrack.setProcessor(state.backgroundProcessor);
-          state.backgroundMode = 'disabled';
-          break;
-      }
-    } catch (e: any) {
-      appendLog(`ERROR: ${e.message}`);
-    } finally {
-      setButtonDisabled('toggle-disabled-button', false);
-      renderParticipant(currentRoom.localParticipant);
-      updateButtonsForPublishState();
-      updateTrackProcessorModeButtons();
-    }
-  },
-
-  toggleVirtualBackground: async () => {
-    if (!currentRoom) return;
-    setButtonDisabled('toggle-virtual-bg-button', true);
-    try {
-      const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
-        .track as LocalVideoTrack;
-      switch (state.backgroundMode) {
         case 'virtual-background':
+          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
           break;
-
-        case 'disabled':
         case 'background-blur':
-          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
-          state.backgroundMode = 'virtual-background';
-          break;
-
-        case null:
-        default:
-          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
-          await camTrack.setProcessor(state.backgroundProcessor);
-          state.backgroundMode = 'virtual-background';
+          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
           break;
       }
+
+      if (state.backgroundMode === null) {
+        await camTrack.setProcessor(state.backgroundProcessor);
+      }
+      state.backgroundMode = newMode;
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-virtual-bg-button', false);
+      setButtonDisabled(controlButtonId, false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
       updateTrackProcessorModeButtons();
@@ -385,7 +321,7 @@ const appActions = {
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-blur-button', false);
+      setButtonDisabled('switch-to-background-blur-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
     }
@@ -712,9 +648,9 @@ function setButtonsForState(connected: boolean) {
     'disconnect-room-button',
     'insert-track-processor',
     'remove-track-processor',
-    'toggle-blur-button',
-    'toggle-virtual-bg-button',
-    'toggle-disabled-button',
+    'switch-to-background-blur-button',
+    'switch-to-virtual-background-button',
+    'switch-to-disabled-button',
   ];
   const disconnectedSet = ['connect-button'];
 
@@ -797,9 +733,9 @@ function updateTrackProcessorModeButtons() {
   }
 
   const {active: activeButtonId, inactive: inactiveButtonIds} = {
-    'disabled': { active: 'toggle-disabled-button', inactive: ['toggle-virtual-bg-button', 'toggle-blur-button'] },
-    'virtual-background': { active: 'toggle-virtual-bg-button', inactive: ['toggle-disabled-button', 'toggle-blur-button'] },
-    'background-blur': { active: 'toggle-blur-button', inactive: ['toggle-virtual-bg-button', 'toggle-disabled-button'] },
+    'disabled': { active: 'switch-to-disabled-button', inactive: ['switch-to-virtual-background-button', 'switch-to-background-blur-button'] },
+    'virtual-background': { active: 'switch-to-virtual-background-button', inactive: ['switch-to-disabled-button', 'switch-to-background-blur-button'] },
+    'background-blur': { active: 'switch-to-background-blur-button', inactive: ['switch-to-virtual-background-button', 'switch-to-disabled-button'] },
     'off': { active: null, inactive: [] },
   }[state.backgroundMode ?? 'off'];
 
