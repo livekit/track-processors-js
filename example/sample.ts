@@ -245,8 +245,7 @@ const appActions = {
   toggleTrackProcessorEnabled: async () => {
     if (!currentRoom) return;
 
-    setButtonDisabled('insert-track-processor', true);
-    setButtonDisabled('remove-track-processor', true);
+    setButtonDisabled('toggle-track-processor', true);
 
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
@@ -263,8 +262,6 @@ const appActions = {
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('insert-track-processor', false);
-      setButtonDisabled('remove-track-processor', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
       updateTrackProcessorModeButtons();
@@ -646,8 +643,7 @@ function setButtonsForState(connected: boolean) {
     'toggle-video-button',
     'toggle-audio-button',
     'disconnect-room-button',
-    'insert-track-processor',
-    'remove-track-processor',
+    'toggle-track-processor',
     'switch-to-background-blur-button',
     'switch-to-virtual-background-button',
     'switch-to-disabled-button',
@@ -721,14 +717,10 @@ function updateButtonsForPublishState() {
 
 function updateTrackProcessorModeButtons() {
   if (state.isBackgroundProcessorEnabled) {
-    $('insert-track-processor').style.display = 'none';
-    $('remove-track-processor').style.display = 'block';
-
+    setButtonState('toggle-track-processor', 'Remove Track Processor', false, false);
     $('track-processor-modes').style.display = 'block';
   } else {
-    $('insert-track-processor').style.display = 'block';
-    $('remove-track-processor').style.display = 'none';
-
+    setButtonState('toggle-track-processor', 'Insert Track Processor', false, false);
     $('track-processor-modes').style.display = 'none';
   }
 
