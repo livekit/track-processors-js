@@ -32,7 +32,8 @@ export const supportsModernBackgroundProcessors = () =>
 
 type SwitchBackgroundProcessorBackgroundBlurOptions = {
   mode: 'background-blur';
-  blurRadius: number;
+  /** If unspecified, defaults to {@link DEFAULT_BLUR_RADIUS} */
+  blurRadius?: number;
 };
 
 type SwitchBackgroundProcessorVirtualBackgroundOptions = {
@@ -78,7 +79,7 @@ class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, Bac
       return 'virtual-background';
     }
 
-    if (typeof options.imagePath === 'undefined' && typeof options.blurRadius === 'number') {
+    if (typeof options.imagePath === 'undefined') {
       return 'background-blur';
     }
 
@@ -88,10 +89,18 @@ class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, Bac
   async switchToMode(options: SwitchBackgroundProcessorOptions) {
     switch (options.mode) {
       case 'background-blur':
-        await this.updateTransformerOptions({ imagePath: undefined, blurRadius: options.blurRadius, backgroundDisabled: false });
+        await this.updateTransformerOptions({
+          imagePath: undefined,
+          blurRadius: options.blurRadius ?? DEFAULT_BLUR_RADIUS,
+          backgroundDisabled: false,
+        });
         break;
       case 'virtual-background':
-        await this.updateTransformerOptions({ imagePath: options.imagePath, blurRadius: undefined, backgroundDisabled: false });
+        await this.updateTransformerOptions({
+          imagePath: options.imagePath,
+          blurRadius: undefined,
+          backgroundDisabled: false,
+        });
         break;
       case 'disabled':
         await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
@@ -151,7 +160,7 @@ export const BackgroundProcessor = (
       const {
         // eslint-disable-next-line no-unused-vars
         mode,
-        blurRadius,
+        blurRadius = DEFAULT_BLUR_RADIUS,
         segmenterOptions,
         assetPaths,
         onFrameProcessed,
