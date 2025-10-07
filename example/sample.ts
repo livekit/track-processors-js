@@ -255,7 +255,7 @@ const appActions = {
         await camTrack.stopProcessor();
         state.isBackgroundProcessorEnabled = false;
       } else {
-        await state.backgroundProcessor.switchToDisabled();
+        await state.backgroundProcessor.switchTo({ mode: 'disabled' });
         state.isBackgroundProcessorEnabled = true;
         await camTrack.setProcessor(state.backgroundProcessor);
       }
@@ -280,13 +280,13 @@ const appActions = {
 
       switch (newMode) {
         case 'disabled':
-          await state.backgroundProcessor.switchToDisabled();
+          await state.backgroundProcessor.switchTo({ mode: 'disabled' });
           break;
         case 'virtual-background':
-          await state.backgroundProcessor.switchToVirtualBackground(IMAGE_PATH);
+          await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath: IMAGE_PATH });
           break;
         case 'background-blur':
-          await state.backgroundProcessor.switchToBackgroundBlur(BLUR_RADIUS);
+          await state.backgroundProcessor.switchTo({ mode: 'background-blur' });
           break;
       }
 
@@ -310,7 +310,7 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      await state.backgroundProcessor.switchToVirtualBackground(imagePath);
+      await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath });
       if (!state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
         await camTrack.setProcessor(state.backgroundProcessor);

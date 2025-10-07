@@ -86,7 +86,7 @@ class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, Bac
     return 'legacy';
   }
 
-  async switchToMode(options: SwitchBackgroundProcessorOptions) {
+  async switchTo(options: SwitchBackgroundProcessorOptions) {
     switch (options.mode) {
       case 'background-blur':
         await this.updateTransformerOptions({
@@ -106,18 +106,6 @@ class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, Bac
         await this.updateTransformerOptions({ imagePath: undefined, backgroundDisabled: true });
         break;
     }
-  }
-
-  async switchToBackgroundBlur(blurRadius: number = DEFAULT_BLUR_RADIUS) {
-    await this.switchToMode({ mode: 'background-blur', blurRadius });
-  }
-
-  async switchToVirtualBackground(imagePath: string) {
-    await this.switchToMode({ mode: 'virtual-background', imagePath });
-  }
-
-  async switchToDisabled() {
-    await this.switchToMode({ mode: 'disabled' });
   }
 }
 
