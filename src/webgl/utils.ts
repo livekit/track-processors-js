@@ -1,4 +1,6 @@
-import log from '../logger';
+import { getLogger, LoggerNames} from '../logger';
+
+const log = getLogger(LoggerNames.WebGl);
 
 /**
  * Initialize a WebGL texture

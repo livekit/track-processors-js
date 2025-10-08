@@ -1,7 +1,7 @@
-import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
+import { type ProcessorOptions, type Track, type TrackProcessor } from 'livekit-client';
 import { TrackTransformer } from './transformers';
 import { createCanvas, waitForTrackResolution } from './utils';
-import log from './logger';
+import { LoggerNames, getLogger } from './logger';
 
 export interface ProcessorWrapperOptions {
   /**
@@ -79,6 +79,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   private maxFps: number;
 
   private symbol?: Symbol;
+
+  private log = getLogger(LoggerNames.ProcessorWrapper);
 
   constructor(
     transformer: TrackTransformer<TransformerOptions>,
@@ -179,9 +181,9 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
-          log.log('stream processor path aborted');
+          this.log.log('stream processor path aborted');
         } else {
-          log.error('error when trying to pipe', e);
+          this.log.error('error when trying to pipe', e);
           this.destroy(symbol);
         }
       });
@@ -225,7 +227,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
         // @ts-ignore - The controller expects both VideoFrame & AudioData but we're only using VideoFrame
         this.transformer.transform(frame, controller);
       } catch (e) {
-        log.error('Error in transform:', e);
+        this.log.error('Error in transform:', e);
         frame.close();
       }
     };
@@ -262,7 +264,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       }
 
       if (this.sourceDummy.paused) {
-        log.warn('Video is paused, trying to play');
+        this.log.warn('Video is paused, trying to play');
         this.sourceDummy.play();
         return;
       }
@@ -299,7 +301,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
               window.location.hostname === '127.0.0.1';
 
             if (isDevelopment && now - lastFpsLog > 5000) {
-              log.debug(
+              this.log.debug(
                 `[${this.name}] Estimated video FPS: ${estimatedVideoFps.toFixed(
                   1,
                 )}, Processing at: ${(frameCount / 5).toFixed(1)} FPS`,
@@ -334,7 +336,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
             }
           }
         } catch (e) {
-          log.error('Error in render loop:', e);
+          this.log.error('Error in render loop:', e);
         }
       }
       this.animationFrameId = requestAnimationFrame(renderLoop);
