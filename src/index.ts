@@ -15,6 +15,8 @@ export {
   type ProcessorWrapperOptions,
 };
 
+export * from './logger';
+
 /**
  * Determines if the current browser supports background processors
  */
