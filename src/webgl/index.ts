@@ -4,6 +4,7 @@
  * - downsample the video texture in background blur scenario before applying the (gaussian) blur for better performance
  *
  */
+import log from '../logger';
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
@@ -27,7 +28,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const downsampleFactor = 4;
 
   if (!gl) {
-    console.error('Failed to create WebGL context');
+    log.error('Failed to create WebGL context');
     return undefined;
   }
 
@@ -199,7 +200,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
         // Store the cropped and resized image
         customBackgroundImage = croppedImage;
       } catch (error) {
-        console.error(
+        log.error(
           'Error processing background image, falling back to black background:',
           error,
         );
