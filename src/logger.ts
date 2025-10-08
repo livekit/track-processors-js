@@ -1,4 +1,4 @@
-import * as log from 'loglevel';
+import { getLogger as clientGetLogger } from 'livekit-client';
 
 export enum LogLevel {
   trace = 0,
@@ -17,19 +17,10 @@ export enum LoggerNames {
 
 type LogLevelString = keyof typeof LogLevel;
 
-export type StructuredLogger = log.Logger & {
-  trace: (msg: string, context?: object) => void;
-  debug: (msg: string, context?: object) => void;
-  info: (msg: string, context?: object) => void;
-  warn: (msg: string, context?: object) => void;
-  error: (msg: string, context?: object) => void;
-  setDefaultLevel: (level: log.LogLevelDesc) => void;
-  setLevel: (level: log.LogLevelDesc) => void;
-  getLevel: () => number;
-};
+export type StructuredLogger = ReturnType<typeof clientGetLogger>;
 
-let livekitLogger = log.getLogger('livekit');
-const livekitLoggers = Object.values(LoggerNames).map((name) => log.getLogger(name));
+let livekitLogger = getLogger('livekit');
+const livekitLoggers = Object.values(LoggerNames).map((name) => getLogger(name));
 
 livekitLogger.setDefaultLevel(LogLevel.info);
 
@@ -39,14 +30,12 @@ export default livekitLogger as StructuredLogger;
  * @internal
  */
 export function getLogger(name: string) {
-  const logger = log.getLogger(name);
-  logger.setDefaultLevel(livekitLogger.getLevel());
-  return logger as StructuredLogger;
+  return clientGetLogger(name);
 }
 
 export function setLogLevel(level: LogLevel | LogLevelString, loggerName?: LoggerNames) {
   if (loggerName) {
-    log.getLogger(loggerName).setLevel(level);
+    getLogger(loggerName).setLevel(level);
   } else {
     for (const logger of livekitLoggers) {
       logger.setLevel(level);

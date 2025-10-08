@@ -26,8 +26,7 @@
     "src"
   ],
   "dependencies": {
-    "@mediapipe/tasks-vision": "0.10.14",
-    "loglevel": "^1.9.2"
+    "@mediapipe/tasks-vision": "0.10.14"
   },
   "peerDependencies": {
     "@types/dom-mediacapture-transform": "^0.1.9",
