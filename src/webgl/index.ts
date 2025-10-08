@@ -45,6 +45,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     mask: maskTextureLocation,
     frame: frameTextureLocation,
     background: bgTextureLocation,
+    disableBackground: disableBackgroundLocation,
   } = composite.uniformLocations;
 
   // Create the blur program using the same vertex shader source
@@ -106,14 +107,17 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     createFramebuffer(gl, finalMaskTextures[1], canvas.width, canvas.height),
   ];
 
+  let backgroundImageDisabled = false;
+
   // Set up uniforms for the composite shader
   gl.useProgram(compositeProgram);
+  gl.uniform1i(disableBackgroundLocation, backgroundImageDisabled ? 1 : 0);
   gl.uniform1i(bgTextureLocation, 0);
   gl.uniform1i(frameTextureLocation, 1);
   gl.uniform1i(maskTextureLocation, 2);
 
   // Store custom background image
-  let customBackgroundImage: ImageBitmap | ImageData = getEmptyImageData();
+  let customBackgroundImage: ImageBitmap | ImageData | null = null;
 
   function renderFrame(frame: VideoFrame) {
     if (frame.codedWidth === 0 || finalMaskTextures.length === 0) {
@@ -152,7 +156,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
         bgBlurFrameBuffers,
         bgBlurTextures,
       );
-    } else {
+    } else if (customBackgroundImage) {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, bgTexture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
@@ -173,6 +177,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, backgroundTexture);
     gl.uniform1i(bgTextureLocation, 0);
+    gl.uniform1i(disableBackgroundLocation, backgroundImageDisabled ? 1 : 0);
 
     // Set frame texture
     gl.activeTexture(gl.TEXTURE1);
@@ -192,9 +197,10 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
    */
   async function setBackgroundImage(image: ImageBitmap | null) {
     // Clear existing background
-    customBackgroundImage = getEmptyImageData();
+    customBackgroundImage = null;
 
     if (image) {
+      customBackgroundImage = getEmptyImageData();
       try {
         // Resize and crop the image to cover the canvas
         const croppedImage = await resizeImageToCover(image, canvas.width, canvas.height);
@@ -207,16 +213,20 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
           error,
         );
       }
-    }
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, bgTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
+    }
   }
 
   function setBlurRadius(radius: number | null) {
     blurRadius = radius ? Math.max(1, Math.floor(radius / downsampleFactor)) : null; // we are downsampling the blur texture, so decrease the radius here for better performance with a similar visual result
     setBackgroundImage(null);
+  }
+
+  function setBackgroundDisabled(disabled: boolean) {
+    backgroundImageDisabled = disabled;
   }
 
   function updateMask(mask: WebGLTexture) {
@@ -285,12 +295,12 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       if (customBackgroundImage instanceof ImageBitmap) {
         customBackgroundImage.close();
       }
-      customBackgroundImage = getEmptyImageData();
+      customBackgroundImage = null;
     }
     bgBlurTextures = [];
     bgBlurFrameBuffers = [];
     finalMaskTextures = [];
   }
 
-  return { renderFrame, updateMask, setBackgroundImage, setBlurRadius, cleanup };
+  return { renderFrame, updateMask, setBackgroundImage, setBlurRadius, setBackgroundDisabled, cleanup };
 };

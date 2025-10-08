@@ -24,7 +24,7 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundBlur, VirtualBackground } from '../src';
+import { BackgroundProcessor, BackgroundProcessorOptions } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -34,12 +34,8 @@ const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 const state = {
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
-  blur: BackgroundBlur(BLUR_RADIUS, undefined, (stats) => {
-    // console.log('frame processing stats', stats);
-  }),
-  virtualBackground: VirtualBackground(IMAGE_PATH, undefined, (stats) => {
-    // console.log('frame processing stats', stats);
-  }),
+  isBackgroundProcessorEnabled: false,
+  backgroundProcessor: BackgroundProcessor({ mode: 'background-blur', blurRadius: BLUR_RADIUS }),
 };
 let currentRoom: Room | undefined;
 
@@ -246,98 +242,65 @@ const appActions = {
     videoPub.videoTrack?.restartTrack(options);
   },
 
-  toggleBlur: async () => {
+  toggleTrackProcessorEnabled: async () => {
     if (!currentRoom) return;
-    setButtonDisabled('toggle-blur-button', true);
+
+    setButtonDisabled('toggle-track-processor', true);
 
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      const processor = camTrack.getProcessor();
-      switch (processor?.name) {
-        case 'background-blur':
-          await camTrack.stopProcessor();
-          break;
 
-        case 'virtual-background':
-          // This could also work, but it results in a visual artifact when switching:
-          // await camTrack.setProcessor(state.blur);
-          // await camTrack.stopProcessor();
-
-          const virtualBackgroundProcessor = processor as typeof state.virtualBackground;
-          await virtualBackgroundProcessor.updateTransformerOptions({
-            imagePath: undefined,
-            blurRadius: BLUR_RADIUS,
-          });
-          virtualBackgroundProcessor.name = 'background-blur';
-          break;
-
-        case undefined:
-        default:
-          // NOTE: Since state.blur may have been updated ad-hoc in `toggleVirtualBackground`,
-          // when switching, inject the right params in just to be 100% sure they are correct
-          await state.blur.updateTransformerOptions({
-            imagePath: undefined,
-            blurRadius: BLUR_RADIUS,
-          });
-          state.blur.name = 'background-blur';
-
-          await camTrack.setProcessor(state.blur);
-          break;
+      if (state.isBackgroundProcessorEnabled) {
+        await camTrack.stopProcessor();
+        state.isBackgroundProcessorEnabled = false;
+      } else {
+        await state.backgroundProcessor.switchTo({ mode: 'disabled' });
+        state.isBackgroundProcessorEnabled = true;
+        await camTrack.setProcessor(state.backgroundProcessor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-blur-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
     }
   },
 
-  toggleVirtualBackground: async () => {
+  switchBackgroundMode: async (newMode: NonNullable<BackgroundProcessorOptions['mode']>) => {
     if (!currentRoom) return;
-    setButtonDisabled('toggle-virtual-bg-button', true);
+
+    const controlButtonId = `switch-to-${newMode}-button`;
+    setButtonDisabled(controlButtonId, true);
+
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      const processor = camTrack.getProcessor();
-      switch (processor?.name) {
+
+      switch (newMode) {
+        case 'disabled':
+          await state.backgroundProcessor.switchTo({ mode: 'disabled' });
+          break;
         case 'virtual-background':
-          await camTrack.stopProcessor();
+          await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath: IMAGE_PATH });
           break;
-
         case 'background-blur':
-          // This could also work, but it results in a visual artifact when switching:
-          // await camTrack.setProcessor(state.virtualBackground);
-          // await camTrack.stopProcessor();
-
-          const blurProcessor = processor as typeof state.blur;
-          await blurProcessor.updateTransformerOptions({
-            imagePath: IMAGE_PATH,
-            blurRadius: undefined,
-          });
-          blurProcessor.name = 'virtual-background';
+          await state.backgroundProcessor.switchTo({ mode: 'background-blur' });
           break;
+      }
 
-        case undefined:
-        default:
-          // NOTE: Since state.virtualbackground may have been updated ad-hoc in `toggleBlur`,
-          // when switching, inject the right params in just to be 100% sure they are correct
-          await state.virtualBackground.updateTransformerOptions({
-            imagePath: IMAGE_PATH,
-            blurRadius: undefined,
-          });
-          state.virtualBackground.name = 'virtual-background';
-
-          await camTrack.setProcessor(state.virtualBackground);
-          break;
+      if (!state.isBackgroundProcessorEnabled) {
+        await camTrack.setProcessor(state.backgroundProcessor);
+        state.isBackgroundProcessorEnabled = true;
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-virtual-bg-button', false);
+      setButtonDisabled(controlButtonId, false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
+      updateTrackProcessorModeButtons();
     }
   },
 
@@ -347,15 +310,15 @@ const appActions = {
     try {
       const camTrack = currentRoom.localParticipant.getTrackPublication(Track.Source.Camera)!
         .track as LocalVideoTrack;
-      await state.virtualBackground.updateTransformerOptions({ imagePath });
-      if (camTrack.getProcessor()?.name !== 'virtual-background') {
+      await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath });
+      if (!state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
-        await camTrack.setProcessor(state.virtualBackground);
+        await camTrack.setProcessor(state.backgroundProcessor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
     } finally {
-      setButtonDisabled('toggle-blur-button', false);
+      setButtonDisabled('switch-to-background-blur-button', false);
       renderParticipant(currentRoom.localParticipant);
       updateButtonsForPublishState();
     }
@@ -430,6 +393,8 @@ function handleRoomDisconnect(reason?: DisconnectReason) {
   if (!currentRoom) return;
   appendLog('disconnected from room', { reason });
   setButtonsForState(false);
+  state.isBackgroundProcessorEnabled = false;
+  updateTrackProcessorModeButtons();
   renderParticipant(currentRoom.localParticipant, true);
   currentRoom.remoteParticipants.forEach((p) => {
     renderParticipant(p, true);
@@ -678,8 +643,10 @@ function setButtonsForState(connected: boolean) {
     'toggle-video-button',
     'toggle-audio-button',
     'disconnect-room-button',
-    'toggle-blur-button',
-    'toggle-virtual-bg-button',
+    'toggle-track-processor',
+    'switch-to-background-blur-button',
+    'switch-to-virtual-background-button',
+    'switch-to-disabled-button',
   ];
   const disconnectedSet = ['connect-button'];
 
@@ -746,6 +713,39 @@ function updateButtonsForPublishState() {
     `${lp.isMicrophoneEnabled ? 'Disable' : 'Enable'} Audio`,
     lp.isMicrophoneEnabled,
   );
+}
+
+function updateTrackProcessorModeButtons() {
+  if (state.isBackgroundProcessorEnabled) {
+    setButtonState('toggle-track-processor', 'Remove Track Processor', false, false);
+    $('track-processor-modes').style.display = 'block';
+  } else {
+    setButtonState('toggle-track-processor', 'Insert Track Processor', false, false);
+    $('track-processor-modes').style.display = 'none';
+  }
+
+  const {active: activeButtonId, inactive: inactiveButtonIds} = {
+    'disabled': { active: 'switch-to-disabled-button', inactive: ['switch-to-virtual-background-button', 'switch-to-background-blur-button'] },
+    'virtual-background': { active: 'switch-to-virtual-background-button', inactive: ['switch-to-disabled-button', 'switch-to-background-blur-button'] },
+    'background-blur': { active: 'switch-to-background-blur-button', inactive: ['switch-to-virtual-background-button', 'switch-to-disabled-button'] },
+    'legacy': { active: null, inactive: [] }, // NOTE: should be impossible, but here for thoroughness
+    'off': { active: null, inactive: [] },
+  }[state.isBackgroundProcessorEnabled ? state.backgroundProcessor.mode : 'off'];
+
+  if (activeButtonId) {
+    $(activeButtonId).classList.remove('btn-secondary');
+    $(activeButtonId).classList.add('btn-primary');
+  }
+  for (const inactiveId of inactiveButtonIds) {
+    $(inactiveId).classList.remove('btn-primary');
+    $(inactiveId).classList.add('btn-secondary');
+  }
+
+  if (state.backgroundProcessor.mode === 'virtual-background') {
+    setButtonDisabled('update-bg-button', false);
+  } else {
+    setButtonDisabled('update-bg-button', true);
+  }
 }
 
 async function acquireDeviceList() {

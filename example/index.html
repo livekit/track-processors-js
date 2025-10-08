@@ -65,24 +65,7 @@
               >
                 Enable Camera
               </button>
-              <button
-                id="toggle-blur-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleBlur()"
-              >
-                Toggle BackgroundBlur
-              </button>
-              <button
-                id="toggle-virtual-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleVirtualBackground()"
-              >
-                Toggle virtual background
-              </button>
+
               <button
                 id="flip-video-button"
                 class="btn btn-secondary mt-1"
@@ -90,24 +73,6 @@
                 onclick="appActions.flipVideo()"
               >
                 Flip Video
-              </button>
-
-              <button
-                id="toggle-virtual-bg-button"
-                class="btn btn-secondary mt-1"
-                disabled
-                type="button"
-                onclick="appActions.toggleVirtualBackground()"
-              >
-                Toggle Background
-              </button>
-              <button
-                id="update-bg-button"
-                class="btn btn-secondary mt-1"
-                type="button"
-                onclick="appActions.updateVirtualBackgroundImage('/ali-kazal-tbw_KQE3Cbg-unsplash.jpg')"
-              >
-                Update Background Image
               </button>
 
               <button
@@ -119,6 +84,7 @@
               >
                 Disconnect
               </button>
+
               <button
                 id="start-audio-button"
                 class="btn btn-secondary mt-1"
@@ -128,6 +94,62 @@
               >
                 Start Audio
               </button>
+
+              <div class="card mt-1 mb-1 mx-n2 p-2">
+                <div>
+                  <button
+                    id="toggle-track-processor"
+                    class="btn btn-secondary"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleTrackProcessorEnabled()"
+                  >
+                    Insert Track Processor
+                  </button>
+                </div>
+
+                <div id="track-processor-modes" style="display: none;">
+                  <div class="btn-group mt-1">
+                    <button
+                      id="switch-to-disabled-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('disabled')"
+                    >
+                      Disabled
+                    </button>
+                    <button
+                      id="switch-to-background-blur-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('background-blur')"
+                    >
+                      Blur
+                    </button>
+                    <button
+                      id="switch-to-virtual-background-button"
+                      class="btn btn-secondary"
+                      disabled
+                      type="button"
+                      onclick="appActions.switchBackgroundMode('virtual-background')"
+                    >
+                      Virtual background
+                    </button>
+                  </div>
+
+                  <button
+                    id="update-bg-button"
+                    class="btn btn-secondary mt-1"
+                    disabled
+                    type="button"
+                    onclick="appActions.updateVirtualBackgroundImage('/ali-kazal-tbw_KQE3Cbg-unsplash.jpg')"
+                  >
+                    Update Background Image
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
