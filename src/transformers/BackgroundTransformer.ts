@@ -1,4 +1,5 @@
 import * as vision from '@mediapipe/tasks-vision';
+import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
 import { VideoTransformerInitOptions } from './types';
@@ -44,6 +45,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   isFirstFrame = true;
 
+  private log = getLogger(LoggerNames.ProcessorWrapper);
+
   constructor(opts: BackgroundOptions) {
     super();
     this.options = opts;
@@ -77,7 +80,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     // Skip loading the image here if update already loaded the image below
     if (this.options?.imagePath) {
       await this.loadAndSetBackground(this.options.imagePath).catch((err) =>
-        console.error('Error while loading processor background image: ', err),
+        this.log.error('Error while loading processor background image: ', err),
       );
     }
     if (this.options.blurRadius) {
@@ -112,7 +115,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     let enqueuedFrame = false;
     try {
       if (!(frame instanceof VideoFrame) || frame.codedWidth === 0 || frame.codedHeight === 0) {
-        console.debug('empty frame detected, ignoring');
+        this.log.debug('empty frame detected, ignoring');
         return;
       }
 
@@ -195,7 +198,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       }
       await segmentationPromise;
     } catch (e) {
-      console.error('Error while processing frame: ', e);
+      this.log.error('Error while processing frame: ', e);
     } finally {
       if (!enqueuedFrame) {
         frame.close();
