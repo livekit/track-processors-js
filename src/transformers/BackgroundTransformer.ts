@@ -94,7 +94,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImageAndPath = null;
-    this.isFirstFrame = true;
   }
 
   async loadAndSetBackground(path: string) {
