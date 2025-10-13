@@ -181,15 +181,7 @@ export default class ProcessorWrapper<
     pipedStream
       .pipeTo(this.trackGenerator.writable)
       // destroy processor if stream finishes
-      .then(async () => {
-        if (this.lifecycleState === 'initialized') {
-          this.lifecycleState = 'destroying';
-          await this.cleanup();
-          console.log('.. PIPED STREAM CLEANUP', { willRestart: true });
-          await this.transformer.destroy({ willRestart: true });
-          this.lifecycleState = 'destroyed';
-        }
-      })
+      .then(() => this.destroy({ willRestart: true }))
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
@@ -374,7 +366,13 @@ export default class ProcessorWrapper<
     await this.transformer.update(options[0]);
   }
 
-  async cleanup() {
+  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
+    if (this.lifecycleState !== 'initialized') {
+      return;
+    }
+
+    this.lifecycleState = 'destroying';
+
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
@@ -390,15 +388,7 @@ export default class ProcessorWrapper<
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
-  }
 
-  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
-    if (this.lifecycleState !== 'initialized') {
-      return;
-    }
-
-    this.lifecycleState = 'destroying';
-    await this.cleanup();
     console.log('.. REGULAR DESTROY', transformerDestroyOptions);
     await this.transformer.destroy(transformerDestroyOptions);
     this.lifecycleState = 'destroyed';
