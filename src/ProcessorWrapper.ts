@@ -86,6 +86,8 @@ export default class ProcessorWrapper<
 
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
+  private lastTrackTransformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false };
+
   constructor(
     transformer: Transformer,
     name: string,
@@ -181,7 +183,7 @@ export default class ProcessorWrapper<
     pipedStream
       .pipeTo(this.trackGenerator.writable)
       // destroy processor if stream finishes
-      .then(() => this.destroy(symbol))
+      .then(() => this.destroy(symbol, this.lastTrackTransformerDestroyOptions))
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
@@ -366,6 +368,7 @@ export default class ProcessorWrapper<
   }
 
   async destroy(symbol?: Symbol, transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
+    this.lastTrackTransformerDestroyOptions = transformerDestroyOptions;
     if (symbol && this.symbol !== symbol) {
       // If the symbol is provided, we only destroy if it matches the current symbol
       return;
