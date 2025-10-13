@@ -29,7 +29,7 @@ export interface AudioTrackTransformer<Options extends Record<string, unknown>>
   update: (options: Options) => void;
 }
 
-export type TrackTransformerDestroyOptions = { willRestart: boolean };
+export type TrackTransformerDestroyOptions = { willProcessorRestart: boolean };
 
 export type TrackTransformer<Options extends Record<string, unknown>> =
   | VideoTrackTransformer<Options>

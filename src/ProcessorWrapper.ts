@@ -357,7 +357,7 @@ export default class ProcessorWrapper<
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
     this.log.debug('Restart called');
-    await this.destroy({ willRestart: true });
+    await this.destroy({ willProcessorRestart: true });
     await this.init(opts);
   }
 
@@ -400,7 +400,7 @@ export default class ProcessorWrapper<
     }
   }
 
-  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
+  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willProcessorRestart: false }) {
     this.log.debug(`Destroy called - lifecycleState=${this.lifecycleState}, transformerDestroyOptions=${JSON.stringify(transformerDestroyOptions)}`);
     switch (this.lifecycleState) {
       case 'running':
