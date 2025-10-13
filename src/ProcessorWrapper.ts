@@ -394,7 +394,8 @@ export default class ProcessorWrapper<
       }
       this.capturedStream?.getTracks().forEach((track) => track.stop());
     } else {
-      // NOTE: closing writableControl below 
+      // NOTE: closing writableControl below terminates the stream in initStreamProcessorPath /
+      // calls the .then(...) which calls this.handleMediaExhausted
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
