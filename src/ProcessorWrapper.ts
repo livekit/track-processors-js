@@ -82,11 +82,9 @@ export default class ProcessorWrapper<
   // FPS control for fallback implementation
   private maxFps: number;
 
-  private symbol?: Symbol;
-
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
-  private lastTrackTransformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false };
+  // private lastTrackTransformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false };
 
   constructor(
     transformer: Transformer,
@@ -149,6 +147,7 @@ export default class ProcessorWrapper<
   }
 
   async init(opts: ProcessorOptions<Track.Kind>): Promise<void> {
+    console.log('.. INIT');
     await this.setup(opts);
 
     if (!this.canvas) {
@@ -177,13 +176,15 @@ export default class ProcessorWrapper<
     const readableStream = this.processor.readable;
     const pipedStream = readableStream.pipeThrough(this.transformer!.transformer!);
 
-    const symbol = Symbol('stream');
-    this.symbol = symbol;
-
     pipedStream
       .pipeTo(this.trackGenerator.writable)
       // destroy processor if stream finishes
-      .then(() => this.destroy(symbol, this.lastTrackTransformerDestroyOptions))
+      .then(async () => {
+        // this.lastTrackTransformerDestroyOptions = { willRestart: true };
+        await this.cleanup();
+        console.log('.. PIPED STREAM CLEANUP', { willRestart: true });
+        await this.transformer.destroy({ willRestart: true });
+      })
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
@@ -192,7 +193,7 @@ export default class ProcessorWrapper<
           this.log.log('stream processor underlying stream closed');
         } else {
           this.log.error('error when trying to pipe', e);
-          this.destroy(symbol);
+          this.destroy();
         }
       });
 
@@ -354,7 +355,8 @@ export default class ProcessorWrapper<
   }
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
-    await this.destroy(undefined, { willRestart: true });
+    console.log('.. RESTART');
+    await this.destroy({ willRestart: true });
     await this.init(opts);
   }
 
@@ -367,13 +369,7 @@ export default class ProcessorWrapper<
     await this.transformer.update(options[0]);
   }
 
-  async destroy(symbol?: Symbol, transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
-    this.lastTrackTransformerDestroyOptions = transformerDestroyOptions;
-    if (symbol && this.symbol !== symbol) {
-      // If the symbol is provided, we only destroy if it matches the current symbol
-      return;
-    }
-
+  async cleanup() {
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
@@ -384,11 +380,18 @@ export default class ProcessorWrapper<
         this.displayCanvas.parentNode.removeChild(this.displayCanvas);
       }
       this.capturedStream?.getTracks().forEach((track) => track.stop());
+      // await this.transformer.destroy(this.lastTrackTransformerDestroyOptions);
     } else {
+      // NOTE: closing writableControl below 
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
+  }
 
+  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
+    // this.lastTrackTransformerDestroyOptions = transformerDestroyOptions;
+    await this.cleanup();
+    console.log('.. REGULAR DESTROY', transformerDestroyOptions);
     await this.transformer.destroy(transformerDestroyOptions);
   }
 }

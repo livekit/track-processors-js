@@ -95,6 +95,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     await this.imageSegmenter?.close();
     this.backgroundImageAndPath = null;
 
+    console.log('WILL RESTART', options);
+    // debugger;
     if (!options.willRestart) {
       this.isFirstFrame = true;
     }

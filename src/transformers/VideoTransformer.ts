@@ -1,6 +1,6 @@
 import { createCanvas } from '../utils';
 import { setupWebGL } from '../webgl/index';
-import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
+import { TrackTransformerDestroyOptions, VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
 export default abstract class VideoTransformer<Options extends Record<string, unknown>>
   implements VideoTrackTransformer<Options>
