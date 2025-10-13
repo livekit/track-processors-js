@@ -254,10 +254,11 @@ const appActions = {
       if (state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
         state.isBackgroundProcessorEnabled = false;
+        $("initial-mode-wrapper").style.display = 'block';
       } else {
-        await state.backgroundProcessor.switchTo({ mode: 'disabled' });
-        state.isBackgroundProcessorEnabled = true;
-        await camTrack.setProcessor(state.backgroundProcessor);
+        $("initial-mode-wrapper").style.display = 'none';
+        const initialMode = $<HTMLSelectElement>("initial-mode-select").value as BackgroundProcessorOptions['mode'];
+        appActions.switchBackgroundMode(initialMode ?? 'disabled');
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
@@ -655,6 +656,8 @@ function setButtonsForState(connected: boolean) {
 
   toRemove.forEach((id) => $(id)?.removeAttribute('disabled'));
   toAdd.forEach((id) => $(id)?.setAttribute('disabled', 'true'));
+
+  $("initial-mode-wrapper").style.display = connected ? 'block' : 'none';
 }
 
 const elementMapping: { [k: string]: MediaDeviceKind } = {
