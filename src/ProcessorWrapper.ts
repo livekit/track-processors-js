@@ -1,7 +1,8 @@
 import { type ProcessorOptions, type Track, type TrackProcessor } from 'livekit-client';
-import { TrackTransformer } from './transformers';
+import { TrackTransformer, TrackTransformerDestroyOptions } from './transformers';
 import { createCanvas, waitForTrackResolution } from './utils';
 import { LoggerNames, getLogger } from './logger';
+
 
 export interface ProcessorWrapperOptions {
   /**
@@ -351,7 +352,7 @@ export default class ProcessorWrapper<
   }
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
-    await this.destroy();
+    await this.destroy(undefined, { willRestart: true });
     await this.init(opts);
   }
 
@@ -364,11 +365,12 @@ export default class ProcessorWrapper<
     await this.transformer.update(options[0]);
   }
 
-  async destroy(symbol?: Symbol) {
+  async destroy(symbol?: Symbol, transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
     if (symbol && this.symbol !== symbol) {
       // If the symbol is provided, we only destroy if it matches the current symbol
       return;
     }
+
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
@@ -383,6 +385,7 @@ export default class ProcessorWrapper<
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
-    await this.transformer.destroy();
+
+    await this.transformer.destroy(transformerDestroyOptions);
   }
 }

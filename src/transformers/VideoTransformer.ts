@@ -50,7 +50,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.isDisabled = false;
   }
 
-  async destroy() {
+  async destroy(_options: TrackTransformerDestroyOptions) {
     this.isDisabled = true;
     this.canvas = undefined;
     this.gl?.cleanup();
