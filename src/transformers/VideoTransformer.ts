@@ -1,6 +1,6 @@
 import { createCanvas } from '../utils';
 import { setupWebGL } from '../webgl/index';
-import { TrackTransformerDestroyOptions, VideoTrackTransformer, VideoTransformerInitOptions } from './types';
+import { VideoTrackTransformer, VideoTransformerInitOptions } from './types';
 
 export default abstract class VideoTransformer<Options extends Record<string, unknown>>
   implements VideoTrackTransformer<Options>
@@ -50,7 +50,7 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.isDisabled = false;
   }
 
-  async destroy(_options: TrackTransformerDestroyOptions) {
+  async destroy() {
     this.isDisabled = true;
     this.canvas = undefined;
     this.gl?.cleanup();
