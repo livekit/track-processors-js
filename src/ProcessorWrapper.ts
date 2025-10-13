@@ -3,6 +3,7 @@ import { TrackTransformer, TrackTransformerDestroyOptions } from './transformers
 import { createCanvas, waitForTrackResolution } from './utils';
 import { LoggerNames, getLogger } from './logger';
 
+type ProcessorWrapperLifecycleState = 'idle' | 'initialized' | 'destroying' | 'destroyed';
 
 export interface ProcessorWrapperOptions {
   /**
@@ -84,7 +85,7 @@ export default class ProcessorWrapper<
 
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
-  // private lastTrackTransformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false };
+  private lifecycleState: ProcessorWrapperLifecycleState = 'idle';
 
   constructor(
     transformer: Transformer,
@@ -164,6 +165,7 @@ export default class ProcessorWrapper<
     } else {
       this.initStreamProcessorPath();
     }
+    this.lifecycleState = 'initialized';
   }
 
   private initStreamProcessorPath() {
@@ -180,10 +182,13 @@ export default class ProcessorWrapper<
       .pipeTo(this.trackGenerator.writable)
       // destroy processor if stream finishes
       .then(async () => {
-        // this.lastTrackTransformerDestroyOptions = { willRestart: true };
-        await this.cleanup();
-        console.log('.. PIPED STREAM CLEANUP', { willRestart: true });
-        await this.transformer.destroy({ willRestart: true });
+        if (this.lifecycleState === 'initialized') {
+          this.lifecycleState = 'destroying';
+          await this.cleanup();
+          console.log('.. PIPED STREAM CLEANUP', { willRestart: true });
+          await this.transformer.destroy({ willRestart: true });
+          this.lifecycleState = 'destroyed';
+        }
       })
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
@@ -380,7 +385,6 @@ export default class ProcessorWrapper<
         this.displayCanvas.parentNode.removeChild(this.displayCanvas);
       }
       this.capturedStream?.getTracks().forEach((track) => track.stop());
-      // await this.transformer.destroy(this.lastTrackTransformerDestroyOptions);
     } else {
       // NOTE: closing writableControl below 
       await this.processor?.writableControl?.close();
@@ -389,9 +393,14 @@ export default class ProcessorWrapper<
   }
 
   async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
-    // this.lastTrackTransformerDestroyOptions = transformerDestroyOptions;
+    if (this.lifecycleState !== 'initialized') {
+      return;
+    }
+
+    this.lifecycleState = 'destroying';
     await this.cleanup();
     console.log('.. REGULAR DESTROY', transformerDestroyOptions);
     await this.transformer.destroy(transformerDestroyOptions);
+    this.lifecycleState = 'destroyed';
   }
 }
