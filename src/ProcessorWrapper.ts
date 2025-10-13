@@ -387,7 +387,6 @@ export default class ProcessorWrapper<
       if (this.animationFrameId) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = undefined;
-        this.lifecycleState = 'media-exhausted';
       }
       if (this.displayCanvas && this.displayCanvas.parentNode) {
         this.displayCanvas.parentNode.removeChild(this.displayCanvas);
