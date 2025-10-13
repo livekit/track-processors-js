@@ -148,7 +148,7 @@ export default class ProcessorWrapper<
   }
 
   async init(opts: ProcessorOptions<Track.Kind>): Promise<void> {
-    console.log('.. INIT');
+    this.log.debug('Init called');
     this.lifecycleState = 'initializing';
     await this.setup(opts);
 
@@ -262,8 +262,6 @@ export default class ProcessorWrapper<
     let frameCount = 0;
     let lastFpsLog = 0;
 
-    let captured = (window as any).a;
-
     const renderLoop = () => {
       if (
         !this.processingEnabled ||
@@ -357,7 +355,7 @@ export default class ProcessorWrapper<
   }
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
-    console.log('.. RESTART');
+    this.log.debug('Restart called');
     await this.destroy({ willRestart: true });
     await this.init(opts);
   }
@@ -373,7 +371,7 @@ export default class ProcessorWrapper<
 
   /** Called if the media pipeline no longer can read frames to process from the source media */
   private async handleMediaExhausted() {
-    console.log('.. MEDIA EXHAUSTED');
+    this.log.debug('Media was exhausted from source');
     this.lifecycleState = 'media-exhausted'
     await this.cleanup();
   }
@@ -398,7 +396,7 @@ export default class ProcessorWrapper<
   }
 
   async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
-    console.log('.. DESTROY', this.lifecycleState);
+    this.log.debug(`Destroy called - lifecycleState=${this.lifecycleState}, transformerDestroyOptions=${JSON.stringify(transformerDestroyOptions)}`);
     switch (this.lifecycleState) {
       case 'running':
       case 'media-exhausted':
