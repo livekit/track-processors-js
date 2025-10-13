@@ -716,11 +716,12 @@ function updateButtonsForPublishState() {
 }
 
 function updateTrackProcessorModeButtons() {
+  const toggleTrackProcessorButtonEnabled = currentRoom?.state === ConnectionState.Connected;
   if (state.isBackgroundProcessorEnabled) {
-    setButtonState('toggle-track-processor', 'Remove Track Processor', false, false);
+    setButtonState('toggle-track-processor', 'Remove Track Processor', false, !toggleTrackProcessorButtonEnabled);
     $('track-processor-modes').style.display = 'block';
   } else {
-    setButtonState('toggle-track-processor', 'Insert Track Processor', false, false);
+    setButtonState('toggle-track-processor', 'Insert Track Processor', false, !toggleTrackProcessorButtonEnabled);
     $('track-processor-modes').style.display = 'none';
   }
 
