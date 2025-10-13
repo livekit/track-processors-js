@@ -185,6 +185,8 @@ export default class ProcessorWrapper<
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
           this.log.log('stream processor path aborted');
+        } else if (e instanceof DOMException && e.name === 'InvalidStateError' && e.message === 'Stream closed') {
+          this.log.log('stream processor underlying stream closed');
         } else {
           this.log.error('error when trying to pipe', e);
           this.destroy(symbol);
