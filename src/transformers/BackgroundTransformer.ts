@@ -90,14 +90,12 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
   }
 
-  async destroy(options: TrackTransformerDestroyOptions) {
-    await super.destroy(options);
+  async destroy(options?: TrackTransformerDestroyOptions) {
+    await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImageAndPath = null;
 
-    console.log('WILL RESTART', options);
-    // debugger;
-    if (!options.willRestart) {
+    if (!options?.willRestart) {
       this.isFirstFrame = true;
     }
   }

@@ -12,7 +12,7 @@ export interface AudioTransformerInitOptions extends TrackTransformerInitOptions
 export interface VideoTrackTransformer<Options extends Record<string, unknown>>
   extends BaseTrackTransformer<VideoTransformerInitOptions, VideoFrame, TrackTransformerDestroyOptions> {
   init: (options: VideoTransformerInitOptions) => void;
-  destroy: (options: TrackTransformerDestroyOptions) => void;
+  destroy: (options?: TrackTransformerDestroyOptions) => void;
   restart: (options: VideoTransformerInitOptions) => void;
   transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
