@@ -189,6 +189,7 @@ export default class ProcessorWrapper<
           this.log.log('stream processor path aborted');
         } else if (e instanceof DOMException && e.name === 'InvalidStateError' && e.message === 'Stream closed') {
           this.log.log('stream processor underlying stream closed');
+          this.handleMediaExhausted();
         } else {
           this.log.error('error when trying to pipe', e);
           this.destroy();
@@ -372,6 +373,9 @@ export default class ProcessorWrapper<
   /** Called if the media pipeline no longer can read frames to process from the source media */
   private async handleMediaExhausted() {
     this.log.debug('Media was exhausted from source');
+    if (this.lifecycleState !== 'running') {
+      return;
+    }
     this.lifecycleState = 'media-exhausted'
     await this.cleanup();
   }
@@ -383,6 +387,7 @@ export default class ProcessorWrapper<
       if (this.animationFrameId) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = undefined;
+        this.lifecycleState = 'media-exhausted';
       }
       if (this.displayCanvas && this.displayCanvas.parentNode) {
         this.displayCanvas.parentNode.removeChild(this.displayCanvas);
