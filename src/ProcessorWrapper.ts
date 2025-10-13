@@ -3,7 +3,7 @@ import { TrackTransformer, TrackTransformerDestroyOptions } from './transformers
 import { createCanvas, waitForTrackResolution } from './utils';
 import { LoggerNames, getLogger } from './logger';
 
-type ProcessorWrapperLifecycleState = 'idle' | 'initialized' | 'destroying' | 'destroyed';
+type ProcessorWrapperLifecycleState = 'idle' | 'initializing' | 'running' | 'media-exhausted' | 'destroying' | 'destroyed';
 
 export interface ProcessorWrapperOptions {
   /**
@@ -149,6 +149,7 @@ export default class ProcessorWrapper<
 
   async init(opts: ProcessorOptions<Track.Kind>): Promise<void> {
     console.log('.. INIT');
+    this.lifecycleState = 'initializing';
     await this.setup(opts);
 
     if (!this.canvas) {
@@ -165,7 +166,7 @@ export default class ProcessorWrapper<
     } else {
       this.initStreamProcessorPath();
     }
-    this.lifecycleState = 'initialized';
+    this.lifecycleState = 'running';
   }
 
   private initStreamProcessorPath() {
@@ -180,8 +181,8 @@ export default class ProcessorWrapper<
 
     pipedStream
       .pipeTo(this.trackGenerator.writable)
-      // destroy processor if stream finishes
-      .then(() => this.destroy({ willRestart: true }))
+      // if stream finishes, the media to process is exhausted
+      .then(() => this.handleMediaExhausted())
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
@@ -244,6 +245,7 @@ export default class ProcessorWrapper<
 
   private startRenderLoop() {
     if (!this.sourceDummy || !(this.sourceDummy instanceof HTMLVideoElement)) {
+      this.handleMediaExhausted();
       return;
     }
 
@@ -260,12 +262,15 @@ export default class ProcessorWrapper<
     let frameCount = 0;
     let lastFpsLog = 0;
 
+    let captured = (window as any).a;
+
     const renderLoop = () => {
       if (
         !this.processingEnabled ||
         !this.sourceDummy ||
         !(this.sourceDummy instanceof HTMLVideoElement)
       ) {
+        this.handleMediaExhausted();
         return;
       }
 
@@ -366,13 +371,15 @@ export default class ProcessorWrapper<
     await this.transformer.update(options[0]);
   }
 
-  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
-    if (this.lifecycleState !== 'initialized') {
-      return;
-    }
+  /** Called if the media pipeline no longer can read frames to process from the source media */
+  private async handleMediaExhausted() {
+    console.log('.. MEDIA EXHAUSTED');
+    this.lifecycleState = 'media-exhausted'
+    await this.cleanup();
+  }
 
-    this.lifecycleState = 'destroying';
-
+  /** Tears down the media stack logic initialized in initStreamProcessorPath / initFallbackPath */
+  private async cleanup() {
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
@@ -388,9 +395,23 @@ export default class ProcessorWrapper<
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
+  }
 
-    console.log('.. REGULAR DESTROY', transformerDestroyOptions);
-    await this.transformer.destroy(transformerDestroyOptions);
-    this.lifecycleState = 'destroyed';
+  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willRestart: false }) {
+    console.log('.. DESTROY', this.lifecycleState);
+    switch (this.lifecycleState) {
+      case 'running':
+      case 'media-exhausted':
+        this.lifecycleState = 'destroying';
+
+        await this.cleanup();
+
+        await this.transformer.destroy(transformerDestroyOptions);
+        this.lifecycleState = 'destroyed';
+        break;
+
+      default:
+        break;
+    }
   }
 }
