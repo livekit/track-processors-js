@@ -258,7 +258,21 @@ const appActions = {
       } else {
         $("initial-mode-wrapper").style.display = 'none';
         const initialMode = $<HTMLSelectElement>("initial-mode-select").value as BackgroundProcessorOptions['mode'];
-        appActions.switchBackgroundMode(initialMode ?? 'disabled');
+
+        switch (initialMode) {
+          case 'disabled':
+            await state.backgroundProcessor.switchTo({ mode: 'disabled' });
+            break;
+          case 'virtual-background':
+            await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath: IMAGE_PATH });
+            break;
+          case 'background-blur':
+            await state.backgroundProcessor.switchTo({ mode: 'background-blur' });
+            break;
+        }
+
+        state.isBackgroundProcessorEnabled = true;
+        await camTrack.setProcessor(state.backgroundProcessor);
       }
     } catch (e: any) {
       appendLog(`ERROR: ${e.message}`);
