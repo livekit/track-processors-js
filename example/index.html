@@ -96,16 +96,25 @@
               </button>
 
               <div class="card mt-1 mb-1 mx-n2 p-2">
-                <div>
+                <div class="d-flex align-items-center justify-content-between">
                   <button
                     id="toggle-track-processor"
-                    class="btn btn-secondary"
+                    class="btn btn-secondary mr-2"
                     disabled
                     type="button"
                     onclick="appActions.toggleTrackProcessorEnabled()"
                   >
                     Insert Track Processor
                   </button>
+
+                  <div id="initial-mode-wrapper" style="display: none;">
+                    <span class="text-secondary">Initial mode:</span>
+                    <select class="custom-select" id="initial-mode-select" style="width: 200px;">
+                      <option value="disabled">Disabled</option>
+                      <option value="background-blur">Blur</option>
+                      <option value="virtual-background">Virtual Background</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div id="track-processor-modes" style="display: none;">

@@ -254,8 +254,23 @@ const appActions = {
       if (state.isBackgroundProcessorEnabled) {
         await camTrack.stopProcessor();
         state.isBackgroundProcessorEnabled = false;
+        $("initial-mode-wrapper").style.display = 'block';
       } else {
-        await state.backgroundProcessor.switchTo({ mode: 'disabled' });
+        $("initial-mode-wrapper").style.display = 'none';
+        const initialMode = $<HTMLSelectElement>("initial-mode-select").value as BackgroundProcessorOptions['mode'];
+
+        switch (initialMode) {
+          case 'disabled':
+            await state.backgroundProcessor.switchTo({ mode: 'disabled' });
+            break;
+          case 'virtual-background':
+            await state.backgroundProcessor.switchTo({ mode: 'virtual-background', imagePath: IMAGE_PATH });
+            break;
+          case 'background-blur':
+            await state.backgroundProcessor.switchTo({ mode: 'background-blur' });
+            break;
+        }
+
         state.isBackgroundProcessorEnabled = true;
         await camTrack.setProcessor(state.backgroundProcessor);
       }
@@ -655,6 +670,8 @@ function setButtonsForState(connected: boolean) {
 
   toRemove.forEach((id) => $(id)?.removeAttribute('disabled'));
   toAdd.forEach((id) => $(id)?.setAttribute('disabled', 'true'));
+
+  $("initial-mode-wrapper").style.display = connected ? 'block' : 'none';
 }
 
 const elementMapping: { [k: string]: MediaDeviceKind } = {
@@ -716,11 +733,12 @@ function updateButtonsForPublishState() {
 }
 
 function updateTrackProcessorModeButtons() {
+  const toggleTrackProcessorButtonEnabled = currentRoom?.state === ConnectionState.Connected;
   if (state.isBackgroundProcessorEnabled) {
-    setButtonState('toggle-track-processor', 'Remove Track Processor', false, false);
+    setButtonState('toggle-track-processor', 'Remove Track Processor', false, !toggleTrackProcessorButtonEnabled);
     $('track-processor-modes').style.display = 'block';
   } else {
-    setButtonState('toggle-track-processor', 'Insert Track Processor', false, false);
+    setButtonState('toggle-track-processor', 'Insert Track Processor', false, !toggleTrackProcessorButtonEnabled);
     $('track-processor-modes').style.display = 'none';
   }
 

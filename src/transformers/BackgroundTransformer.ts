@@ -2,7 +2,7 @@ import * as vision from '@mediapipe/tasks-vision';
 import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
-import { VideoTransformerInitOptions } from './types';
+import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
 
@@ -90,11 +90,14 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
   }
 
-  async destroy() {
+  async destroy(options?: TrackTransformerDestroyOptions) {
     await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImageAndPath = null;
-    this.isFirstFrame = true;
+
+    if (!options?.willProcessorRestart) {
+      this.isFirstFrame = true;
+    }
   }
 
   async loadAndSetBackground(path: string) {

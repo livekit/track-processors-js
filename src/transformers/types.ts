@@ -10,9 +10,9 @@ export interface VideoTransformerInitOptions extends TrackTransformerInitOptions
 export interface AudioTransformerInitOptions extends TrackTransformerInitOptions {}
 
 export interface VideoTrackTransformer<Options extends Record<string, unknown>>
-  extends BaseTrackTransformer<VideoTransformerInitOptions, VideoFrame> {
+  extends BaseTrackTransformer<VideoTransformerInitOptions, VideoFrame, TrackTransformerDestroyOptions> {
   init: (options: VideoTransformerInitOptions) => void;
-  destroy: () => void;
+  destroy: (options?: TrackTransformerDestroyOptions) => void;
   restart: (options: VideoTransformerInitOptions) => void;
   transform: (frame: VideoFrame, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
@@ -20,26 +20,29 @@ export interface VideoTrackTransformer<Options extends Record<string, unknown>>
 }
 
 export interface AudioTrackTransformer<Options extends Record<string, unknown>>
-  extends BaseTrackTransformer<AudioTransformerInitOptions, AudioData> {
+  extends BaseTrackTransformer<AudioTransformerInitOptions, AudioData, TrackTransformerDestroyOptions> {
   init: (options: AudioTransformerInitOptions) => void;
-  destroy: () => void;
+  destroy: (options: TrackTransformerDestroyOptions) => void;
   restart: (options: AudioTransformerInitOptions) => void;
   transform: (frame: AudioData, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
   update: (options: Options) => void;
 }
 
+export type TrackTransformerDestroyOptions = { willProcessorRestart: boolean };
+
 export type TrackTransformer<Options extends Record<string, unknown>> =
   | VideoTrackTransformer<Options>
   | AudioTrackTransformer<Options>;
 
 export interface BaseTrackTransformer<
-  T extends TrackTransformerInitOptions,
+  InitOpts extends TrackTransformerInitOptions,
   DataType extends VideoFrame | AudioData,
+  DestroyOpts extends TrackTransformerDestroyOptions = TrackTransformerDestroyOptions,
 > {
-  init: (options: T) => void;
-  destroy: () => void;
-  restart: (options: T) => void;
+  init: (options: InitOpts) => void;
+  destroy: (options: DestroyOpts) => void;
+  restart: (options: InitOpts) => void;
   transform: (frame: DataType, controller: TransformStreamDefaultController) => void;
   transformer?: TransformStream;
 }
