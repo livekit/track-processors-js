@@ -93,20 +93,64 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     createFramebuffer(gl, bgBlurTextures[1], bgBlurTextureWidth, bgBlurTextureHeight),
   );
 
-  // Initialize texture for the first mask blur pass
-  const tempMaskTexture = initTexture(gl, 5);
-  const tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, canvas.width, canvas.height);
+  // Initialize texture for the first mask blur pass (will be recreated on size changes)
+  let tempMaskTexture = initTexture(gl, 5);
+  let tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, canvas.width, canvas.height);
 
-  // Initialize two textures for double-buffering the final mask
+  // Initialize two textures for double-buffering the final mask (recreatable)
   finalMaskTextures.push(initTexture(gl, 6)); // For reading in renderFrame
   finalMaskTextures.push(initTexture(gl, 7)); // For writing in updateMask
 
-  // Create framebuffers for the final mask textures
-  const finalMaskFrameBuffers = [
+  // Create framebuffers for the final mask textures (recreatable)
+  let finalMaskFrameBuffers = [
     createFramebuffer(gl, finalMaskTextures[0], canvas.width, canvas.height),
     createFramebuffer(gl, finalMaskTextures[1], canvas.width, canvas.height),
   ];
 
+  // Track the current mask buffer size so we can detect changes (rotation/resize)
+  let maskWidth = canvas.width;
+  let maskHeight = canvas.height;
+
+  // Recreate mask textures/framebuffers when the canvas size changes (minimal fix for rotation)
+  function ensureMaskSizeMatches(width: number, height: number) {
+    const w = Math.floor(width);
+    const h = Math.floor(height);
+    if (w === maskWidth && h === maskHeight) {
+      return;
+    }
+
+    // Free previous mask resources
+    try {
+      if (tempMaskTexture) {
+        gl.deleteTexture(tempMaskTexture);
+      }
+      if (tempMaskFrameBuffer) {
+        gl.deleteFramebuffer(tempMaskFrameBuffer);
+      }
+      for (const t of finalMaskTextures) {
+        gl.deleteTexture(t);
+      }
+      for (const fb of finalMaskFrameBuffers) {
+        gl.deleteFramebuffer(fb);
+      }
+    } catch (e) {
+      log.warn("Error while freeing mask GL resources: ", e);
+    }
+
+    // Recreate with new size
+    tempMaskTexture = initTexture(gl, 5);
+    tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, w, h);
+
+    finalMaskTextures = [initTexture(gl, 6), initTexture(gl, 7)];
+    finalMaskFrameBuffers = [
+      createFramebuffer(gl, finalMaskTextures[0], w, h),
+      createFramebuffer(gl, finalMaskTextures[1], w, h),
+    ];
+
+    // update tracked dimensions
+    maskWidth = w;
+    maskHeight = h;
+  }
   let backgroundImageDisabled = false;
 
   // Set up uniforms for the composite shader
@@ -120,12 +164,15 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   let customBackgroundImage: ImageBitmap | ImageData | null = null;
 
   function renderFrame(frame: VideoFrame) {
-    if (frame.codedWidth === 0 || finalMaskTextures.length === 0) {
+    if (frame.codedWidth === 0) {
       return;
     }
 
     const width = frame.displayWidth;
     const height = frame.displayHeight;
+
+    // Ensure mask textures match current canvas/frame size (fixes alignment after rotation)
+    ensureMaskSizeMatches(canvas.width, canvas.height);
 
     // Prepare frame texture
     gl.activeTexture(gl.TEXTURE1);
