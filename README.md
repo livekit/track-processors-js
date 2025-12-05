@@ -62,7 +62,7 @@ async function enableBlur(radius) {
 }
 
 async function disableBlur() {
-  await videoTrack.switchTo({ mode: 'disabled' });
+  await processor.switchTo({ mode: 'disabled' });
 }
 ```
 
