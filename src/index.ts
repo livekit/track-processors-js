@@ -67,7 +67,7 @@ export type BackgroundProcessorOptions =
   | BackgroundProcessorModeOptions
   | BackgroundProcessorLegacyOptions;
 
-class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, BackgroundTransformer> {
+export class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, BackgroundTransformer> {
   get mode(): BackgroundProcessorModeOptions['mode'] | 'legacy' {
     const options = this.transformer.options;
 
