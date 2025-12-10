@@ -67,6 +67,11 @@ export type BackgroundProcessorOptions =
   | BackgroundProcessorModeOptions
   | BackgroundProcessorLegacyOptions;
 
+/**
+ * A {@link ProcessorWrapper} that supports applying effects to the background of a video track.
+ *
+ * For more info and for how to construct this object, see {@link BackgroundProcessor}.
+ */
 export class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptions, BackgroundTransformer> {
   get mode(): BackgroundProcessorModeOptions['mode'] | 'legacy' {
     const options = this.transformer.options;
