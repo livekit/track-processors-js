@@ -29,7 +29,7 @@ export default livekitLogger as StructuredLogger;
 /**
  * @internal
  */
-export function getLogger(name: string) {
+export function getLogger(name: string): StructuredLogger {
   return clientGetLogger(name);
 }
 
