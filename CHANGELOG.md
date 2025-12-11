@@ -1,5 +1,13 @@
 # @livekit/track-processors
 
+## 0.7.1
+
+### Patch Changes
+
+- Update getLogger to return explicit StructuredLogger type - [#118](https://github.com/livekit/track-processors-js/pull/118) ([@1egoman](https://github.com/1egoman))
+
+- Exports BackgroundProcessorWrapper and adds docs - [#117](https://github.com/livekit/track-processors-js/pull/117) ([@1egoman](https://github.com/1egoman))
+
 ## 0.7.0
 
 ### Minor Changes
