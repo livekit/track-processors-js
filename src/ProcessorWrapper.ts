@@ -275,7 +275,9 @@ export default class ProcessorWrapper<
 
       if (this.sourceDummy.paused) {
         this.log.warn('Video is paused, trying to play');
-        this.sourceDummy.play();
+        this.sourceDummy.play().then(() => {
+          this.animationFrameId = requestAnimationFrame(renderLoop);
+        });
         return;
       }
 
