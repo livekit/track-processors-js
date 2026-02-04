@@ -1,6 +1,9 @@
-import type { ProcessorOptions, Track, TrackProcessor } from 'livekit-client';
-import { TrackTransformer } from './transformers';
+import { type ProcessorOptions, type Track, type TrackProcessor } from 'livekit-client';
+import { TrackTransformer, TrackTransformerDestroyOptions } from './transformers';
 import { createCanvas, waitForTrackResolution } from './utils';
+import { LoggerNames, getLogger } from './logger';
+
+type ProcessorWrapperLifecycleState = 'idle' | 'initializing' | 'running' | 'media-exhausted' | 'destroying' | 'destroyed';
 
 export interface ProcessorWrapperOptions {
   /**
@@ -10,7 +13,10 @@ export interface ProcessorWrapperOptions {
   maxFps?: number;
 }
 
-export default class ProcessorWrapper<TransformerOptions extends Record<string, unknown>>
+export default class ProcessorWrapper<
+  TransformerOptions extends Record<string, unknown>,
+  Transformer extends TrackTransformer<TransformerOptions> = TrackTransformer<TransformerOptions>,
+>
   implements TrackProcessor<Track.Kind>
 {
   /**
@@ -58,7 +64,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
   processedTrack?: MediaStreamTrack;
 
-  transformer: TrackTransformer<TransformerOptions>;
+  transformer: Transformer;
 
   // For tracking whether we're using the stream API fallback
   private useStreamFallback = false;
@@ -77,10 +83,12 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   // FPS control for fallback implementation
   private maxFps: number;
 
-  private symbol?: Symbol;
+  private log = getLogger(LoggerNames.ProcessorWrapper);
+
+  private lifecycleState: ProcessorWrapperLifecycleState = 'idle';
 
   constructor(
-    transformer: TrackTransformer<TransformerOptions>,
+    transformer: Transformer,
     name: string,
     options: ProcessorWrapperOptions = {},
   ) {
@@ -140,6 +148,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   }
 
   async init(opts: ProcessorOptions<Track.Kind>): Promise<void> {
+    this.log.debug('Init called');
+    this.lifecycleState = 'initializing';
     await this.setup(opts);
 
     if (!this.canvas) {
@@ -156,6 +166,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     } else {
       this.initStreamProcessorPath();
     }
+    this.lifecycleState = 'running';
   }
 
   private initStreamProcessorPath() {
@@ -168,20 +179,20 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     const readableStream = this.processor.readable;
     const pipedStream = readableStream.pipeThrough(this.transformer!.transformer!);
 
-    const symbol = Symbol('stream');
-    this.symbol = symbol;
-
     pipedStream
       .pipeTo(this.trackGenerator.writable)
-      // destroy processor if stream finishes
-      .then(() => this.destroy(symbol))
+      // if stream finishes, the media to process is exhausted
+      .then(() => this.handleMediaExhausted())
       // destroy processor if stream errors - unless it's an abort error
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') {
-          console.log('stream processor path aborted');
+          this.log.log('stream processor path aborted');
+        } else if (e instanceof DOMException && e.name === 'InvalidStateError' && e.message === 'Stream closed') {
+          this.log.log('stream processor underlying stream closed');
+          this.handleMediaExhausted();
         } else {
-          console.error('error when trying to pipe', e);
-          this.destroy(symbol);
+          this.log.error('error when trying to pipe', e);
+          this.destroy();
         }
       });
 
@@ -224,7 +235,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
         // @ts-ignore - The controller expects both VideoFrame & AudioData but we're only using VideoFrame
         this.transformer.transform(frame, controller);
       } catch (e) {
-        console.error('Error in transform:', e);
+        this.log.error('Error in transform:', e);
         frame.close();
       }
     };
@@ -235,6 +246,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
 
   private startRenderLoop() {
     if (!this.sourceDummy || !(this.sourceDummy instanceof HTMLVideoElement)) {
+      this.handleMediaExhausted();
       return;
     }
 
@@ -257,11 +269,12 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
         !this.sourceDummy ||
         !(this.sourceDummy instanceof HTMLVideoElement)
       ) {
+        this.handleMediaExhausted();
         return;
       }
 
       if (this.sourceDummy.paused) {
-        console.warn('Video is paused, trying to play');
+        this.log.warn('Video is paused, trying to play');
         this.sourceDummy.play();
         return;
       }
@@ -298,7 +311,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
               window.location.hostname === '127.0.0.1';
 
             if (isDevelopment && now - lastFpsLog > 5000) {
-              console.debug(
+              this.log.debug(
                 `[${this.name}] Estimated video FPS: ${estimatedVideoFps.toFixed(
                   1,
                 )}, Processing at: ${(frameCount / 5).toFixed(1)} FPS`,
@@ -333,7 +346,7 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
             }
           }
         } catch (e) {
-          console.error('Error in render loop:', e);
+          this.log.error('Error in render loop:', e);
         }
       }
       this.animationFrameId = requestAnimationFrame(renderLoop);
@@ -343,7 +356,8 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
   }
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
-    await this.destroy();
+    this.log.debug('Restart called');
+    await this.destroy({ willProcessorRestart: true });
     await this.init(opts);
   }
 
@@ -356,11 +370,18 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
     await this.transformer.update(options[0]);
   }
 
-  async destroy(symbol?: Symbol) {
-    if (symbol && this.symbol !== symbol) {
-      // If the symbol is provided, we only destroy if it matches the current symbol
+  /** Called if the media pipeline no longer can read frames to process from the source media */
+  private async handleMediaExhausted() {
+    this.log.debug('Media was exhausted from source');
+    if (this.lifecycleState !== 'running') {
       return;
     }
+    this.lifecycleState = 'media-exhausted'
+    await this.cleanup();
+  }
+
+  /** Tears down the media stack logic initialized in initStreamProcessorPath / initFallbackPath */
+  private async cleanup() {
     if (this.useStreamFallback) {
       this.processingEnabled = false;
       if (this.animationFrameId) {
@@ -372,9 +393,28 @@ export default class ProcessorWrapper<TransformerOptions extends Record<string, 
       }
       this.capturedStream?.getTracks().forEach((track) => track.stop());
     } else {
+      // NOTE: closing writableControl below terminates the stream in initStreamProcessorPath /
+      // calls the .then(...) which calls this.handleMediaExhausted
       await this.processor?.writableControl?.close();
       this.trackGenerator?.stop();
     }
-    await this.transformer.destroy();
+  }
+
+  async destroy(transformerDestroyOptions: TrackTransformerDestroyOptions = { willProcessorRestart: false }) {
+    this.log.debug(`Destroy called - lifecycleState=${this.lifecycleState}, transformerDestroyOptions=${JSON.stringify(transformerDestroyOptions)}`);
+    switch (this.lifecycleState) {
+      case 'running':
+      case 'media-exhausted':
+        this.lifecycleState = 'destroying';
+
+        await this.cleanup();
+
+        await this.transformer.destroy(transformerDestroyOptions);
+        this.lifecycleState = 'destroyed';
+        break;
+
+      default:
+        break;
+    }
   }
 }

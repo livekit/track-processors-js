@@ -1,5 +1,19 @@
 # @livekit/track-processors
 
+## 0.7.0
+
+### Minor Changes
+
+- Faster disabling of background transformers - [#102](https://github.com/livekit/track-processors-js/pull/102) ([@holzgeist](https://github.com/holzgeist))
+
+### Patch Changes
+
+- Fix a "black screen flash" which occurs sometimes when restarting the processor wrapper - [#111](https://github.com/livekit/track-processors-js/pull/111) ([@1egoman](https://github.com/1egoman))
+
+- Add logic to BackgroundProcessor to allow dynamically switching modes elegantly - [#107](https://github.com/livekit/track-processors-js/pull/107) ([@1egoman](https://github.com/1egoman))
+
+- Adds logging infrastructure to allow for changing of log levels - [#109](https://github.com/livekit/track-processors-js/pull/109) ([@1egoman](https://github.com/1egoman))
+
 ## 0.6.1
 
 ### Patch Changes

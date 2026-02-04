@@ -1,3 +1,7 @@
+import { getLogger, LoggerNames} from '../logger';
+
+const log = getLogger(LoggerNames.WebGl);
+
 /**
  * Initialize a WebGL texture
  */
@@ -24,7 +28,7 @@ export function createShader(
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error('Shader compile failed:', gl.getShaderInfoLog(shader));
+    log.error('Shader compile failed:', gl.getShaderInfoLog(shader));
     gl.deleteShader(shader);
     throw new Error('Shader compile failed');
   }
@@ -41,7 +45,7 @@ export function createProgram(
   gl.attachShader(program, fs);
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error('Program link failed:', gl.getProgramInfoLog(program));
+    log.error('Program link failed:', gl.getProgramInfoLog(program));
     throw new Error('Program link failed');
   }
   return program;

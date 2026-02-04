@@ -1,7 +1,8 @@
 import * as vision from '@mediapipe/tasks-vision';
+import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
-import { VideoTransformerInitOptions } from './types';
+import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
 
@@ -14,6 +15,7 @@ export interface FrameProcessingStats {
 export type BackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
+  backgroundDisabled?: boolean;
   /** cannot be updated through the `update` method, needs a restart */
   segmenterOptions?: SegmenterOptions;
   /** cannot be updated through the `update` method, needs a restart */
@@ -43,6 +45,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   segmentationTimeMs: number = 0;
 
   isFirstFrame = true;
+
+  private log = getLogger(LoggerNames.ProcessorWrapper);
 
   constructor(opts: BackgroundOptions) {
     super();
@@ -77,19 +81,23 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     // Skip loading the image here if update already loaded the image below
     if (this.options?.imagePath) {
       await this.loadAndSetBackground(this.options.imagePath).catch((err) =>
-        console.error('Error while loading processor background image: ', err),
+        this.log.error('Error while loading processor background image: ', err),
       );
     }
-    if (this.options.blurRadius) {
+    if (typeof this.options.blurRadius === 'number') {
       this.gl?.setBlurRadius(this.options.blurRadius);
     }
+    this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
   }
 
-  async destroy() {
+  async destroy(options?: TrackTransformerDestroyOptions) {
     await super.destroy();
     await this.imageSegmenter?.close();
     this.backgroundImageAndPath = null;
-    this.isFirstFrame = true;
+
+    if (!options?.willProcessorRestart) {
+      this.isFirstFrame = true;
+    }
   }
 
   async loadAndSetBackground(path: string) {
@@ -112,11 +120,16 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     let enqueuedFrame = false;
     try {
       if (!(frame instanceof VideoFrame) || frame.codedWidth === 0 || frame.codedHeight === 0) {
-        console.debug('empty frame detected, ignoring');
+        this.log.debug('empty frame detected, ignoring');
         return;
       }
 
-      if (this.isDisabled) {
+      let skipProcessingFrame = this.isDisabled ?? this.options.backgroundDisabled ?? false;
+      if (typeof this.options.blurRadius !== 'number' && typeof this.options.imagePath !== 'string') {
+        skipProcessingFrame = true;
+      }
+
+      if (skipProcessingFrame) {
         controller.enqueue(frame);
         enqueuedFrame = true;
         return;
@@ -190,7 +203,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       }
       await segmentationPromise;
     } catch (e) {
-      console.error('Error while processing frame: ', e);
+      this.log.error('Error while processing frame: ', e);
     } finally {
       if (!enqueuedFrame) {
         frame.close();
@@ -207,6 +220,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     } else {
       this.gl?.setBackgroundImage(null);
     }
+    this.gl?.setBackgroundDisabled(opts.backgroundDisabled ?? false);
   }
 
   private async drawFrame(frame: VideoFrame) {
