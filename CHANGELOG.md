@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.7.2
+
+### Patch Changes
+
+- prevent render loop from breaking when video is paused - [#121](https://github.com/livekit/track-processors-js/pull/121) ([@holzgeist](https://github.com/holzgeist))
+
 ## 0.7.1
 
 ### Patch Changes
