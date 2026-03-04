@@ -47,15 +47,18 @@ await audioTrack.stopProcessor();
 Audio processors implement the `TrackProcessor` interface from `livekit-client`:
 
 ```ts
-interface TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
+// Generic signature from livekit-client
+interface TrackProcessor<T extends Track.Kind, U extends ProcessorOptions<T>> {
   name: string;
-  init(opts: AudioProcessorOptions): Promise<void>;
-  restart(opts: AudioProcessorOptions): Promise<void>;
+  init(opts: U): Promise<void>;
+  restart(opts: U): Promise<void>;
   destroy(): Promise<void>;
   processedTrack?: MediaStreamTrack;
   onPublish?(room: Room): Promise<void>;
   onUnpublish?(): Promise<void>;
 }
+
+// For audio processors, T = Track.Kind.Audio and U = AudioProcessorOptions
 ```
 
 When you call `audioTrack.setProcessor(processor)`, the SDK:

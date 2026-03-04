@@ -365,7 +365,9 @@ const appActions = {
       appendLog(`ERROR: ${e.message}`);
     } finally {
       updateAudioProcessorButtons();
-      setButtonDisabled('toggle-audio-processor', false);
+      if (currentRoom?.state === ConnectionState.Connected) {
+        setButtonDisabled('toggle-audio-processor', false);
+      }
     }
   },
 

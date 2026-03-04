@@ -98,6 +98,7 @@ export class GainAudioProcessor
     this.sourceNode?.disconnect();
     this.gainNode?.disconnect();
     this.destinationNode?.disconnect();
+    this.processedTrack?.stop();
     this.sourceNode = undefined;
     this.gainNode = undefined;
     this.destinationNode = undefined;
@@ -110,6 +111,9 @@ export class GainAudioProcessor
    * @param value - Gain multiplier (0.0 = silence, 1.0 = unity, > 1.0 = amplify)
    */
   setGain(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
     this.gainValue = Math.max(MIN_GAIN, Math.min(MAX_GAIN, value));
     if (this.gainNode) {
       this.gainNode.gain.value = this.gainValue;
@@ -124,11 +128,11 @@ export class GainAudioProcessor
   }
 
   // Optional lifecycle hooks — included for completeness as a reference implementation
-  async onPublish?(room: Room): Promise<void> {
+  async onPublish(room: Room): Promise<void> {
     // No-op: override in subclasses if you need room context
   }
 
-  async onUnpublish?(): Promise<void> {
+  async onUnpublish(): Promise<void> {
     // No-op: override in subclasses for room lifecycle cleanup
   }
 }
