@@ -159,6 +159,37 @@
                   </button>
                 </div>
               </div>
+
+              <div class="card mt-1 mb-1 mx-n2 p-2">
+                <div class="d-flex align-items-center justify-content-between">
+                  <button
+                    id="toggle-audio-processor"
+                    class="btn btn-secondary mr-2"
+                    disabled
+                    type="button"
+                    onclick="appActions.toggleAudioProcessorEnabled()"
+                  >
+                    Insert Audio Processor
+                  </button>
+                </div>
+
+                <div id="audio-processor-controls" style="display: none;">
+                  <div class="d-flex align-items-center mt-1">
+                    <label for="gain-slider" class="mr-2 mb-0">Gain:</label>
+                    <input
+                      type="range"
+                      id="gain-slider"
+                      min="0"
+                      max="3"
+                      value="1"
+                      step="0.1"
+                      style="flex: 1;"
+                      oninput="appActions.updateGain(parseFloat(this.value))"
+                    />
+                    <span id="gain-value" class="ml-2" style="min-width: 40px;">1.0</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

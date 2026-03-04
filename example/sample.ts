@@ -24,7 +24,7 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundProcessor, BackgroundProcessorOptions } from '../src';
+import { BackgroundProcessor, BackgroundProcessorOptions, GainAudioProcessor } from '../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -36,6 +36,8 @@ const state = {
   bitrateInterval: undefined as any,
   isBackgroundProcessorEnabled: false,
   backgroundProcessor: BackgroundProcessor({ mode: 'background-blur', blurRadius: BLUR_RADIUS }),
+  isAudioProcessorEnabled: false,
+  gainProcessor: new GainAudioProcessor({ gainValue: 1.0 }),
 };
 let currentRoom: Room | undefined;
 
@@ -339,6 +341,42 @@ const appActions = {
     }
   },
 
+  toggleAudioProcessorEnabled: async () => {
+    if (!currentRoom) return;
+
+    setButtonDisabled('toggle-audio-processor', true);
+
+    try {
+      const micPub = currentRoom.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (!micPub || !micPub.track) {
+        appendLog('ERROR: No microphone track found. Enable audio first.');
+        return;
+      }
+      const micTrack = micPub.track as LocalAudioTrack;
+
+      if (state.isAudioProcessorEnabled) {
+        await micTrack.stopProcessor();
+        state.isAudioProcessorEnabled = false;
+      } else {
+        await micTrack.setProcessor(state.gainProcessor);
+        state.isAudioProcessorEnabled = true;
+      }
+    } catch (e: any) {
+      appendLog(`ERROR: ${e.message}`);
+    } finally {
+      updateAudioProcessorButtons();
+      setButtonDisabled('toggle-audio-processor', false);
+    }
+  },
+
+  updateGain: (value: number) => {
+    state.gainProcessor.setGain(value);
+    const display = $('gain-value');
+    if (display) {
+      display.textContent = value.toFixed(1);
+    }
+  },
+
   startAudio: () => {
     currentRoom?.startAudio();
   },
@@ -409,7 +447,9 @@ function handleRoomDisconnect(reason?: DisconnectReason) {
   appendLog('disconnected from room', { reason });
   setButtonsForState(false);
   state.isBackgroundProcessorEnabled = false;
+  state.isAudioProcessorEnabled = false;
   updateTrackProcessorModeButtons();
+  updateAudioProcessorButtons();
   renderParticipant(currentRoom.localParticipant, true);
   currentRoom.remoteParticipants.forEach((p) => {
     renderParticipant(p, true);
@@ -662,6 +702,7 @@ function setButtonsForState(connected: boolean) {
     'switch-to-background-blur-button',
     'switch-to-virtual-background-button',
     'switch-to-disabled-button',
+    'toggle-audio-processor',
   ];
   const disconnectedSet = ['connect-button'];
 
@@ -763,6 +804,17 @@ function updateTrackProcessorModeButtons() {
     setButtonDisabled('update-bg-button', false);
   } else {
     setButtonDisabled('update-bg-button', true);
+  }
+}
+
+function updateAudioProcessorButtons() {
+  const toggleButtonEnabled = currentRoom?.state === ConnectionState.Connected;
+  if (state.isAudioProcessorEnabled) {
+    setButtonState('toggle-audio-processor', 'Remove Audio Processor', false, !toggleButtonEnabled);
+    $('audio-processor-controls').style.display = 'block';
+  } else {
+    setButtonState('toggle-audio-processor', 'Insert Audio Processor', false, !toggleButtonEnabled);
+    $('audio-processor-controls').style.display = 'none';
   }
 }
 

@@ -7,6 +7,7 @@ import BackgroundTransformer, {
 
 export * from './transformers/types';
 export { default as VideoTransformer } from './transformers/VideoTransformer';
+export { GainAudioProcessor, type GainAudioProcessorOptions } from './audio/GainAudioProcessor';
 export {
   ProcessorWrapper,
   type BackgroundOptions,
