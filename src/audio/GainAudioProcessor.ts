@@ -1,9 +1,14 @@
 import type { Track, Room } from 'livekit-client';
 import type { AudioProcessorOptions, TrackProcessor } from 'livekit-client';
 
+/** Gain is clamped to this range to avoid accidental silence or extreme amplification. */
+const MIN_GAIN = 0;
+const MAX_GAIN = 10;
+
 export interface GainAudioProcessorOptions {
   /**
    * Initial gain value. Defaults to 1.0 (unity gain).
+   * Clamped to [0, 10]. Values outside this range are clamped.
    * - 0.0 = silence
    * - 1.0 = no change
    * - > 1.0 = amplify
@@ -38,6 +43,19 @@ export class GainAudioProcessor
 
   private gainValue: number;
 
+  /**
+   * Whether the current environment supports GainAudioProcessor (Web Audio API).
+   * Use this for consistency with video processors before attaching the processor.
+   */
+  static get isSupported(): boolean {
+    return (
+      typeof AudioContext !== 'undefined' &&
+      typeof GainNode !== 'undefined' &&
+      typeof MediaStreamAudioSourceNode !== 'undefined' &&
+      typeof MediaStreamAudioDestinationNode !== 'undefined'
+    );
+  }
+
   private sourceNode?: MediaStreamAudioSourceNode;
 
   private gainNode?: GainNode;
@@ -45,7 +63,8 @@ export class GainAudioProcessor
   private destinationNode?: MediaStreamAudioDestinationNode;
 
   constructor(options: GainAudioProcessorOptions = {}) {
-    this.gainValue = options.gainValue ?? 1.0;
+    const raw = options.gainValue ?? 1.0;
+    this.gainValue = Math.max(MIN_GAIN, Math.min(MAX_GAIN, raw));
   }
 
   async init(opts: AudioProcessorOptions): Promise<void> {
@@ -87,12 +106,13 @@ export class GainAudioProcessor
 
   /**
    * Update the gain value. Can be called while the processor is active.
+   * Value is clamped to [0, 10].
    * @param value - Gain multiplier (0.0 = silence, 1.0 = unity, > 1.0 = amplify)
    */
   setGain(value: number): void {
-    this.gainValue = value;
+    this.gainValue = Math.max(MIN_GAIN, Math.min(MAX_GAIN, value));
     if (this.gainNode) {
-      this.gainNode.gain.value = value;
+      this.gainNode.gain.value = this.gainValue;
     }
   }
 

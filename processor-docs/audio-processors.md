@@ -6,9 +6,22 @@ This document covers the audio track processors available in `@livekit/track-pro
 
 The `GainAudioProcessor` is a minimal audio processor that applies a Web Audio [`GainNode`](https://developer.mozilla.org/en-US/docs/Web/API/GainNode) to a local audio track. It serves both as a ready-to-use volume control and as a reference implementation for building custom audio processors.
 
+### Browser support
+
+The Web Audio API used by `GainAudioProcessor` is [widely supported](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API#browser_compatibility) in modern browsers. You can check support before use:
+
+```ts
+import { GainAudioProcessor } from '@livekit/track-processors';
+
+if (!GainAudioProcessor.isSupported) {
+  console.warn('GainAudioProcessor is not supported in this environment');
+}
+```
+
 ### Basic usage
 
 ```ts
+import { createLocalAudioTrack } from 'livekit-client';
 import { GainAudioProcessor } from '@livekit/track-processors';
 
 const audioTrack = await createLocalAudioTrack();
@@ -27,7 +40,7 @@ await audioTrack.stopProcessor();
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `gainValue` | `number` | `1.0` | Initial gain multiplier. `1.0` = unity (no change), `0.0` = silence, `> 1.0` = amplify. |
+| `gainValue` | `number` | `1.0` | Initial gain multiplier, clamped to [0, 10]. `1.0` = unity (no change), `0.0` = silence, `> 1.0` = amplify. |
 
 ## The TrackProcessor interface for audio
 
