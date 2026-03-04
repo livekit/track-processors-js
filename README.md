@@ -1,91 +1,51 @@
 # LiveKit track processors
 
+Prebuilt audio and video track processors for [LiveKit](https://livekit.io), implementing the [`TrackProcessor`](https://docs.livekit.io/home/client/tracks/manipulate/#track-processors) interface from `livekit-client`.
+
 ## Install
 
 ```
 npm add @livekit/track-processors
 ```
 
-## Usage of prebuilt processors
+## Video processors
 
-### Available processors
-
-This package exposes the `BackgroundProcessor` pre-prepared processor pipeline, which can be used in a few ways:
-
-- `BackgroundProcessor({ mode: 'background-blur', blurRadius: 10 /* (optional) */ })`
-- `BackgroundProcessor({ mode: 'virtual-background', imagePath: "http://path.to/image.png" })`
-- `BackgroundProcessor({ mode: 'disabled' })`
-
-### Usage example
+Background blur and virtual background for video tracks:
 
 ```ts
-import { BackgroundProcessor, supportsBackgroundProcessors, supportsModernBackgroundProcessors } from '@livekit/track-processors';
+import { BackgroundProcessor } from '@livekit/track-processors';
 
-if(!supportsBackgroundProcessors()) {
-  throw new Error("this browser does not support background processors")
-}
-
-if(supportsModernBackgroundProcessors()) {
-  console.log("this browser supports modern APIs that are more performant");
-}
-
-const videoTrack = await createLocalVideoTrack();
-const processor = BackgroundProcessor({ mode: 'background-blur' });
+const processor = BackgroundProcessor({ mode: 'background-blur', blurRadius: 10 });
 await videoTrack.setProcessor(processor);
-room.localParticipant.publishTrack(videoTrack);
-
-async function disableBackgroundBlur() {
-  await videoTrack.stopProcessor();
-}
-
-async function updateBlurRadius(radius) {
-  return processor.switchTo({ mode: 'background-blur', blurRadius: radius });
-}
 ```
 
-In a real application, it's likely you will want to only sometimes apply background effects. You
-could accomplish this by calling `videoTrack.setProcessor(...)` / `videoTrack.stopProcessor(...)` on
-demand, but these functions can sometimes result in output visual artifacts as part of the switching
-process, which can result in a poor user experience.
+Available modes: `background-blur`, `virtual-background`, and `disabled` (passthrough).
 
-A better option which won't result in any visual artifacts while switching is to initialize the
-`BackgroundProcessor` in its "disabled" mode, and then later on switch to the desired mode. For
-example:
+See [processor-docs/video-processors.md](processor-docs/video-processors.md) for full usage, browser support checks, and how to avoid visual artifacts when switching modes.
+
+## Audio processors
+
+Gain control for audio tracks, and a reference implementation for building custom audio processors:
+
 ```ts
-const videoTrack = await createLocalVideoTrack();
-const processor = BackgroundProcessor({ mode: 'disabled' });
-await videoTrack.setProcessor(processor);
-room.localParticipant.publishTrack(videoTrack);
+import { GainAudioProcessor } from '@livekit/track-processors';
 
-async function enableBlur(radius) {
-  await processor.switchTo({ mode: 'background-blur', blurRadius: radius });
-}
-
-async function disableBlur() {
-  await processor.switchTo({ mode: 'disabled' });
-}
+const processor = new GainAudioProcessor({ gainValue: 1.5 });
+await audioTrack.setProcessor(processor);
 ```
+
+See [processor-docs/audio-processors.md](processor-docs/audio-processors.md) for full usage, the `TrackProcessor` interface for audio, and a guide to building your own audio processor with the Web Audio API.
 
 ## Developing your own processors
 
-A track processor is instantiated with a Transformer.
+This package implements the `TrackProcessor` interface from `livekit-client`. Video and audio processors take different approaches:
 
-```ts
-// src/index.ts
-export const VirtualBackground = (imagePath: string) => {
-  const pipeline = new ProcessorWrapper(new BackgroundTransformer({ imagePath }));
-  return pipeline;
-};
-```
-
-### Available base transformers
-
-- BackgroundTransformer (can blur background, use a virtual background, or be put into a disabled state);
-
+- **Video processors** use `ProcessorWrapper` with a transformer pipeline — see [processor-docs/video-processors.md](processor-docs/video-processors.md#developing-your-own-video-processor)
+- **Audio processors** implement `TrackProcessor` directly using the Web Audio API — see [processor-docs/audio-processors.md](processor-docs/audio-processors.md#building-your-own-audio-processor)
 
 ## Running the sample app
 
-This repository includes a small example app built on [Vite](https://vitejs.dev/). Run it with:
+This repository includes a small example app built on [Vite](https://vitejs.dev/) that demonstrates both video and audio processors. Run it with:
 
 ```
 # install pnpm: https://pnpm.io/installation
