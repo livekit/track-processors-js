@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.8.0
+
+### Minor Changes
+
+- Add GainAudioProcessor — a reference audio TrackProcessor implementation using the Web Audio API. Includes gain control, browser support detection via `isSupported`, and a complete example in the sample app. Also restructures documentation into separate video and audio processor guides. - [#124](https://github.com/livekit/track-processors-js/pull/124) ([@yepher](https://github.com/yepher))
+
 ## 0.7.2
 
 ### Patch Changes
