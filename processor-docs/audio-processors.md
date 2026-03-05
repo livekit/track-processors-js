@@ -99,6 +99,17 @@ Key points:
 
 ## Building your own audio processor
 
+### Architecture overview
+
+```mermaid
+flowchart LR
+    A[Microphone\nMediaStreamTrack] --> B[MediaStreamSource]
+    B --> C[Your Processing Nodes<br>e.g. GainNode, BiquadFilter,<br>AudioWorklet]
+    C --> D[MediaStreamDestination]
+    D --> E[processedTrack<br>MediaStreamTrack]
+    E --> F[Published to SFU]
+```
+
 The general pattern for a custom audio processor is:
 
 1. Create a `MediaStreamSource` from the input track

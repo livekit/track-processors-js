@@ -129,10 +129,10 @@ export class GainAudioProcessor
 
   // Optional lifecycle hooks — included for completeness as a reference implementation
   async onPublish(room: Room): Promise<void> {
-    // No-op: override in subclasses if you need room context
+    console.debug(`[${this.name}] onPublish — room: ${room.name}`);
   }
 
   async onUnpublish(): Promise<void> {
-    // No-op: override in subclasses for room lifecycle cleanup
+    console.debug(`[${this.name}] onUnpublish`);
   }
 }

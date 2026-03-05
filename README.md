@@ -1,6 +1,6 @@
 # LiveKit track processors
 
-Prebuilt audio and video track processors for [LiveKit](https://livekit.io), implementing the [`TrackProcessor`](https://docs.livekit.io/home/client/tracks/manipulate/#track-processors) interface from `livekit-client`.
+Prebuilt audio and video track processors for [LiveKit](https://livekit.io), implementing the [`TrackProcessor`](https://docs.livekit.io/reference/client-sdk-js/interfaces/TrackProcessor.html) interface from `livekit-client`.
 
 ## Install
 
@@ -10,7 +10,7 @@ npm add @livekit/track-processors
 
 ## Video processors
 
-Background blur and virtual background for video tracks:
+Video track processors intercept a local video track's frames and transform them before they are sent to other participants. This package provides a prebuilt `BackgroundProcessor` that supports background blur and virtual backgrounds:
 
 ```ts
 import { BackgroundProcessor } from '@livekit/track-processors';
@@ -25,7 +25,7 @@ See [processor-docs/video-processors.md](processor-docs/video-processors.md) for
 
 ## Audio processors
 
-Gain control for audio tracks, and a reference implementation for building custom audio processors:
+Audio track processors work similarly — they intercept the local audio track and pipe it through a Web Audio API processing graph before publishing. The included `GainAudioProcessor` provides gain control and serves as a reference implementation for building custom audio processors:
 
 ```ts
 import { GainAudioProcessor } from '@livekit/track-processors';

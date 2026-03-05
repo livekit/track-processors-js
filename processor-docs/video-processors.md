@@ -32,7 +32,9 @@ if (supportsModernBackgroundProcessors()) {
 }
 ```
 
-### Basic usage
+### Usage
+
+The simplest approach is to create a processor and attach it to a local video track:
 
 ```ts
 import { BackgroundProcessor } from '@livekit/track-processors';
@@ -41,21 +43,11 @@ const videoTrack = await createLocalVideoTrack();
 const processor = BackgroundProcessor({ mode: 'background-blur' });
 await videoTrack.setProcessor(processor);
 room.localParticipant.publishTrack(videoTrack);
-
-async function disableBackgroundBlur() {
-  await videoTrack.stopProcessor();
-}
-
-async function updateBlurRadius(radius) {
-  return processor.switchTo({ mode: 'background-blur', blurRadius: radius });
-}
 ```
 
-### Avoiding visual artifacts when switching
+### Avoiding visual artifacts when toggling
 
-In a real application, you'll likely want to toggle background effects on and off. You could call `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand, but these functions can sometimes produce visual artifacts during the switching process, resulting in a poor user experience.
-
-A better approach is to initialize the `BackgroundProcessor` in `disabled` mode and then switch to the desired mode later. This avoids artifacts entirely:
+Calling `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand can produce visual artifacts during the switch. A better approach is to initialize the processor in `disabled` mode up front and use `switchTo()` to toggle effects. This avoids artifacts entirely:
 
 ```ts
 const videoTrack = await createLocalVideoTrack();
@@ -74,13 +66,26 @@ async function disableBlur() {
 
 ## Developing your own video processor
 
+### Architecture overview
+
+```mermaid
+flowchart LR
+    A[Camera\nMediaStreamTrack] --> B[ProcessorWrapper]
+    B -->|VideoFrame| C[Transformer<br>e.g. BackgroundTransformer]
+    C -->|Transformed<br>VideoFrame| B
+    B --> D[Processed<br>MediaStreamTrack]
+    D --> E[Published to SFU]
+```
+
 Video processors in this package are built on two layers:
 
 1. **`ProcessorWrapper`** — Handles the plumbing of intercepting a video track's frames, passing them through a transformer, and producing a processed output track. It manages browser compatibility (using `MediaStreamTrackProcessor`/`MediaStreamTrackGenerator` where available, with a `canvas.captureStream()` fallback).
 
 2. **A Transformer** (e.g., `BackgroundTransformer`) — Implements the actual frame-by-frame processing logic.
 
-To create a custom video processor, you can instantiate a `ProcessorWrapper` with your own transformer:
+> **Note:** You don't have to follow this `Transformer` + `ProcessorWrapper` pattern. You can implement the `TrackProcessor` interface directly if you prefer. However, using `ProcessorWrapper` is convenient because it abstracts away the `MediaStreamTrack` → `VideoFrame` → transformer → `VideoFrame` → `MediaStreamTrack` conversion, which most use cases don't need to worry about.
+
+To create a custom video processor using `ProcessorWrapper`, instantiate it with your own transformer:
 
 ```ts
 import { ProcessorWrapper } from '@livekit/track-processors';
