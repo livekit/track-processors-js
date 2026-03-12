@@ -115,24 +115,26 @@ export async function resizeImageToCover(
   let sWidth = image.width;
   let sHeight = image.height;
 
-  // For cover mode, we need to crop some parts of the image
-  // to ensure it covers the canvas while maintaining aspect ratio
   if (imgAspect > targetAspect) {
-    // Image is wider than target - crop the sides
-    sWidth = Math.round(image.height * targetAspect);
-    sx = Math.round((image.width - sWidth) / 2); // Center the crop horizontally
+    // Source is wider than target: crop left/right
+    sWidth = image.height * targetAspect;
+    sx = (image.width - sWidth) / 2;
   } else if (imgAspect < targetAspect) {
-    // Image is taller than target - crop the top/bottom
-    sHeight = Math.round(image.width / targetAspect);
-    sy = Math.round((image.height - sHeight) / 2); // Center the crop vertically
+    // Source is taller than target: crop top/bottom
+    sHeight = image.width / targetAspect;
+    sy = (image.height - sHeight) / 2;
   }
 
-  // Create a new ImageBitmap with the cropped portion
-  return createImageBitmap(image, sx, sy, sWidth, sHeight, {
-    resizeWidth: targetWidth,
-    resizeHeight: targetHeight,
-    resizeQuality: 'medium',
-  });
+  const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Could not get 2D context');
+  }
+
+  ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+
+  return createImageBitmap(canvas);
 }
 
 let emptyImageData: ImageData | undefined;
