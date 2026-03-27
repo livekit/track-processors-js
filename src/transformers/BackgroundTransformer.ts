@@ -74,8 +74,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       },
       canvas: this.canvas,
       runningMode: 'VIDEO',
-      outputCategoryMask: true,
-      outputConfidenceMasks: false,
+      outputCategoryMask: false,
+      outputConfidenceMasks: true,
     });
 
     // Skip loading the image here if update already loaded the image below
@@ -175,7 +175,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
+            // Use background confidence mask (index 0) for continuous edge values.
+            // Polarity: HIGH = background, LOW = person (same as category mask).
+            this.updateMask(result.confidenceMasks?.[0]);
             result.close();
             resolve();
           });

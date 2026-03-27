@@ -28,7 +28,7 @@ import { BackgroundProcessor, BackgroundProcessorOptions, GainAudioProcessor } f
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BLUR_RADIUS = 10;
+const BLUR_RADIUS = 22;
 const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 
 const state = {
@@ -369,6 +369,67 @@ const appActions = {
         setButtonDisabled('toggle-audio-processor', false);
       }
     }
+  },
+
+  updateMaskParam: (param: string, value: number) => {
+    const gl = state.backgroundProcessor.getGLDebug();
+    if (!gl) {
+      appendLog('ERROR: GL debug interface not available (processor not initialized yet?)');
+      return;
+    }
+
+    switch (param) {
+      case 'bgBlur':
+        // Update the blur radius through the processor's switchTo so it goes through
+        // the proper setBlurRadius path (which accounts for downsample factor)
+        gl.setBlurRadius(value);
+        $('bg-blur-value').textContent = value.toFixed(0);
+        break;
+      case 'dilation':
+        gl.setMaskDilationRadius(value);
+        $('dilation-value').textContent = value.toFixed(0);
+        break;
+      case 'maskBlur':
+        gl.setMaskBlurRadius(value || null);
+        $('mask-blur-value').textContent = value.toFixed(0);
+        break;
+      case 'threshold':
+        gl.setCompositeThreshold(value);
+        $('threshold-value').textContent = value.toFixed(2);
+        break;
+      case 'edgeSoftness':
+        gl.setCompositeEdgeSoftness(value);
+        $('edge-softness-value').textContent = value.toFixed(1);
+        break;
+      case 'temporal':
+        gl.setTemporalSmoothing(value);
+        $('temporal-value').textContent = value.toFixed(2);
+        break;
+    }
+  },
+
+  copySettings: () => {
+    const gl = state.backgroundProcessor.getGLDebug();
+    if (!gl) {
+      appendLog('ERROR: GL not available');
+      return;
+    }
+    const params = gl.getMaskParams();
+    const bgBlurVal = $<HTMLInputElement>('bg-blur-slider').value;
+    const text = [
+      `BG Blur: ${bgBlurVal}`,
+      `Threshold: ${params.compositeThreshold}`,
+      `Edge Softness: ${params.compositeEdgeSoftness}`,
+      `Temporal Smooth: ${params.temporalSmoothing}`,
+      `Dilation: ${params.maskDilationRadius}`,
+      `Mask Blur: ${params.maskBlurRadius ?? 0}`,
+    ].join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      appendLog('Settings copied to clipboard');
+    }).catch(() => {
+      // fallback: log to console
+      appendLog('Settings:\n' + text);
+    });
   },
 
   updateGain: (value: number) => {

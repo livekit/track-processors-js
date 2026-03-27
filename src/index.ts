@@ -17,7 +17,7 @@ export {
 };
 export * from './logger';
 
-const DEFAULT_BLUR_RADIUS = 10;
+const DEFAULT_BLUR_RADIUS = 22;
 
 /**
  * Determines if the current browser supports background processors
@@ -90,6 +90,11 @@ export class BackgroundProcessorWrapper extends ProcessorWrapper<BackgroundOptio
     }
 
     return 'legacy';
+  }
+
+  /** Expose the WebGL debug interface for live parameter tuning */
+  getGLDebug() {
+    return this.transformer.getGL();
   }
 
   async switchTo(options: SwitchBackgroundProcessorOptions) {

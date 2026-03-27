@@ -57,6 +57,11 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.gl = undefined;
   }
 
+  /** Expose the WebGL instance for debug parameter tuning */
+  getGL() {
+    return this.gl;
+  }
+
   abstract transform(
     frame: VideoFrame,
     controller: TransformStreamDefaultController<VideoFrame>,
