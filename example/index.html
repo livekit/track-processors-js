@@ -166,39 +166,39 @@
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="bg-blur-slider" class="mr-2 mb-0" style="min-width: 140px;">BG Blur:</label>
-                      <input type="range" id="bg-blur-slider" min="1" max="60" value="22" step="1" style="flex: 1;"
+                      <input type="range" id="bg-blur-slider" min="1" max="60" value="27" step="1" style="flex: 1;"
                         oninput="appActions.updateMaskParam('bgBlur', parseFloat(this.value))" />
-                      <span id="bg-blur-value" class="ml-2" style="min-width: 40px;">22</span>
+                      <span id="bg-blur-value" class="ml-2" style="min-width: 40px;">27</span>
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="threshold-slider" class="mr-2 mb-0" style="min-width: 140px;">Threshold:</label>
-                      <input type="range" id="threshold-slider" min="0" max="1" value="0" step="0.01" style="flex: 1;"
+                      <input type="range" id="threshold-slider" min="0" max="1" value="0.76" step="0.01" style="flex: 1;"
                         oninput="appActions.updateMaskParam('threshold', parseFloat(this.value))" />
-                      <span id="threshold-value" class="ml-2" style="min-width: 40px;">0.00</span>
+                      <span id="threshold-value" class="ml-2" style="min-width: 40px;">0.76</span>
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="edge-softness-slider" class="mr-2 mb-0" style="min-width: 140px;">Edge Softness:</label>
-                      <input type="range" id="edge-softness-slider" min="0" max="10" value="0" step="0.1" style="flex: 1;"
+                      <input type="range" id="edge-softness-slider" min="0" max="10" value="10" step="0.1" style="flex: 1;"
                         oninput="appActions.updateMaskParam('edgeSoftness', parseFloat(this.value))" />
-                      <span id="edge-softness-value" class="ml-2" style="min-width: 40px;">0.0</span>
+                      <span id="edge-softness-value" class="ml-2" style="min-width: 40px;">10.0</span>
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="temporal-slider" class="mr-2 mb-0" style="min-width: 140px;">Temporal Smooth:</label>
-                      <input type="range" id="temporal-slider" min="0" max="0.95" value="0.2" step="0.05" style="flex: 1;"
+                      <input type="range" id="temporal-slider" min="0" max="0.95" value="0.05" step="0.05" style="flex: 1;"
                         oninput="appActions.updateMaskParam('temporal', parseFloat(this.value))" />
-                      <span id="temporal-value" class="ml-2" style="min-width: 40px;">0.20</span>
+                      <span id="temporal-value" class="ml-2" style="min-width: 40px;">0.05</span>
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="dilation-slider" class="mr-2 mb-0" style="min-width: 140px;">Dilation:</label>
-                      <input type="range" id="dilation-slider" min="0" max="16" value="0" step="1" style="flex: 1;"
+                      <input type="range" id="dilation-slider" min="-16" max="16" value="-1" step="1" style="flex: 1;"
                         oninput="appActions.updateMaskParam('dilation', parseFloat(this.value))" />
-                      <span id="dilation-value" class="ml-2" style="min-width: 40px;">0</span>
+                      <span id="dilation-value" class="ml-2" style="min-width: 40px;">-1</span>
                     </div>
                     <div class="d-flex align-items-center mt-1">
                       <label for="mask-blur-slider" class="mr-2 mb-0" style="min-width: 140px;">Mask Blur:</label>
-                      <input type="range" id="mask-blur-slider" min="0" max="16" value="0" step="1" style="flex: 1;"
+                      <input type="range" id="mask-blur-slider" min="0" max="16" value="6" step="1" style="flex: 1;"
                         oninput="appActions.updateMaskParam('maskBlur', parseFloat(this.value))" />
-                      <span id="mask-blur-value" class="ml-2" style="min-width: 40px;">0</span>
+                      <span id="mask-blur-value" class="ml-2" style="min-width: 40px;">6</span>
                     </div>
                   </div>
                 </div>

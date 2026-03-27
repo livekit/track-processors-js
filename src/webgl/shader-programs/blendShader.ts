@@ -31,7 +31,9 @@ void main() {
 `;
 
 export function createBlendProgram(gl: WebGL2RenderingContext) {
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource());
+  // Use non-flipping vertex shader for intermediate mask passes.
+  // The composite shader handles the final Y-flip.
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource(false));
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, blendFragmentShader);
 
   const program = createProgram(gl, vertexShader, fragmentShader);

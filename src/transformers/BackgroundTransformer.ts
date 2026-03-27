@@ -175,8 +175,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            // Use background confidence mask (index 0) for continuous edge values.
-            // Polarity: HIGH = background, LOW = person (same as category mask).
+            // Use confidence mask (index 0) for continuous edge values.
+            // Polarity: HIGH = person, LOW = background.
             this.updateMask(result.confidenceMasks?.[0]);
             result.close();
             resolve();

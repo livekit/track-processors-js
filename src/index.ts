@@ -17,7 +17,7 @@ export {
 };
 export * from './logger';
 
-const DEFAULT_BLUR_RADIUS = 22;
+const DEFAULT_BLUR_RADIUS = 27;
 
 /**
  * Determines if the current browser supports background processors

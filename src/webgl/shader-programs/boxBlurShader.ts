@@ -37,7 +37,10 @@ void main() {
  * Create the box blur shader program
  */
 export function createBoxBlurProgram(gl: WebGL2RenderingContext) {
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource());
+  // Use non-flipping vertex shader for intermediate mask passes.
+  // The composite shader handles the final Y-flip; intermediate passes must NOT flip
+  // to avoid orientation inconsistencies between 1-pass and 2-pass code paths.
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource(false));
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, boxBlurFragmentShader);
 
   const program = createProgram(gl, vertexShader, fragmentShader);

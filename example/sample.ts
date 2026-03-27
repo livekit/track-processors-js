@@ -28,7 +28,7 @@ import { BackgroundProcessor, BackgroundProcessorOptions, GainAudioProcessor } f
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BLUR_RADIUS = 22;
+const BLUR_RADIUS = 27;
 const IMAGE_PATH = '/samantha-gades-BlIhVfXbi9s-unsplash.jpg';
 
 const state = {

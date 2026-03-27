@@ -28,11 +28,11 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
-  let maskBlurRadius: number | null = 0;
-  let maskDilationRadius: number = 0;
-  let compositeThreshold: number = 0;
-  let compositeEdgeSoftness: number = 0;
-  let temporalSmoothing: number = 0.2; // 0 = no smoothing, higher = more temporal blending
+  let maskBlurRadius: number | null = 6;
+  let maskDilationRadius: number = -1;
+  let compositeThreshold: number = 0.76;
+  let compositeEdgeSoftness: number = 10;
+  let temporalSmoothing: number = 0.05; // 0 = no smoothing, higher = more temporal blending
   const downsampleFactor = 4;
 
   if (!gl) {
@@ -66,7 +66,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const boxBlurProgram = boxBlur.program;
   const boxBlurUniforms = boxBlur.uniforms;
 
-  // Create the dilation (min-filter) program for expanding the person mask
+  // Create the dilation (max-filter) program for expanding the person mask
   const dilation = createDilationProgram(gl);
   const dilationProgram = dilation.program;
   const dilationUniforms = dilation.uniforms;
@@ -113,24 +113,53 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
   // Initialize textures for mask dilation (two-pass separable min-filter)
   const dilationTextures = [initTexture(gl, 8), initTexture(gl, 9)];
-  const dilationFrameBuffers = [
+  let dilationFrameBuffers = [
     createFramebuffer(gl, dilationTextures[0], canvas.width, canvas.height),
     createFramebuffer(gl, dilationTextures[1], canvas.width, canvas.height),
   ];
 
   // Initialize texture for the first mask blur pass
   const tempMaskTexture = initTexture(gl, 5);
-  const tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, canvas.width, canvas.height);
+  let tempMaskFrameBuffer = createFramebuffer(gl, tempMaskTexture, canvas.width, canvas.height);
 
   // Initialize two textures for double-buffering the final mask
   finalMaskTextures.push(initTexture(gl, 6)); // For reading in renderFrame
   finalMaskTextures.push(initTexture(gl, 7)); // For writing in updateMask
 
   // Create framebuffers for the final mask textures
-  const finalMaskFrameBuffers = [
+  let finalMaskFrameBuffers = [
     createFramebuffer(gl, finalMaskTextures[0], canvas.width, canvas.height),
     createFramebuffer(gl, finalMaskTextures[1], canvas.width, canvas.height),
   ];
+
+  // Track the last known mask dimensions so we can resize framebuffers when the canvas changes
+  let lastMaskWidth = canvas.width;
+  let lastMaskHeight = canvas.height;
+
+  /**
+   * Resize all mask-related framebuffer textures to match the current canvas dimensions.
+   * Called from updateMask when a dimension change is detected.
+   */
+  function resizeMaskFramebuffers(width: number, height: number) {
+    // Helper: resize one texture + recreate its framebuffer
+    const resizeFB = (texture: WebGLTexture, oldFB: WebGLFramebuffer) => {
+      gl.deleteFramebuffer(oldFB);
+      return createFramebuffer(gl, texture, width, height);
+    };
+
+    dilationFrameBuffers = [
+      resizeFB(dilationTextures[0], dilationFrameBuffers[0]),
+      resizeFB(dilationTextures[1], dilationFrameBuffers[1]),
+    ];
+    tempMaskFrameBuffer = resizeFB(tempMaskTexture, tempMaskFrameBuffer);
+    finalMaskFrameBuffers = [
+      resizeFB(finalMaskTextures[0], finalMaskFrameBuffers[0]),
+      resizeFB(finalMaskTextures[1], finalMaskFrameBuffers[1]),
+    ];
+
+    lastMaskWidth = width;
+    lastMaskHeight = height;
+  }
 
   let backgroundImageDisabled = false;
 
@@ -259,10 +288,15 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   }
 
   function updateMask(mask: WebGLTexture) {
+    // Resize framebuffers if the canvas dimensions have changed since last time
+    if (canvas.width !== lastMaskWidth || canvas.height !== lastMaskHeight) {
+      resizeMaskFramebuffers(canvas.width, canvas.height);
+    }
+
     let currentMask = mask;
 
-    // Step 1 (optional): Dilate to expand person region
-    if (maskDilationRadius > 0) {
+    // Step 1 (optional): Dilate (positive) or erode (negative) person region
+    if (maskDilationRadius !== 0) {
       currentMask = applyDilation(
         gl,
         currentMask,
