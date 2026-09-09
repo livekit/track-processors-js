@@ -52,6 +52,20 @@ export function createProgram(
 }
 
 /**
+ * Re-specify a texture's storage at the given size. Works on a framebuffer attachment in place: the
+ * attachment references the texture object, so the framebuffer stays valid.
+ */
+export function resizeTexture(
+  gl: WebGL2RenderingContext,
+  texture: WebGLTexture,
+  width: number,
+  height: number,
+) {
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+}
+
+/**
  * Create a WebGL framebuffer with the given texture as color attachment
  */
 export function createFramebuffer(
@@ -67,8 +81,7 @@ export function createFramebuffer(
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
   // Ensure texture dimensions match the provided width and height
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  resizeTexture(gl, texture, width, height);
 
   // Check if framebuffer is complete
   const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
