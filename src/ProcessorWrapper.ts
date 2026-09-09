@@ -253,7 +253,7 @@ export default class ProcessorWrapper<
 
     // Store the last processed timestamp to avoid duplicate processing
     let lastVideoTimestamp = -1;
-    let lastFrameTime = 0;
+    let nextFrameDue = performance.now();
     let lastResumeAttempt = 0;
     const videoElement = this.sourceDummy as HTMLVideoElement;
     const minFrameInterval = 1000 / this.maxFps; // Minimum time between frames
@@ -289,7 +289,6 @@ export default class ProcessorWrapper<
       // Only process a new frame if the video has actually updated
       const videoTime = videoElement.currentTime;
       const now = performance.now();
-      const timeSinceLastFrame = now - lastFrameTime;
 
       // Detect if video has a new frame
       const hasNewFrame = videoTime !== lastVideoTimestamp;
@@ -334,12 +333,13 @@ export default class ProcessorWrapper<
       // Determine if we should process this frame
       // We'll process if:
       // 1. The video has a new frame
-      // 2. Enough time has passed since last frame (respecting maxFps)
-      const timeThresholdMet = timeSinceLastFrame >= minFrameInterval;
-
-      if (hasNewFrame && timeThresholdMet) {
+      // 2. The next frame is due (respecting maxFps)
+      if (hasNewFrame && now >= nextFrameDue) {
         lastVideoTimestamp = videoTime;
-        lastFrameTime = now;
+        // Advancing the deadline rather than restarting it from now keeps the output at maxFps
+        // instead of at the tick the sampler happens to land on; clamping stops a stalled loop
+        // from bursting to catch up.
+        nextFrameDue = Math.max(now, nextFrameDue + minFrameInterval);
         frameCount++;
 
         try {
@@ -358,8 +358,8 @@ export default class ProcessorWrapper<
       }
     };
 
-    // Ticking at twice maxFps leaves the frame gate above room to hit its interval: pacing the
-    // ticker at exactly maxFps makes normal jitter miss it every other tick and halves the rate.
+    // The ticker samples the source; the frame deadline above is what caps the output at maxFps.
+    // Sampling at twice maxFps keeps every deadline reachable without publishing more frames.
     this.frameTicker = createFrameTicker(1000 / (this.maxFps * 2), renderFrame);
   }
 
