@@ -265,7 +265,6 @@ export default class ProcessorWrapper<
     // Store the last processed timestamp to avoid duplicate processing
     let lastVideoTimestamp = -1;
     let nextFrameDue = performance.now();
-    let lastResumeAttempt = -Infinity; // first paused tick retries right away;
     const videoElement = this.sourceDummy as HTMLVideoElement;
     const minFrameInterval = 1000 / this.maxFps; // Minimum time between frames
 
