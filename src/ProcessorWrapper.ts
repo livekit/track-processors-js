@@ -218,6 +218,17 @@ export default class ProcessorWrapper<
       const controller = {
         enqueue: (processedFrame: VideoFrame) => {
           if (this.renderContext && this.displayCanvas) {
+            // Follow the video element, not the frame: both track rotation, but on iOS frames keep the
+            // unrotated sensor size (640x480 for a 480x640 track) and the published track must match the track.
+            const { videoWidth, videoHeight } = this.sourceDummy as HTMLVideoElement;
+            if (
+              videoWidth &&
+              videoHeight &&
+              (this.displayCanvas.width !== videoWidth || this.displayCanvas.height !== videoHeight)
+            ) {
+              this.displayCanvas.width = videoWidth;
+              this.displayCanvas.height = videoHeight;
+            }
             // Draw the processed frame to the visible canvas
             this.renderContext.drawImage(
               processedFrame,
@@ -254,7 +265,7 @@ export default class ProcessorWrapper<
     // Store the last processed timestamp to avoid duplicate processing
     let lastVideoTimestamp = -1;
     let nextFrameDue = performance.now();
-    let lastResumeAttempt = 0;
+    let lastResumeAttempt = -Infinity; // first paused tick retries right away;
     const videoElement = this.sourceDummy as HTMLVideoElement;
     const minFrameInterval = 1000 / this.maxFps; // Minimum time between frames
 
@@ -264,6 +275,7 @@ export default class ProcessorWrapper<
     let lastVideoTimeChange = 0;
     let frameCount = 0;
     let lastFpsLog = 0;
+    let lastPlayAttempt = -Infinity; // first paused tick retries right away
 
     const renderFrame = () => {
       if (
@@ -276,12 +288,13 @@ export default class ProcessorWrapper<
       }
 
       if (this.sourceDummy.paused) {
-        if (performance.now() - lastResumeAttempt > 1000) {
-          lastResumeAttempt = performance.now();
+        // play() can be refused (NotAllowedError on WebKit outside a user gesture); re-arming only from its
+        // .then() (#121) ended the loop for good on rejection. Re-arm every frame instead, like the
+        // no-new-frame path, and retry play() once a second.
+        if (performance.now() - lastPlayAttempt > 1000) {
+          lastPlayAttempt = performance.now();
           this.log.warn('Video is paused, trying to play');
-          this.sourceDummy
-            .play()
-            .catch((e) => this.log.warn('Could not resume the source video:', e));
+          this.sourceDummy.play().catch((e) => this.log.warn('Unable to play video', e));
         }
         return;
       }
