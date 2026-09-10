@@ -1,5 +1,15 @@
 # @livekit/track-processors
 
+## 0.8.0
+
+### Minor Changes
+
+- Add GainAudioProcessor — a reference audio TrackProcessor implementation using the Web Audio API. Includes gain control, browser support detection via `isSupported`, and a complete example in the sample app. Also restructures documentation into separate video and audio processor guides. - [#124](https://github.com/livekit/track-processors-js/pull/124) ([@yepher](https://github.com/yepher))
+
+### Patch Changes
+
+- Fix the background mask coming out clipped and offset when the frame size differs from the track settings (device rotation, iPhone portrait), size the canvas fallback output to the source video's size, and keep the fallback render loop alive when `play()` is rejected. - [#128](https://github.com/livekit/track-processors-js/pull/128) ([@welson-ribbon](https://github.com/welson-ribbon))
+
 ## 0.7.2
 
 ### Patch Changes
