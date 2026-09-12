@@ -21,9 +21,10 @@ export interface FrameTicker {
  * timers are exempt from both, and `canvas.captureStream()` keeps emitting for as long as something
  * paints the canvas.
  *
- * `requestAnimationFrame` is only used where a blob worker cannot run at all (for example a
- * Content-Security-Policy without `worker-src blob:`), so those environments keep exactly today's
- * behaviour instead of losing the loop entirely.
+ * A window `setTimeout` is only used where a blob worker cannot run at all (for example a
+ * Content-Security-Policy without `worker-src blob:`). It is throttled to about one tick per second
+ * while hidden, but unlike `requestAnimationFrame` it never stops, so those environments get a slow
+ * loop instead of a frozen one.
  */
 export function createFrameTicker(intervalMs: number, onTick: () => void): FrameTicker {
   let worker: Worker;
@@ -35,21 +36,21 @@ export function createFrameTicker(intervalMs: number, onTick: () => void): Frame
     worker = new Worker(workerUrl);
     URL.revokeObjectURL(workerUrl);
   } catch (e) {
-    log.warn('Frame ticker worker could not be created, falling back to requestAnimationFrame', e);
-    return createRequestAnimationFrameTicker(onTick);
+    log.warn('Frame ticker worker could not be created, falling back to a window timer', e);
+    return createTimeoutTicker(intervalMs, onTick);
   }
 
   let fallback: FrameTicker | undefined;
   let ticked = false;
 
-  const useAnimationFrameFallback = (reason: string, e?: unknown) => {
+  const useTimeoutFallback = (reason: string, e?: unknown) => {
     if (fallback) {
       return;
     }
 
     worker.terminate();
-    log.warn(`Frame ticker worker ${reason}, falling back to requestAnimationFrame`, e);
-    fallback = createRequestAnimationFrameTicker(onTick);
+    log.warn(`Frame ticker worker ${reason}, falling back to a window timer`, e);
+    fallback = createTimeoutTicker(intervalMs, onTick);
   };
 
   worker.onmessage = () => {
@@ -62,13 +63,13 @@ export function createFrameTicker(intervalMs: number, onTick: () => void): Frame
     }
   };
 
-  worker.onerror = (e) => useAnimationFrameFallback('failed', e);
+  worker.onerror = (e) => useTimeoutFallback('failed', e);
 
   // A blocked worker reports itself through `onerror` rather than by throwing, so a browser that
   // does neither would leave the loop with no clock at all.
   const startTimeout = setTimeout(() => {
     if (!ticked) {
-      useAnimationFrameFallback('did not start');
+      useTimeoutFallback('did not start');
     }
   }, Math.max(1000, intervalMs * 10));
 
@@ -83,15 +84,15 @@ export function createFrameTicker(intervalMs: number, onTick: () => void): Frame
   };
 }
 
-function createRequestAnimationFrameTicker(onTick: () => void): FrameTicker {
-  let frameId = requestAnimationFrame(function tick() {
-    frameId = requestAnimationFrame(tick);
+function createTimeoutTicker(intervalMs: number, onTick: () => void): FrameTicker {
+  let timeoutId = setTimeout(function tick() {
+    timeoutId = setTimeout(tick, intervalMs);
     onTick();
-  });
+  }, intervalMs);
 
   return {
     stop() {
-      cancelAnimationFrame(frameId);
+      clearTimeout(timeoutId);
     },
   };
 }
