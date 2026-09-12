@@ -1,4 +1,5 @@
 import { type ProcessorOptions, type Track, type TrackProcessor } from 'livekit-client';
+import { type FrameTicker, createFrameTicker } from './FrameTicker';
 import { TrackTransformer, TrackTransformerDestroyOptions } from './transformers';
 import { createCanvas, waitForTrackResolution } from './utils';
 import { LoggerNames, getLogger } from './logger';
@@ -72,7 +73,7 @@ export default class ProcessorWrapper<
   // For fallback rendering with canvas.captureStream()
   private capturedStream?: MediaStream;
 
-  private animationFrameId?: number;
+  private frameTicker?: FrameTicker;
 
   private renderContext?: CanvasRenderingContext2D;
 
@@ -263,7 +264,7 @@ export default class ProcessorWrapper<
 
     // Store the last processed timestamp to avoid duplicate processing
     let lastVideoTimestamp = -1;
-    let lastFrameTime = 0;
+    let nextFrameDue = performance.now();
     const videoElement = this.sourceDummy as HTMLVideoElement;
     const minFrameInterval = 1000 / this.maxFps; // Minimum time between frames
 
@@ -275,7 +276,7 @@ export default class ProcessorWrapper<
     let lastFpsLog = 0;
     let lastPlayAttempt = -Infinity; // first paused tick retries right away
 
-    const renderLoop = () => {
+    const renderFrame = () => {
       if (
         !this.processingEnabled ||
         !this.sourceDummy ||
@@ -294,14 +295,12 @@ export default class ProcessorWrapper<
           this.log.warn('Video is paused, trying to play');
           this.sourceDummy.play().catch((e) => this.log.warn('Unable to play video', e));
         }
-        this.animationFrameId = requestAnimationFrame(renderLoop);
         return;
       }
 
       // Only process a new frame if the video has actually updated
       const videoTime = videoElement.currentTime;
       const now = performance.now();
-      const timeSinceLastFrame = now - lastFrameTime;
 
       // Detect if video has a new frame
       const hasNewFrame = videoTime !== lastVideoTimestamp;
@@ -346,12 +345,13 @@ export default class ProcessorWrapper<
       // Determine if we should process this frame
       // We'll process if:
       // 1. The video has a new frame
-      // 2. Enough time has passed since last frame (respecting maxFps)
-      const timeThresholdMet = timeSinceLastFrame >= minFrameInterval;
-
-      if (hasNewFrame && timeThresholdMet) {
+      // 2. The next frame is due (respecting maxFps)
+      if (hasNewFrame && now >= nextFrameDue) {
         lastVideoTimestamp = videoTime;
-        lastFrameTime = now;
+        // Advancing the deadline rather than restarting it from now keeps the output at maxFps
+        // instead of at the tick the sampler happens to land on; clamping stops a stalled loop
+        // from bursting to catch up.
+        nextFrameDue = Math.max(now, nextFrameDue + minFrameInterval);
         frameCount++;
 
         try {
@@ -368,10 +368,11 @@ export default class ProcessorWrapper<
           this.log.error('Error in render loop:', e);
         }
       }
-      this.animationFrameId = requestAnimationFrame(renderLoop);
     };
 
-    this.animationFrameId = requestAnimationFrame(renderLoop);
+    // The ticker samples the source; the frame deadline above is what caps the output at maxFps.
+    // Sampling at twice maxFps keeps every deadline reachable without publishing more frames.
+    this.frameTicker = createFrameTicker(1000 / (this.maxFps * 2), renderFrame);
   }
 
   async restart(opts: ProcessorOptions<Track.Kind>): Promise<void> {
@@ -403,10 +404,8 @@ export default class ProcessorWrapper<
   private async cleanup() {
     if (this.useStreamFallback) {
       this.processingEnabled = false;
-      if (this.animationFrameId) {
-        cancelAnimationFrame(this.animationFrameId);
-        this.animationFrameId = undefined;
-      }
+      this.frameTicker?.stop();
+      this.frameTicker = undefined;
       if (this.displayCanvas && this.displayCanvas.parentNode) {
         this.displayCanvas.parentNode.removeChild(this.displayCanvas);
       }
