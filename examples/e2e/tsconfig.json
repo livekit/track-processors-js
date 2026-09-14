@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "offscreencanvas", "dom-mediacapture-transform"]
+  },
+  "include": ["**/*.ts", "../../src/**/*.ts"]
+}
