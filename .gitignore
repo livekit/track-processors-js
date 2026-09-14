@@ -111,3 +111,9 @@ docs/
 
 pkg/
 bin/
+
+# Playwright e2e output
+e2e/.report
+e2e/.results
+test-results
+playwright-report

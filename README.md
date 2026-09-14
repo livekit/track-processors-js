@@ -62,3 +62,13 @@ pnpm dev:e2e
 ```
 
 It's also the quickest way to reproduce a rendering bug across browsers by hand — see [examples/e2e/README.md](examples/e2e/README.md) for the query parameters and the API.
+
+## Running the end-to-end tests
+
+```
+pnpm test:e2e           # headless
+pnpm test:e2e:headed    # watch it in a real browser window
+```
+
+Uses your installed Google Chrome and needs no server, webcam or launch flags. See
+[e2e/README.md](e2e/README.md) for the other run modes and what's covered.

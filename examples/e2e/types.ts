@@ -90,6 +90,16 @@ export interface EnvInfo {
   /** BackgroundTransformer.isSupported */
   transformerSupported: boolean;
   webgl2: boolean;
+  /** UNMASKED_RENDERER_WEBGL, e.g. "ANGLE (Apple, Apple M1 Pro...)" or "SwiftShader". */
+  renderer: string | null;
+  /**
+   * True when WebGL is running on a software rasterizer.
+   *
+   * Worth knowing before trusting any timing: this library is GPU-bound, and the filter step
+   * costs roughly 20x more on SwiftShader than on a real GPU. Several filed issues (#39, #79,
+   * #104) are GPU-availability problems.
+   */
+  softwareRenderer: boolean;
   offscreenCanvas: boolean;
   videoFrame: boolean;
   insertableStreams: boolean;
@@ -158,6 +168,31 @@ export interface FrameSample {
   foregroundBox: (Rect & { coverage: number }) | null;
   /** PNG data URL, only when `includeImage` was requested. */
   image?: string;
+}
+
+/**
+ * A cheap per-frame fingerprint, captured on every presented frame while recording.
+ *
+ * Deliberately far smaller than a FrameSample: this runs inside the requestVideoFrameCallback
+ * on the main thread, so it samples at low resolution and computes only what is needed to tell
+ * one visual treatment from another.
+ */
+export interface FrameFingerprint {
+  /** Monotonic presented-frame index from the probe's rVFC counter. */
+  index: number;
+  t: number;
+  hash: string;
+  bgMean: Rgb;
+  bgBlurEnergy: number;
+  fgMean: Rgb;
+}
+
+export interface RecordOptions {
+  /** Stop capturing after this many frames. Default 600. */
+  maxFrames?: number;
+  /** Longest edge of the recording canvas. Default 96 — small, to keep up with the frame rate. */
+  maxDimension?: number;
+  regions?: { fg?: Rect; bg?: Rect };
 }
 
 export interface ProbeOptions {
@@ -289,6 +324,17 @@ export interface ProbeControl {
   /** Ground truth from the compositor, or null when the source is not the fake camera. */
   expectedForegroundBox(): Rect | null;
   presentedFrames(): number;
+
+  /**
+   * Fingerprint every presented frame until `stopRecording`.
+   *
+   * This is how mode-switch artifacts are caught: polling with `sample()` cannot prove that no
+   * bad frame was published, only that none happened to be observed. Recording sees every frame
+   * the track actually delivered.
+   */
+  startRecording(opts?: RecordOptions): Promise<void>;
+  stopRecording(): FrameFingerprint[];
+  isRecording(): boolean;
 }
 
 export interface RoomControl {

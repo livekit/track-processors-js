@@ -1,4 +1,13 @@
-import type { FrameSample, ProbeControl, ProbeOptions, Rect, RegionStats, Rgb } from './types';
+import type {
+  FrameFingerprint,
+  FrameSample,
+  ProbeControl,
+  ProbeOptions,
+  RecordOptions,
+  Rect,
+  RegionStats,
+  Rgb,
+} from './types';
 
 /**
  * Pixel and frame-rate measurement.
@@ -14,6 +23,9 @@ import type { FrameSample, ProbeControl, ProbeOptions, Rect, RegionStats, Rgb } 
 
 const DEFAULT_MAX_DIMENSION = 320;
 const DEFAULT_TOLERANCE = 28;
+/** Small enough that fingerprinting keeps up with a 30fps track on the main thread. */
+const RECORD_MAX_DIMENSION = 96;
+const RECORD_MAX_FRAMES = 600;
 
 type TrackResolver = (source: 'processed' | 'source') => MediaStreamTrack | undefined;
 
@@ -29,6 +41,18 @@ export class Probe implements ProbeControl {
   private boundTrackId: string | null = null;
 
   private rvfcHandle?: number;
+
+  private recordCanvas: HTMLCanvasElement;
+
+  private recordCtx: CanvasRenderingContext2D;
+
+  private recorded: FrameFingerprint[] | null = null;
+
+  private recordOpts: Required<Pick<RecordOptions, 'maxFrames' | 'maxDimension'>> &
+    Pick<RecordOptions, 'regions'> = {
+    maxFrames: RECORD_MAX_FRAMES,
+    maxDimension: RECORD_MAX_DIMENSION,
+  };
 
   constructor(
     private resolveTrack: TrackResolver,
@@ -53,6 +77,12 @@ export class Probe implements ProbeControl {
     const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) throw new Error('Could not get a 2d context for the probe');
     this.ctx = ctx;
+
+    // A separate canvas so a concurrent sample() cannot clobber a recording mid-frame.
+    this.recordCanvas = document.createElement('canvas');
+    const recordCtx = this.recordCanvas.getContext('2d', { willReadFrequently: true });
+    if (!recordCtx) throw new Error('Could not get a 2d context for the probe recorder');
+    this.recordCtx = recordCtx;
   }
 
   presentedFrames() {
@@ -89,6 +119,14 @@ export class Probe implements ProbeControl {
     if (this.rvfcHandle !== undefined) anyVideo.cancelVideoFrameCallback?.(this.rvfcHandle);
     const step = () => {
       this.presented += 1;
+      if (this.recorded && this.recorded.length < this.recordOpts.maxFrames) {
+        try {
+          this.recorded.push(this.fingerprint());
+        } catch {
+          // A frame that cannot be read (zero-sized, or the track just ended) is skipped
+          // rather than aborting the recording.
+        }
+      }
       this.rvfcHandle = anyVideo.requestVideoFrameCallback!(step);
     };
     this.rvfcHandle = anyVideo.requestVideoFrameCallback(step);
@@ -101,6 +139,63 @@ export class Probe implements ProbeControl {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
     throw new Error('Probe video never produced data');
+  }
+
+  // ------------------------------------------------------------------ recording
+
+  async startRecording(opts: RecordOptions = {}) {
+    await this.bind('processed');
+    this.recordOpts = {
+      maxFrames: opts.maxFrames ?? RECORD_MAX_FRAMES,
+      maxDimension: opts.maxDimension ?? RECORD_MAX_DIMENSION,
+      regions: opts.regions,
+    };
+    this.recorded = [];
+    if (this.rvfcHandle === undefined) {
+      throw new Error('requestVideoFrameCallback is unavailable; per-frame recording needs it');
+    }
+  }
+
+  stopRecording(): FrameFingerprint[] {
+    const frames = this.recorded ?? [];
+    this.recorded = null;
+    return frames;
+  }
+
+  isRecording() {
+    return this.recorded !== null;
+  }
+
+  private fingerprint(): FrameFingerprint {
+    const srcW = this.video.videoWidth;
+    const srcH = this.video.videoHeight;
+    if (!srcW || !srcH) throw new Error('no frame');
+
+    const scale = Math.min(1, this.recordOpts.maxDimension / Math.max(srcW, srcH));
+    const w = Math.max(2, Math.round(srcW * scale));
+    const h = Math.max(2, Math.round(srcH * scale));
+    this.recordCanvas.width = w;
+    this.recordCanvas.height = h;
+    this.recordCtx.drawImage(this.video, 0, 0, w, h);
+    const { data } = this.recordCtx.getImageData(0, 0, w, h);
+
+    const fg = this.recordOpts.regions?.fg ?? this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
+    const inFg = rectPredicate(fg, w, h);
+    const inBg = this.recordOpts.regions?.bg
+      ? rectPredicate(this.recordOpts.regions.bg, w, h)
+      : (x: number, y: number) => !inFg(x, y);
+
+    const bg = analyze(data, w, h, inBg);
+    const fgStats = analyze(data, w, h, inFg);
+
+    return {
+      index: this.presented,
+      t: performance.now(),
+      hash: averageHash(data, w, h),
+      bgMean: bg.mean,
+      bgBlurEnergy: bg.blurEnergy,
+      fgMean: fgStats.mean,
+    };
   }
 
   // ------------------------------------------------------------------ sampling
