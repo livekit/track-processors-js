@@ -24,7 +24,7 @@ import {
   facingModeFromLocalTrack,
   setLogLevel,
 } from 'livekit-client';
-import { BackgroundProcessor, BackgroundProcessorOptions, GainAudioProcessor } from '../src';
+import { BackgroundProcessor, BackgroundProcessorOptions, GainAudioProcessor } from '../../src';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 

@@ -45,10 +45,20 @@ This package implements the `TrackProcessor` interface from `livekit-client`. Vi
 
 ## Running the sample app
 
-This repository includes a small example app built on [Vite](https://vitejs.dev/) that demonstrates both video and audio processors. Run it with:
+This repository includes a small example app at `examples/demo`, built on [Vite](https://vitejs.dev/), that demonstrates both video and audio processors. It connects to a LiveKit room, so you'll need a server URL and a token. Run it with:
 
 ```
 # install pnpm: https://pnpm.io/installation
 pnpm install
 pnpm sample
 ```
+
+## Running the e2e harness app
+
+`examples/e2e` is a second app used by the end-to-end test suite. It needs no LiveKit server and no webcam: it mocks `getUserMedia` with a deterministic, procedurally composited video source, and exposes measurement APIs on `window.harness`. Run it with:
+
+```
+pnpm dev:e2e
+```
+
+It's also the quickest way to reproduce a rendering bug across browsers by hand — see [docs/e2e-harness.md](docs/e2e-harness.md) for the query parameters and the API.

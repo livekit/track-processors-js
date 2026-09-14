@@ -14,11 +14,14 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
-    "build-sample": "cd example && vite build",
+    "build-sample": "cd examples/demo && vite build",
     "lint": "eslint src",
     "release": "pnpm build && changeset publish",
     "test": "jest",
-    "dev": "vite example -c vite.config.mjs --open",
+    "dev": "vite examples/demo -c vite.config.mjs --open",
+    "dev:e2e": "vite examples/e2e -c vite.config.mjs --port 8081",
+    "build:e2e": "cd examples/e2e && vite build",
+    "typecheck": "tsc -p tsconfig.eslint.json --noEmit",
     "sample": "pnpm run dev"
   },
   "files": [
