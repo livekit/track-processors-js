@@ -1,0 +1,187 @@
+/* Deliberately self-contained: no CDN stylesheet, so the harness works offline and under a
+   strict Content-Security-Policy. */
+
+:root {
+  --bg: #12151a;
+  --panel: #1a1f27;
+  --border: #2b323d;
+  --ink: #e6eaf0;
+  --ink-dim: #93a0b1;
+  --accent: #4fd1c5;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+header {
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.lede {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+code {
+  color: var(--accent);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.preview {
+  position: relative;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-width: 100%;
+  object-fit: contain;
+  /* Mirrored like a real local preview. The probe reads the track directly, never this. */
+  transform: scale(-1, 1);
+}
+
+.preview-label {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--ink-dim);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.readout h2,
+.log-area h2 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+pre {
+  margin: 0;
+  padding: 8px;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+legend {
+  padding: 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+button {
+  padding: 4px 9px;
+  color: var(--ink);
+  background: #232a34;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+label {
+  color: var(--ink-dim);
+}
+
+select,
+input[type='text'] {
+  padding: 3px 6px;
+  color: var(--ink);
+  background: #232a34;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font: inherit;
+  max-width: 100%;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+#log {
+  max-height: 200px;
+}
+
+@media (max-width: 720px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>track-processors e2e harness</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>track-processors e2e harness</h1>
+      <p class="lede">
+        No LiveKit server, no webcam. <code>getUserMedia</code> is mocked with a deterministic
+        compositor and measurement APIs hang off <code>window.harness</code>.
+      </p>
+    </header>
+
+    <main>
+      <section class="stage">
+        <div class="preview">
+          <video id="preview" data-testid="preview" autoplay muted playsinline></video>
+          <span class="preview-label">local preview (mirrored &mdash; never sampled)</span>
+        </div>
+
+        <div class="readouts">
+          <div class="readout">
+            <h2>State</h2>
+            <pre id="state-readout" data-testid="state-readout">not started</pre>
+          </div>
+          <div class="readout">
+            <h2>Frame stats</h2>
+            <pre id="stats-readout" data-testid="stats-readout">no frames yet</pre>
+          </div>
+          <div class="readout">
+            <h2>Environment</h2>
+            <pre id="env-readout" data-testid="env-readout">&hellip;</pre>
+          </div>
+          <div class="readout">
+            <h2>Resources</h2>
+            <pre id="counters-readout" data-testid="counters-readout">&hellip;</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <fieldset>
+          <legend>Camera</legend>
+          <button id="start-video" data-testid="start-video" type="button">Start camera</button>
+          <button id="stop-video" data-testid="stop-video" type="button">Stop camera</button>
+          <button id="restart-video" data-testid="restart-video" type="button">Restart track</button>
+          <label for="video-device">Device</label>
+          <select id="video-device" data-testid="video-device"></select>
+          <label for="video-resolution">Resolution</label>
+          <select id="video-resolution" data-testid="video-resolution">
+            <option value="">(device default)</option>
+            <option value="640x480">640&times;480</option>
+            <option value="1280x720">1280&times;720</option>
+            <option value="480x640">480&times;640 (portrait)</option>
+            <option value="1920x1080">1920&times;1080</option>
+          </select>
+        </fieldset>
+
+        <fieldset>
+          <legend>Video processor</legend>
+          <button id="attach-processor" data-testid="attach-processor" type="button">Attach</button>
+          <button id="detach-processor" data-testid="detach-processor" type="button">Detach</button>
+          <button id="switch-disabled" data-testid="switch-disabled" type="button">Disabled</button>
+          <button id="switch-blur" data-testid="switch-blur" type="button">Blur</button>
+          <button id="switch-virtual" data-testid="switch-virtual" type="button">Virtual bg</button>
+          <button id="set-background" data-testid="set-background" type="button">
+            Swap bg image
+          </button>
+          <label for="blur-radius">Blur radius <span id="blur-radius-value">10</span></label>
+          <input
+            id="blur-radius"
+            data-testid="blur-radius"
+            type="range"
+            min="0"
+            max="30"
+            step="1"
+            value="10"
+          />
+        </fieldset>
+
+        <fieldset>
+          <legend>Audio</legend>
+          <button id="start-audio" data-testid="start-audio" type="button">Start mic</button>
+          <button id="stop-audio" data-testid="stop-audio" type="button">Stop mic</button>
+          <button id="attach-gain" data-testid="attach-gain" type="button">Attach gain</button>
+          <button id="detach-gain" data-testid="detach-gain" type="button">Detach gain</button>
+          <label for="gain">Gain <span id="gain-value">1.0</span></label>
+          <input id="gain" data-testid="gain" type="range" min="0" max="3" step="0.1" value="1" />
+          <button id="measure-audio" data-testid="measure-audio" type="button">Measure level</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Fake camera</legend>
+          <label for="backdrop">Backdrop</label>
+          <select id="backdrop" data-testid="backdrop">
+            <option value="checker">checker</option>
+            <option value="flat">flat</option>
+            <option value="gradient">gradient</option>
+          </select>
+          <label for="motion">Motion</label>
+          <select id="motion" data-testid="motion">
+            <option value="static">static</option>
+            <option value="pan">pan</option>
+            <option value="wave">wave</option>
+          </select>
+          <button id="toggle-subject" data-testid="toggle-subject" type="button">
+            Hide subject
+          </button>
+          <button id="freeze-camera" data-testid="freeze-camera" type="button">Freeze</button>
+          <button id="step-camera" data-testid="step-camera" type="button">Step</button>
+          <button id="end-source" data-testid="end-source" type="button">End source track</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Measure</legend>
+          <button id="sample-frame" data-testid="sample-frame" type="button">Sample frame</button>
+          <button id="reset-stats" data-testid="reset-stats" type="button">Reset stats</button>
+          <button id="clear-log" data-testid="clear-log" type="button">Clear log</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Room (optional &mdash; only the publishing cases need this)</legend>
+          <label for="room-url">URL</label>
+          <input id="room-url" data-testid="room-url" type="text" placeholder="ws://localhost:7880" />
+          <label for="room-token">Token</label>
+          <input id="room-token" data-testid="room-token" type="text" placeholder="JWT" />
+          <button id="room-connect" data-testid="room-connect" type="button">Connect</button>
+          <button id="room-publish" data-testid="room-publish" type="button">Publish</button>
+          <button id="room-disconnect" data-testid="room-disconnect" type="button">Disconnect</button>
+        </fieldset>
+      </section>
+
+      <section class="log-area">
+        <h2>Log</h2>
+        <pre id="log" data-testid="log"></pre>
+      </section>
+    </main>
+
+    <script src="./main.ts" type="module"></script>
+  </body>
+</html>

@@ -61,4 +61,4 @@ pnpm sample
 pnpm dev:e2e
 ```
 
-It's also the quickest way to reproduce a rendering bug across browsers by hand — see [docs/e2e-harness.md](docs/e2e-harness.md) for the query parameters and the API.
+It's also the quickest way to reproduce a rendering bug across browsers by hand — see [examples/e2e/README.md](examples/e2e/README.md) for the query parameters and the API.
