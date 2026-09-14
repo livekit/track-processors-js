@@ -130,6 +130,11 @@ on-page preview, which is CSS-mirrored.
 - `waitForStable()` — resolves once two consecutive samples hash-match. Call it before any
   pixel assertion.
 - `expectedForegroundBox()` — compositor ground truth.
+- `startRecording(opts)` / `stopRecording()` — fingerprint **every** presented frame, rather
+  than polling. This is how mode-switch artifacts are caught: polling can only show that no bad
+  frame was observed, never that none was published. Recording runs at 96px so it keeps up with
+  a 30fps track, which means its `bgBlurEnergy` values are on a different scale from
+  `sample()`'s — compare recorded frames only against recorded references.
 
 **`foregroundBox` needs a low-frequency background.** It learns the background as a small
 palette from a border ring. On `backdrop=flat`, or against an active virtual background, it is
@@ -175,6 +180,8 @@ order-of-magnitude, not as thresholds; recalibrate per target on the first green
 | `processingMs.p50` | ~2.2 ms |
 | Mic tone, gain 1.0 | rms 0.145, dominant 445 Hz (440 Hz source, 23 Hz bins) |
 | Mic tone, gain 0 | rms 0.000 |
+| GL renderer, Chrome | ANGLE / Metal — hardware |
+| GL renderer, Playwright's bundled headless shell | SwiftShader — software, ~25x slower filter step |
 
 ## Known library findings this surfaced
 

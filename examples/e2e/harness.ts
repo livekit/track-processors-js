@@ -98,17 +98,24 @@ export class E2EHarness implements Harness {
 
   env(): EnvInfo {
     let webgl2 = false;
+    let renderer: string | null = null;
     try {
-      webgl2 = !!document.createElement('canvas').getContext('webgl2');
+      const gl = document.createElement('canvas').getContext('webgl2');
+      webgl2 = !!gl;
+      const info = gl?.getExtension('WEBGL_debug_renderer_info');
+      if (gl && info) renderer = gl.getParameter(info.UNMASKED_RENDERER_WEBGL) as string;
     } catch {
       webgl2 = false;
     }
+    const softwareRenderer = /swiftshader|llvmpipe|software|microsoft basic/i.test(renderer ?? '');
     return {
       userAgent: navigator.userAgent,
       hasModernApiSupport: ProcessorWrapper.hasModernApiSupport,
       processorSupported: ProcessorWrapper.isSupported,
       transformerSupported: BackgroundTransformer.isSupported,
       webgl2,
+      renderer,
+      softwareRenderer,
       offscreenCanvas: typeof OffscreenCanvas !== 'undefined',
       videoFrame: typeof VideoFrame !== 'undefined',
       insertableStreams:
