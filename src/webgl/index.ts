@@ -60,6 +60,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const boxBlurUniforms = boxBlur.uniforms;
 
   const bgTexture = initTexture(gl, 0);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, getEmptyImageData());
   const frameTexture = initTexture(gl, 1);
   const vertexBuffer = createVertexBuffer(gl);
 
@@ -133,7 +134,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       resizeTexture(gl, texture, bufferWidth, bufferHeight);
     }
     if (backgroundSourceImage) {
-      // Not awaited: the placeholder background shows until the re-crop resolves, as on the initial set.
+      // Not awaited: the previous crop keeps showing, stretched to the new size, until the re-crop resolves.
       setBackgroundImage(backgroundSourceImage);
     }
   }
@@ -186,11 +187,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
         bgBlurFrameBuffers,
         bgBlurTextures,
       );
-    } else if (customBackgroundImage) {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, bgTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
-      backgroundTexture = bgTexture;
     }
 
     // Render the final composite
