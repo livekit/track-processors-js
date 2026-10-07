@@ -1,28 +1,28 @@
-import { createProgram, createShader } from '../utils';
+import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 // Taps beyond this radius are dropped; the kernel stays normalized over the taps that remain.
 const GAUSSIAN_MAX_RADIUS = 16;
 const GAUSSIAN_MAX_TAPS = 1 + Math.ceil(GAUSSIAN_MAX_RADIUS / 2);
 
-// Plain template, not glsl``: the glsl tag drops ${} substitutions.
-export const blurFragmentShader = `#version 300 es
+export const blurFragmentShader = glsl`#version 300 es
   precision mediump float;
+  const int MAX_TAPS = ${GAUSSIAN_MAX_TAPS};
   in vec2 texCoords;
   uniform sampler2D u_texture;
   uniform vec2 u_texelSize;
   uniform vec2 u_direction;
   // Normalized Gaussian taps, pre-merged in pairs so one bilinear fetch reads two
   // texels (offsets fall between texel centers). Index 0 is the center tap.
-  uniform float u_weights[${GAUSSIAN_MAX_TAPS}];
-  uniform float u_offsets[${GAUSSIAN_MAX_TAPS}];
+  uniform float u_weights[MAX_TAPS];
+  uniform float u_offsets[MAX_TAPS];
   uniform int u_tapCount;
   out vec4 fragColor;
 
   void main() {
     vec3 result = texture(u_texture, texCoords).rgb * u_weights[0];
 
-    for (int i = 1; i < ${GAUSSIAN_MAX_TAPS}; ++i) {
+    for (int i = 1; i < MAX_TAPS; ++i) {
       if (i >= u_tapCount) break;
       vec2 offset = u_direction * u_texelSize * u_offsets[i];
       result += (texture(u_texture, texCoords + offset).rgb + texture(u_texture, texCoords - offset).rgb) * u_weights[i];
