@@ -102,11 +102,10 @@ function portrait(image: ImageBitmap, resizeQuality: ResizeQuality = 'high') {
 }
 
 describe('WebGL pipeline', () => {
-  // Pins the Gaussian blur. At radius 28 the kernel spans 7 texels of the quarter-resolution
-  // background: several merged tap pairs and an unpaired outer tap.
+  // Pins the Gaussian blur at BackgroundProcessor's default radius (10), the look users get.
   it('blurs the background', async () => {
     using renderer = createRenderer(1280, 720);
-    renderer.pipeline.setBlurRadius(28);
+    renderer.pipeline.setBlurRadius(10);
     renderer.process(frame, mask);
 
     await expect.element(page.getByTestId('output')).toMatchScreenshot('background-blur');
