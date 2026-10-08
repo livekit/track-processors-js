@@ -1,5 +1,11 @@
 # @livekit/track-processors
 
+## 0.8.2
+
+### Patch Changes
+
+- Reduce GPU work per frame in the background processor: merge Gaussian blur taps for bilinear fetches, feather the segmentation mask at reduced resolution, enable blending only for the composite pass, disable multisampling, and stop re-uploading a static background image every frame - [#131](https://github.com/livekit/track-processors-js/pull/131) ([@changt](https://github.com/changt))
+
 ## 0.8.1
 
 ### Patch Changes
