@@ -162,6 +162,14 @@ function getEmptyImageData() {
   return emptyImageData;
 }
 
-const glsl = (source: any) => source;
+/**
+ * Tag for GLSL source in template literals. Interpolates `${}` values like an untagged template
+ * literal and returns a string.
+ */
+const glsl = (strings: TemplateStringsArray, ...values: unknown[]) =>
+  strings.reduce(
+    (source, string, i) => source + string + (i < values.length ? String(values[i]) : ''),
+    '',
+  );
 
 export { getEmptyImageData, glsl };
