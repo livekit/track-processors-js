@@ -4,19 +4,21 @@
  * - downsample the video texture in background blur scenario before applying the (gaussian) blur for better performance
  *
  */
-import { getLogger, LoggerNames} from '../logger';
+import { LoggerNames, getLogger } from '../logger';
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
 import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
-import {
-  createFramebuffer,
-  createVertexBuffer,
-  getEmptyImageData,
-  initTexture,
-  resizeImageToCover,
-  resizeTexture,
-} from './utils';
+import { createFramebuffer, createVertexBuffer, getEmptyImageData, initTexture, resizeImageToCover, resizeTexture } from './utils';
+
+
+
+
+
+
+
+
+
 
 const log = getLogger(LoggerNames.WebGl);
 
@@ -28,12 +30,14 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
-  let maskBlurRadius: number | null = 8;
+  let maskBlurRadius: number | null = 12;
+
   const downsampleFactor = 4;
+  const maskBufferTargetEdge = 920;
   // The segmentation mask is at most a few hundred pixels across, so feathering it at
   // full frame size only multiplies the box-blur cost. The mask buffers are kept near
   // this longest edge and the composite upsamples them with LINEAR filtering.
-  const maskBufferTargetEdge = 640;
+
   const getMaskDownsampleFactor = (width: number, height: number) =>
     Math.max(1, Math.round(Math.max(width, height) / maskBufferTargetEdge));
 
@@ -85,7 +89,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   let finalMaskTextures: WebGLTexture[] = [];
   let readMaskIndex = 0; // Index for renderFrame to read from
   let writeMaskIndex = 1; // Index for updateMask to write to
-
+  let maskHistoryValid = false;
   // Create textures for background processing (blur)
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
   bgBlurTextures.push(initTexture(gl, 4)); // For blur pass 2
@@ -140,6 +144,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     if (canvas.width === bufferWidth && canvas.height === bufferHeight) {
       return;
     }
+    maskHistoryValid = false;
     bufferWidth = canvas.width;
     bufferHeight = canvas.height;
     bgBlurTextureWidth = Math.floor(bufferWidth / downsampleFactor);
@@ -315,7 +320,61 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       tempFramebuffers,
       tempTextures,
     );
+    // Temporal Smoothing: 45 % alte Maske, 55 % neue Maske
+    if (maskHistoryValid) {
+      gl.bindFramebuffer(
+        gl.FRAMEBUFFER,
+        finalMaskFrameBuffers[writeMaskIndex],
+      );
 
+      gl.viewport(0, 0, maskBufferWidth, maskBufferHeight);
+
+      gl.useProgram(boxBlurProgram);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+
+      gl.vertexAttribPointer(
+        boxBlurUniforms.position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0,
+      );
+
+      gl.enableVertexAttribArray(boxBlurUniforms.position);
+
+      // Vorherige Maske lesen
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(
+        gl.TEXTURE_2D,
+        finalMaskTextures[readMaskIndex],
+      );
+
+      gl.uniform1i(boxBlurUniforms.texture, 0);
+      gl.uniform2f(
+        boxBlurUniforms.texelSize,
+        1 / maskBufferWidth,
+        1 / maskBufferHeight,
+      );
+      gl.uniform2f(boxBlurUniforms.direction, 1, 0);
+      gl.uniform1f(boxBlurUniforms.radius, 0);
+
+      gl.enable(gl.BLEND);
+      gl.blendColor(0, 0, 0, 0.45);
+
+      gl.blendFunc(
+        gl.CONSTANT_ALPHA,
+        gl.ONE_MINUS_CONSTANT_ALPHA,
+      );
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      gl.disable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    maskHistoryValid = true;
     // Swap indices for the next frame
     readMaskIndex = writeMaskIndex;
     writeMaskIndex = 1 - writeMaskIndex;

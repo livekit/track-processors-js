@@ -1,6 +1,7 @@
 import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
+
 // Fragment shader source for compositing
 export const compositeFragmentShader = glsl`#version 300 es
   precision mediump float;
@@ -19,7 +20,7 @@ export const compositeFragmentShader = glsl`#version 300 es
     } else {
       vec4 bgTex = texture(background, texCoords);
 
-      float maskVal = texture(mask, texCoords).r;
+   float maskVal = 1.0 - texture(mask, texCoords).r;
 
       // Compute screen-space gradient to detect edge sharpness
       float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));

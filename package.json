@@ -1,5 +1,5 @@
 {
-  "name": "@livekit/track-processors",
+  "name": "holema/track-processors",
   "version": "0.8.2",
   "description": "LiveKit track processors",
   "main": "dist/index.js",
@@ -8,9 +8,9 @@
   "types": "dist/src/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/livekit/track-processors-js.git"
+    "url": "https://github.com/holema/track-processors-js.git"
   },
-  "author": "Lukas Seiler",
+  "author": "Emanuel Holzmann",
   "license": "Apache-2.0",
   "scripts": {
     "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
