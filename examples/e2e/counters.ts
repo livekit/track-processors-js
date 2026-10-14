@@ -7,10 +7,12 @@ import type { ResourceCounters } from './types';
  * FinalizationRegistry, which offers no timing guarantee and cannot be forced outside
  * Chromium's CDP — treat them as diagnostic only.
  *
- * Note that `src/webgl/index.ts` `cleanup()` never calls `loseContext()` and
- * `VideoTransformer.destroy()` only drops the reference, so contexts created per
- * setProcessor/stopProcessor cycle survive until GC. A linearly growing `webgl.created`
- * across cycles is a real library finding, not a harness artifact.
+ * `webgl.contextsLost` counts explicit releases: every `WEBGL_lose_context.loseContext()` call
+ * and every `webglcontextlost` event. It reads zero today because `src/webgl/index.ts`
+ * `cleanup()` never calls it and `VideoTransformer.destroy()` only drops the reference, so
+ * contexts survive until GC (livekit/track-processors-js#136). It is instrumented so that a fix
+ * can be asserted rather than eyeballed: once the library releases its context, this rises in
+ * step with the setProcessor/stopProcessor cycles and `created - contextsLost` stops growing.
  */
 
 let installed = false;
@@ -19,6 +21,7 @@ const counts = {
   webglCreated: 0,
   webgl1: 0,
   webgl2: 0,
+  webglContextsLost: 0,
   workersCreated: 0,
   workersTerminated: 0,
   audioCreated: 0,
@@ -59,6 +62,38 @@ export function noteTrackCreated(track: MediaStreamTrack) {
   trackWeak(liveTracks, track);
 }
 
+/**
+ * Count explicit releases of a context.
+ *
+ * Both routes are covered because they can happen independently: a caller may hold the
+ * extension and call `loseContext()` on it, and the browser may drop a context on its own (at
+ * the cap, or on a GPU reset) which arrives only as the event.
+ */
+function instrumentContextLoss(canvas: any, context: any) {
+  if (typeof canvas?.addEventListener === 'function') {
+    canvas.addEventListener('webglcontextlost', () => {
+      counts.webglContextsLost += 1;
+    });
+  }
+
+  if (typeof context?.getExtension !== 'function') return;
+  const originalGetExtension = context.getExtension.bind(context);
+  // eslint-disable-next-line no-param-reassign
+  context.getExtension = (name: string) => {
+    const extension = originalGetExtension(name);
+    if (name !== 'WEBGL_lose_context' || !extension || extension.__counted) return extension;
+
+    const originalLose = extension.loseContext.bind(extension);
+    extension.loseContext = () => {
+      // The event fires too, so count here only when the canvas could not be listened on.
+      if (typeof canvas?.addEventListener !== 'function') counts.webglContextsLost += 1;
+      return originalLose();
+    };
+    extension.__counted = true;
+    return extension;
+  };
+}
+
 export function installCounters() {
   if (installed) return;
   installed = true;
@@ -73,6 +108,7 @@ export function installCounters() {
         if (kind === 'webgl2') counts.webgl2 += 1;
         else counts.webgl1 += 1;
         trackWeak(liveWebgl, context);
+        instrumentContextLoss(this, context);
       }
       return context;
     };
@@ -147,6 +183,7 @@ export function readCounters(): ResourceCounters {
     webgl: {
       created: counts.webglCreated,
       byType: { webgl: counts.webgl1, webgl2: counts.webgl2 },
+      contextsLost: counts.webglContextsLost,
       liveWeak: pruneDead(liveWebgl),
     },
     workers: {
