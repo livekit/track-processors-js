@@ -1,13 +1,5 @@
 # Harness fixtures
 
-## `bg-solid.png`, `bg-alt.png`
-
-Flat 64×64 PNGs, generated — magenta `#FF00FF` and cyan `#00FFFF`. Both colours appear nowhere
-in the subject or in any compositor backdrop, so "did the virtual background get applied" is an
-exact colour-match ratio rather than a heuristic. `bg-solid.png` is the default `?bg=`;
-`bg-alt.png` is what the "Swap bg image" control switches to, which is how the image-swap and
-image-caching cases get two distinguishable targets.
-
 ## `subject.png` — not committed
 
 The compositor draws a procedural head-and-shoulders figure by default, so the harness needs no
