@@ -119,3 +119,6 @@ e2e/.report
 e2e/.results
 test-results
 playwright-report
+
+# Agent worktrees created by Claude Code
+.claude/worktrees/
