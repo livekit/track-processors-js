@@ -44,46 +44,6 @@ Seventeen cases across eleven concerns.
 | `geometry.spec.ts` | E1 | Output dimensions follow the source at three resolutions |
 | `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
 
-## How the artifact test works
-
-`C1b` is the one worth understanding. Switching modes must go straight from a frame carrying the
-old treatment to a frame carrying the new one — no grey flash (#96), no green plate (#41), no
-black frame (#111), no raw camera showing through (#85).
-
-Polling with `sample()` cannot establish that: it only shows that no bad frame happened to be
-observed. So the probe fingerprints **every presented frame** across the transition, and each is
-classified against references captured from the settled state in the same run — which is why the
-tolerances only have to absorb frame-to-frame noise rather than variation between machines.
-
-It has teeth. Replacing `switchTo()` with the teardown-and-rebuild pattern it was introduced to
-avoid produces a timeline of `FFFFFXXTTTTTTTT` — two frames matching neither treatment — where
-`switchTo()` produces zero. That negative control is not committed, since it asserts that a bug
-exists; it is reproduced by swapping the switch in the spec for
-`setVideoProcessorEnabled(false)` followed by `switchMode(...)`.
-
-## Conventions
-
-- **Setup goes through the harness API, the behaviour under test goes through the UI.** Helpers
-  in `helpers.ts` drive setup so it cannot race a button's async handler; whatever a spec is
-  actually asserting is driven by a real click.
-- **Never assert on button text** — labels change with state. Use `data-testid`, or the mirrored
-  `document.body.dataset` values.
-- **Every threshold lives in `thresholds.ts`**, each with the value actually observed beside it.
-  Move one only with its observation updated too.
-- **The clean-console assertion is automatic.** The `app` fixture checks after every passing test
-  that no forbidden string appeared, so specs never repeat it. Strings in `FORBIDDEN_CONSOLE` are
-  each a filed issue.
-
-## Why one worker
-
-`workers: 1`, deliberately. Every attach/detach cycle leaks a WebGL context — `src/webgl/index.ts`
-`cleanup()` never calls `loseContext()` — and Chrome caps live contexts per GPU process at around
-16, past which it discards the oldest and the renderer can stop responding. Parallel workers share
-that process and would hit the cap several times faster, failing in ways that look like flakiness
-rather than like the leak they are. Raise this once the leak is fixed.
-
-## Known slow spot
-
-A page load fetches the mediapipe wasm fileset and model from a CDN, which dominates per-test
-cost and puts a network dependency in a suite that is otherwise hermetic. Self-hosting them
-behind `?assets=local` is the fix.
+[`AGENTS.md`](./AGENTS.md) covers the rest: the conventions these specs follow, how the
+mode-switch artifact test works, what adding a browser involves, why the suite runs on one
+worker, and what is not covered yet.
