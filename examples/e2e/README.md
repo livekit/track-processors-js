@@ -180,22 +180,3 @@ order-of-magnitude, not as thresholds; recalibrate per target on the first green
 | Mic tone, gain 0 | rms 0.000 |
 | GL renderer, Chrome | ANGLE / Metal — hardware |
 | GL renderer, Playwright's bundled headless shell | SwiftShader — software, ~25x slower filter step |
-
-## Known library findings this surfaced
-
-These are the harness reporting real behaviour, not harness bugs.
-
-- **WebGL contexts leak at ~2 per setProcessor/stopProcessor cycle.**
-  `src/webgl/index.ts` `cleanup()` deletes textures and programs but never calls
-  `loseContext()`, and `VideoTransformer.destroy()` only drops the reference. Chrome caps live
-  contexts near 16 and starts discarding the oldest; past that the renderer becomes unresponsive.
-  Reproduce with `harness.counters().webgl.created` across cycles.
-- **`FrameProcessingStats` is not exported.** It is named by the public
-  `BackgroundOptions.onFrameProcessed` signature but not re-exported from `src/index.ts`, so a
-  consumer cannot name the type it is handed. `examples/e2e/types.ts` derives it from the public
-  surface rather than importing the internal path — the pattern that broke Angular builds in
-  issue #115.
-- **`livekit-client` bundles `webrtc-adapter`,** which captures the native `getUserMedia` on
-  import and installs its own shim as an *own* property of `navigator.mediaDevices`. Any mock
-  must define on the instance as well as the prototype, and must install after livekit-client's
-  module has been evaluated. See the comment in `fakeCamera.ts` `install()`.
