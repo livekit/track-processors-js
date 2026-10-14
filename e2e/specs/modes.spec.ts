@@ -143,11 +143,9 @@ test.describe('mode switching', () => {
       await page.evaluate(() => window.harness.probe.startRecording({ maxFrames: 300 }));
       await page.evaluate(() => window.harness.probe.waitForFrames(5, 10_000));
       await page.click(BUTTON[to]);
-      await page.waitForFunction(
-        (expected) => window.harness.snapshot().mode === expected,
-        to,
-        { timeout: 25_000 },
-      );
+      await page.waitForFunction((expected) => window.harness.snapshot().mode === expected, to, {
+        timeout: 25_000,
+      });
       await page.evaluate(() => window.harness.probe.waitForFrames(8, 20_000));
       const frames = await page.evaluate(() => window.harness.probe.stopRecording());
 

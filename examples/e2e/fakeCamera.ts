@@ -26,10 +26,34 @@ import type {
  */
 
 const DEVICES: FakeCameraDevice[] = [
-  { deviceId: 'fake-front', label: 'Fake Camera (front, 640x480)', width: 640, height: 480, facingMode: 'user' },
-  { deviceId: 'fake-wide', label: 'Fake Camera (wide, 1280x720)', width: 1280, height: 720, facingMode: 'user' },
-  { deviceId: 'fake-portrait', label: 'Fake Camera (portrait, 480x640)', width: 480, height: 640, facingMode: 'user' },
-  { deviceId: 'fake-back', label: 'Fake Camera (back, 1280x720)', width: 1280, height: 720, facingMode: 'environment' },
+  {
+    deviceId: 'fake-front',
+    label: 'Fake Camera (front, 640x480)',
+    width: 640,
+    height: 480,
+    facingMode: 'user',
+  },
+  {
+    deviceId: 'fake-wide',
+    label: 'Fake Camera (wide, 1280x720)',
+    width: 1280,
+    height: 720,
+    facingMode: 'user',
+  },
+  {
+    deviceId: 'fake-portrait',
+    label: 'Fake Camera (portrait, 480x640)',
+    width: 480,
+    height: 640,
+    facingMode: 'user',
+  },
+  {
+    deviceId: 'fake-back',
+    label: 'Fake Camera (back, 1280x720)',
+    width: 1280,
+    height: 720,
+    facingMode: 'environment',
+  },
 ];
 
 const DEVICE_ALIASES: Record<string, string> = {
@@ -154,7 +178,8 @@ export class FakeCamera implements FakeCameraControl {
     if (this.config.camSrc) await this.loadVideoSource(this.config.camSrc);
 
     const mediaDevices = navigator.mediaDevices;
-    if (!mediaDevices) throw new Error('navigator.mediaDevices is unavailable (needs a secure context)');
+    if (!mediaDevices)
+      throw new Error('navigator.mediaDevices is unavailable (needs a secure context)');
 
     // Both targets are required, for two different reasons.
     //
@@ -246,10 +271,8 @@ export class FakeCamera implements FakeCameraControl {
     const device = this.resolveDevice(constraint);
     const c: MediaTrackConstraints = typeof constraint === 'object' ? constraint : {};
 
-    const width =
-      firstNumber(c.width) ?? this.config.cameraWidth ?? device.width;
-    const height =
-      firstNumber(c.height) ?? this.config.cameraHeight ?? device.height;
+    const width = firstNumber(c.width) ?? this.config.cameraWidth ?? device.width;
+    const height = firstNumber(c.height) ?? this.config.cameraHeight ?? device.height;
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -705,8 +728,24 @@ function drawProceduralSubject(
 
   // Ears
   ctx.beginPath();
-  ctx.ellipse(cx - headR * 0.84, headCy + headR * 0.05, headR * 0.13, headR * 0.22, 0, 0, Math.PI * 2);
-  ctx.ellipse(cx + headR * 0.84, headCy + headR * 0.05, headR * 0.13, headR * 0.22, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    cx - headR * 0.84,
+    headCy + headR * 0.05,
+    headR * 0.13,
+    headR * 0.22,
+    0,
+    0,
+    Math.PI * 2,
+  );
+  ctx.ellipse(
+    cx + headR * 0.84,
+    headCy + headR * 0.05,
+    headR * 0.13,
+    headR * 0.22,
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.fill();
 
   ctx.shadowBlur = 0;

@@ -43,8 +43,7 @@ function percentiles(values: number[]): Percentiles {
 }
 
 export function snapshotStats(): ProcessorStatsSnapshot {
-  const windowMs =
-    entries.length > 1 ? entries[entries.length - 1].t - entries[0].t : 0;
+  const windowMs = entries.length > 1 ? entries[entries.length - 1].t - entries[0].t : 0;
   return {
     frames: total,
     fps: windowMs > 0 ? ((entries.length - 1) * 1000) / windowMs : 0,

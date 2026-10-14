@@ -89,12 +89,14 @@ test.describe('virtual background', () => {
     // or offset mask — which is what #8, #112 and #128 all produce — moves the centre.
     const centre = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
     const truthCentre = { x: truth.x + truth.w / 2, y: truth.y + truth.h / 2 };
-    expect(Math.abs(centre.x - truthCentre.x), `subject centre drifted in x: ${report}`).toBeLessThan(
-      GEOMETRY.CENTRE_TOLERANCE,
-    );
-    expect(Math.abs(centre.y - truthCentre.y), `subject centre drifted in y: ${report}`).toBeLessThan(
-      GEOMETRY.CENTRE_TOLERANCE,
-    );
+    expect(
+      Math.abs(centre.x - truthCentre.x),
+      `subject centre drifted in x: ${report}`,
+    ).toBeLessThan(GEOMETRY.CENTRE_TOLERANCE);
+    expect(
+      Math.abs(centre.y - truthCentre.y),
+      `subject centre drifted in y: ${report}`,
+    ).toBeLessThan(GEOMETRY.CENTRE_TOLERANCE);
 
     // And it stays within the region the subject was drawn into.
     const m = GEOMETRY.CONTAINMENT_MARGIN;
@@ -212,10 +214,7 @@ test.describe('virtual background', () => {
       ...BACKGROUND_SWAP.ALT_COLOR,
       tolerance: VIRTUAL_BACKGROUND.TOLERANCE,
     });
-    expect(
-      settled.backgroundMatchRatio,
-      'the swap did not land on the new image',
-    ).not.toBeNull();
+    expect(settled.backgroundMatchRatio, 'the swap did not land on the new image').not.toBeNull();
     expect(settled.backgroundMatchRatio!).toBeGreaterThan(VIRTUAL_BACKGROUND.MATCH_RATIO_MIN);
 
     const referenceAlt = await recordedReference(page);
@@ -240,7 +239,9 @@ test.describe('virtual background', () => {
       return { frame, label: dSolid <= dAlt ? ('solid' as const) : ('alt' as const) };
     });
 
-    const timeline = labelled.map((f) => ({ solid: 'A', alt: 'B', neither: 'X' })[f.label]).join('');
+    const timeline = labelled
+      .map((f) => ({ solid: 'A', alt: 'B', neither: 'X' })[f.label])
+      .join('');
     const diagnostics = [
       `swap ${SOLID_IMAGE} -> ${ALT_IMAGE}, response held ${BACKGROUND_SWAP.IMAGE_DELAY_MS}ms`,
       `reference A: ${describeFrame(referenceSolid)}`,
@@ -275,8 +276,10 @@ test.describe('virtual background', () => {
 
     // And the old plate holds for most of the wait rather than the pipeline stalling on a
     // single repeated frame: the delay has to have been spent publishing image A.
-    expect(before, `the outgoing image was only held for ${before} frames\n${diagnostics}`)
-      .toBeGreaterThanOrEqual(BACKGROUND_SWAP.MIN_HELD_FRAMES);
+    expect(
+      before,
+      `the outgoing image was only held for ${before} frames\n${diagnostics}`,
+    ).toBeGreaterThanOrEqual(BACKGROUND_SWAP.MIN_HELD_FRAMES);
 
     // The swap happens once: no flicking back to A after B has landed.
     const firstAlt = labelled.findIndex((f) => f.label === 'alt');
