@@ -399,4 +399,51 @@ export const ASSET_FAILURE = {
    * calls its slowest step; it is a liveness bound, not a performance one.
    */
   MAX_RECOVERY_MS: 30_000,
+ * GainAudioProcessor (#124), measured through `harness.mic.level()` on the published track.
+ *
+ * The fake mic is a 440 Hz sine at amplitude 0.25, so these are compared against an exact
+ * expected value rather than against a recording. Audio turns out to be far steadier than the
+ * video figures above — rms repeats to three decimal places across runs — so the tolerances are
+ * set by what the cases are stated in (1 dB) rather than by measurement noise, which leaves
+ * roughly five times the observed spread in hand.
+ */
+export const AUDIO = {
+  /** The oscillator frequency in examples/e2e/fakeMic.ts. */
+  TONE_HZ: 440,
+  /**
+   * How far the loudest FFT bin may sit from it. Observed 445.3 Hz, i.e. 5.3 Hz out, which is
+   * the 2048-point FFT's bin width (23.4 Hz at 48 kHz) rather than anything the processor did —
+   * so the tolerance is one bin. Gain 0 reports 0 Hz, which is the negative control.
+   */
+  TONE_HZ_TOLERANCE: 25,
+  /** A tone is present at all. Observed 0.166 unprocessed and 0.164 through the processor. */
+  TONE_RMS_MIN: 0.05,
+  /** How long to keep sampling the published level while the processor is attached. */
+  CONTINUITY_WINDOW_MS: 2000,
+  /**
+   * The quietest window allowed while audio is handed over to the processor.
+   *
+   * Observed 0.124-0.126 across 15 consecutive windows, never approaching silence. Short windows
+   * read lower than a settled 400 ms one because the measuring analyser's first reads land before
+   * audio reaches it. The negative control is gain 0, which reads exactly 0.000.
+   */
+  CONTINUITY_RMS_MIN: 0.05,
+  /**
+   * Attaching at gain 1.0 must not change the level. Observed -0.003 to -0.157 dB over four runs.
+   *
+   * The negative control is the same comparison at a wrong gain: 0.5 measures -6.22 dB and 1.5
+   * measures +3.40 dB, both an order of magnitude outside this band.
+   */
+  UNITY_TOLERANCE_DB: 1,
+  /** Gain 0 is silence. Observed rms exactly 0.000, against 0.163 at unity. */
+  SILENCE_RMS_MAX: 0.01,
+  /** 0.5x and 2x in dB. Observed -5.92 to -6.00 and +6.02 to +6.23 over three runs. */
+  HALF_GAIN_DB: -6.02,
+  DOUBLE_GAIN_DB: 6.02,
+  GAIN_TOLERANCE_DB: 1,
+  /**
+   * The source tone peaks at 0.25, so 2x has headroom. Observed peak exactly 0.5000 — asserted
+   * because a clipped 2x would still measure close to +6 dB on rms alone.
+   */
+  PEAK_MAX: 0.99,
 };
