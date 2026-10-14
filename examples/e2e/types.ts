@@ -339,11 +339,31 @@ export interface MediaControl {
   switchMode(mode: ProcessorMode): Promise<TrackInfo | null>;
   setBackgroundImage(url: string): Promise<TrackInfo | null>;
   setBlurRadius(radius: number): Promise<TrackInfo | null>;
+  /**
+   * The library's own option merge, with nothing in between.
+   *
+   * Everything above routes through `switchTo()`, which substitutes a default for any option a
+   * mode leaves out — so none of them can express "radius zero" or "no image". Those are exactly
+   * the values #37 was about, which is why C7 needs the unmediated call.
+   */
+  updateTransformerOptions(opts: TransformerOptionUpdate): Promise<TrackInfo | null>;
 
   setAudioProcessorEnabled(enabled: boolean): Promise<TrackInfo | null>;
   setGain(value: number): void;
 
   info(kind?: 'video' | 'audio'): TrackInfo | null;
+}
+
+/**
+ * The part of the library's `BackgroundOptions` that can be changed on a running processor.
+ *
+ * `segmenterOptions` and `assetPaths` are deliberately absent: they are read once at
+ * construction and need a reload to change, like the query parameters that set them.
+ */
+export interface TransformerOptionUpdate {
+  blurRadius?: number;
+  imagePath?: string;
+  backgroundDisabled?: boolean;
 }
 
 export interface ProbeControl {
