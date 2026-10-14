@@ -116,30 +116,6 @@ export const SWITCH = {
   MIN_FRAMES_EACH_SIDE: 3,
 };
 
-/**
- * Clearing an effect by handing `updateTransformerOptions` a falsy value — #37.
- *
- * Both numbers are about the same thing: after `blurRadius: 0` or `imagePath: undefined` the
- * background must be camera content again, not a treated or blank plate.
- */
-export const FALSY_OPTIONS = {
-  /**
-   * Background energy after clearing, as a fraction of the same background unprocessed.
-   *
-   * Observed 0.83 (0.0579 of a raw 0.0700) once the effect is genuinely gone — the shortfall is
-   * the encode hop, not a residual effect. Three negative controls sit well below it: a blur
-   * that stayed on measures 0.24, `blurRadius: 0` on the library as it stands measures 0.04
-   * (it blanks the background to black rather than restoring it — see C7), and a virtual
-   * background that stayed up measures 0.02.
-   */
-  CLEARED_ENERGY_RATIO_MIN: 0.6,
-  /**
-   * And no trace of the virtual background plate may remain. Observed 0.000, against 0.994 with
-   * the plate still composited, which is what reintroducing #37's guard on `imagePath` produces.
-   */
-  CLEARED_MATCH_RATIO_MAX: 0.1,
-};
-
 /** Strings that must never appear in the console. Each one is a filed issue. */
 export const FORBIDDEN_CONSOLE = [
   // #47 — logged when the blur effect is stopped
@@ -192,6 +168,9 @@ export const DEGRADED = {
    * well as the prefix, which is what makes the label explanatory rather than merely present.
    */
   REASON_PREFIX: 'Background processing is unavailable in this browser',
+};
+
+/**
  * B6 — the virtual background surviving a mute/unmute cycle.
  *
  * Observed on headless Chrome 153 / macOS with `backdrop=flat`, `motion=static` and the default
@@ -233,6 +212,33 @@ export const MUTE_RESTORE = {
    * records it in its failure message for exactly that reason.
    */
   MIN_PLATE_DISTANCE: 60,
+};
+
+/**
+ * Clearing an effect by handing `updateTransformerOptions` a falsy value — #37.
+ *
+ * Both numbers are about the same thing: after `blurRadius: 0` or `imagePath: undefined` the
+ * background must be camera content again, not a treated or blank plate.
+ */
+export const FALSY_OPTIONS = {
+  /**
+   * Background energy after clearing, as a fraction of the same background unprocessed.
+   *
+   * Observed 0.83 (0.0579 of a raw 0.0700) once the effect is genuinely gone — the shortfall is
+   * the encode hop, not a residual effect. Three negative controls sit well below it: a blur
+   * that stayed on measures 0.24, `blurRadius: 0` on the library as it stands measures 0.04
+   * (it blanks the background to black rather than restoring it — see C7), and a virtual
+   * background that stayed up measures 0.02.
+   */
+  CLEARED_ENERGY_RATIO_MIN: 0.6,
+  /**
+   * And no trace of the virtual background plate may remain. Observed 0.000, against 0.994 with
+   * the plate still composited, which is what reintroducing #37's guard on `imagePath` produces.
+   */
+  CLEARED_MATCH_RATIO_MAX: 0.1,
+};
+
+/**
  * D4 — swapping one virtual background image for another.
  *
  * Classification reuses SWITCH.MATCH_TOLERANCE and SWITCH.ENERGY_TOLERANCE: the measurement is
@@ -279,6 +285,9 @@ export const BACKGROUND_SWAP = {
    * against 6 without it.
    */
   MIN_HELD_FRAMES: 10,
+};
+
+/**
  * E3 — the frame size changing under a running processor.
  *
  * Separate from GEOMETRY, which is about where the mask sits at one fixed resolution. These are
@@ -333,6 +342,9 @@ export const RESOLUTION_CHANGE = {
    * pixels, not the subject moving.
    */
   MAX_COVERAGE_DRIFT: 0.25,
+};
+
+/**
  * Mask stability, measured as the fraction of pixels whose foreground/background classification
  * changes between two consecutive output frames (H2, issues #76 and #98).
  *
@@ -370,6 +382,9 @@ export const SEGMENTATION = {
   /** Frames to classify, and the transitions that must survive frame drops. Observed 59 of 59. */
   SAMPLE_FRAMES: 60,
   MIN_TRANSITIONS: 40,
+};
+
+/**
  * I4 — how long a bad asset path may take to make itself known, and how long the retry after
  * it may take.
  *
@@ -399,6 +414,9 @@ export const ASSET_FAILURE = {
    * calls its slowest step; it is a liveness bound, not a performance one.
    */
   MAX_RECOVERY_MS: 30_000,
+};
+
+/**
  * GainAudioProcessor (#124), measured through `harness.mic.level()` on the published track.
  *
  * The fake mic is a 440 Hz sine at amplitude 0.25, so these are compared against an exact
@@ -446,6 +464,9 @@ export const AUDIO = {
    * because a clipped 2x would still measure close to +6 dB on rms alone.
    */
   PEAK_MAX: 0.99,
+};
+
+/**
  * K1 — switching camera device while the processor is attached ([#70]).
  *
  * Observed switching the fake 1280x720 camera for the fake 640x480 one on `backdrop=checker`,
@@ -495,6 +516,9 @@ export const DEVICE_SWITCH = {
    */
   MATCH_TOLERANCE: 30,
   ENERGY_TOLERANCE: 0.02,
+};
+
+/**
  * M1 — what the library is allowed to say at a given log level. Guards #106 and #109.
  *
  * Categorical rather than numeric: the assertion is which records exist, not how large a

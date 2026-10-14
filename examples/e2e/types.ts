@@ -546,6 +546,8 @@ export interface ProcessorSupport {
 export interface ProcessorConstruction {
   ok: boolean;
   error: string | null;
+}
+
 // --------------------------------------------------------------------------- temporal stability
 
 export interface TemporalStabilityOptions {
