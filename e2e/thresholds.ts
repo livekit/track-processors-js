@@ -370,4 +370,33 @@ export const SEGMENTATION = {
   /** Frames to classify, and the transitions that must survive frame drops. Observed 59 of 59. */
   SAMPLE_FRAMES: 60,
   MIN_TRANSITIONS: 40,
+ * I4 — how long a bad asset path may take to make itself known, and how long the retry after
+ * it may take.
+ *
+ * The bound is the assertion. A 404 on the tasks-vision fileset must reach the caller, not
+ * leave `setProcessor()` pending: an integration that hangs has nothing to show and nothing to
+ * retry, and the naive version of this test — wait for an error, no deadline — passes just as
+ * happily after thirty silent seconds as after fifty milliseconds.
+ */
+export const ASSET_FAILURE = {
+  /**
+   * Click to the failure reaching the app. Observed 81, 82, 85 and 136ms over four runs, and
+   * 56ms measured inside the page around `setVideoProcessorEnabled()` itself — one failed
+   * script load, no retry. A second failing attach on the same page took 21ms.
+   *
+   * Left loose enough to absorb a real CDN round trip and a slow CI machine rather than pinned
+   * near the observation: what it has to separate is "fails" from "hangs". The negative
+   * control is a route that holds the fileset request for 15s before answering it — a
+   * plausible shape for the bug — which takes the measurement from ~85ms to a timeout here,
+   * failing the test in 5.5s. Reproduce it by wrapping the `route.fulfill` in the spec in a
+   * `setTimeout` of 15s.
+   */
+  MAX_SURFACE_MS: 5_000,
+  /**
+   * And the retry with a working path, from the click to `videoProcessor` flipping true.
+   * Observed 4.1s on a cold CDN cache and 0.70-0.73s warm, against 455ms for a first attach
+   * that never failed. Generous because the fetch it waits on is the one the suite already
+   * calls its slowest step; it is a liveness bound, not a performance one.
+   */
+  MAX_RECOVERY_MS: 30_000,
 };
