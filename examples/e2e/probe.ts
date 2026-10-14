@@ -8,6 +8,8 @@ import type {
   Rect,
   RegionStats,
   Rgb,
+  TemporalStability,
+  TemporalStabilityOptions,
 } from './types';
 
 /**
@@ -27,6 +29,10 @@ const DEFAULT_TOLERANCE = 28;
 /** Small enough that fingerprinting keeps up with a 30fps track on the main thread. */
 const RECORD_MAX_DIMENSION = 96;
 const RECORD_MAX_FRAMES = 600;
+/** Two seconds of a 30fps track: long enough for shimmer to show, short enough to stay cheap. */
+const STABILITY_FRAMES = 60;
+/** Big enough that the silhouette is several hundred pixels long, small enough to keep up. */
+const STABILITY_MAX_DIMENSION = 160;
 
 type TrackResolver = (source: 'processed' | 'source') => MediaStreamTrack | undefined;
 
@@ -332,6 +338,136 @@ export class Probe implements ProbeControl {
     };
   }
 
+  // ------------------------------------------------------------------ temporal stability
+
+  /**
+   * Counts pixels whose foreground/background classification flips between consecutive frames.
+   *
+   * Driven by `requestVideoFrameCallback` rather than by polling, for the same reason the
+   * recorder is: a poll can only report the frames it happened to catch, and shimmer is
+   * precisely what happens between them. Every presented frame is classified.
+   *
+   * Classification is a colour match against a fixed palette — the virtual-background plate, or
+   * the first frame's border ring. The palette is learned once and reused, so a flip always
+   * means the pixel changed side, never that the classifier drifted.
+   */
+  async measureTemporalStability(opts: TemporalStabilityOptions = {}): Promise<TemporalStability> {
+    await this.bind('processed');
+    const anyVideo = this.video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+    };
+    if (typeof anyVideo.requestVideoFrameCallback !== 'function') {
+      throw new Error('requestVideoFrameCallback is unavailable; stability needs every frame');
+    }
+
+    const wanted = opts.frames ?? STABILITY_FRAMES;
+    const timeoutMs = opts.timeoutMs ?? 20_000;
+    const maxDimension = opts.maxDimension ?? STABILITY_MAX_DIMENSION;
+    const tolerance = opts.background?.tolerance ?? DEFAULT_TOLERANCE;
+
+    // A canvas of its own, so a concurrent sample() or recording cannot clobber a frame
+    // mid-classification.
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Could not get a 2d context for the stability measurement');
+
+    let palette: Rgb[] | null = opts.background
+      ? [{ r: opts.background.r, g: opts.background.g, b: opts.background.b }]
+      : null;
+    let previous: Uint8Array | null = null;
+    let everFlipped = new Uint8Array(0);
+    let unstablePixels = 0;
+    const rates: number[] = [];
+    let backgroundPixels = 0;
+    let observed = 0;
+    let w = 0;
+    let h = 0;
+
+    const classifyOne = () => {
+      const srcW = this.video.videoWidth;
+      const srcH = this.video.videoHeight;
+      if (!srcW || !srcH) throw new Error('no frame');
+
+      const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
+      const fw = Math.max(2, Math.round(srcW * scale));
+      const fh = Math.max(2, Math.round(srcH * scale));
+      canvas.width = fw;
+      canvas.height = fh;
+      ctx.drawImage(this.video, 0, 0, fw, fh);
+      const { data } = ctx.getImageData(0, 0, fw, fh);
+
+      if (!palette) palette = borderPalette(data, fw, fh);
+      if (palette.length === 0) throw new Error('no background palette could be learned');
+
+      const mask = classifyBackground(data, fw * fh, palette, tolerance);
+      for (let i = 0; i < mask.length; i += 1) backgroundPixels += mask[i];
+
+      // A resolution change mid-run makes the two masks incomparable; start again from here
+      // rather than reporting a flip for every pixel.
+      if (previous && previous.length === mask.length) {
+        let flips = 0;
+        for (let i = 0; i < mask.length; i += 1) {
+          if (mask[i] !== previous[i]) {
+            flips += 1;
+            if (everFlipped[i] === 0) {
+              everFlipped[i] = 1;
+              unstablePixels += 1;
+            }
+          }
+        }
+        rates.push(flips / mask.length);
+      } else {
+        everFlipped = new Uint8Array(mask.length);
+        unstablePixels = 0;
+      }
+
+      previous = mask;
+      observed += 1;
+      w = fw;
+      h = fh;
+    };
+
+    await new Promise<void>((resolve) => {
+      const deadline = performance.now() + timeoutMs;
+      // Belt and braces: if frames stop arriving altogether the callback never runs again, so
+      // the deadline check inside it would never fire either.
+      const timer = setTimeout(resolve, timeoutMs + 250);
+      const step = () => {
+        try {
+          classifyOne();
+        } catch {
+          // A frame that cannot be read — zero-sized, or the track just ended — is skipped
+          // rather than aborting the measurement.
+        }
+        if (observed >= wanted || performance.now() > deadline) {
+          clearTimeout(timer);
+          resolve();
+          return;
+        }
+        anyVideo.requestVideoFrameCallback!(step);
+      };
+      anyVideo.requestVideoFrameCallback!(step);
+    });
+
+    if (rates.length === 0) {
+      throw new Error(`Stability needs at least two comparable frames; got ${observed}`);
+    }
+
+    const pixels = w * h;
+    return {
+      frames: observed,
+      transitions: rates.length,
+      pixels,
+      width: w,
+      height: h,
+      flipRate: rates.reduce((sum, r) => sum + r, 0) / rates.length,
+      maxFlipRate: rates.reduce((max, r) => Math.max(max, r), 0),
+      rates,
+      unstablePixelRatio: pixels ? unstablePixels / pixels : 0,
+      foregroundRatio: observed && pixels ? 1 - backgroundPixels / (observed * pixels) : 0,
+    };
+  }
+
   async waitForStable(opts: { timeoutMs?: number; intervalMs?: number } = {}) {
     const deadline = performance.now() + (opts.timeoutMs ?? 5000);
     let previous = await this.sample();
@@ -540,6 +676,37 @@ function borderPalette(data: Uint8ClampedArray, w: number, h: number): Rgb[] {
     .filter((bin) => bin.n / totalBorderPixels >= 0.08)
     .slice(0, 3)
     .map((bin) => ({ r: bin.r / bin.n, g: bin.g / bin.n, b: bin.b / bin.n }));
+}
+
+/**
+ * One byte per pixel: 1 where the pixel matches the background palette, 0 where it does not.
+ *
+ * The same rule `foregroundBox` applies, kept per pixel instead of reduced to a bounding box,
+ * because the question here is which pixels changed side rather than how far the subject reaches.
+ */
+function classifyBackground(
+  data: Uint8ClampedArray,
+  pixels: number,
+  palette: Rgb[],
+  tolerance: number,
+): Uint8Array {
+  const mask = new Uint8Array(pixels);
+  for (let i = 0; i < pixels; i += 1) {
+    const o = i * 4;
+    for (let c = 0; c < palette.length; c += 1) {
+      const colour = palette[c];
+      const distance = Math.max(
+        Math.abs(data[o] - colour.r),
+        Math.abs(data[o + 1] - colour.g),
+        Math.abs(data[o + 2] - colour.b),
+      );
+      if (distance <= tolerance) {
+        mask[i] = 1;
+        break;
+      }
+    }
+  }
+  return mask;
 }
 
 /** 8x8 average hash. Equal hashes mean a visually identical frame. */

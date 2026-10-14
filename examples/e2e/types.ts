@@ -413,6 +413,15 @@ export interface ProbeControl {
   captureReference(opts?: ProbeOptions): Promise<{ width: number; height: number }>;
   /** Compare the current frame against the stored reference. */
   diffFromReference(opts?: ProbeOptions & { tolerance?: number }): Promise<FrameDiff>;
+
+  /**
+   * Classify every pixel of every presented frame as foreground or background, and count the
+   * ones that change class between consecutive frames.
+   *
+   * On a static input every flip is segmentation instability rather than input change, which is
+   * what makes mask shimmer (#76, #98) an objective number instead of a complaint.
+   */
+  measureTemporalStability(opts?: TemporalStabilityOptions): Promise<TemporalStability>;
 }
 
 export interface RoomControl {
@@ -490,4 +499,56 @@ export interface ProcessorSupport {
 export interface ProcessorConstruction {
   ok: boolean;
   error: string | null;
+// --------------------------------------------------------------------------- temporal stability
+
+export interface TemporalStabilityOptions {
+  /** How many consecutive presented frames to classify. Default 60. */
+  frames?: number;
+  timeoutMs?: number;
+  /**
+   * Longest edge of the classification canvas. Default 160.
+   *
+   * The flip *rate* is resolution-independent in the sense that it is a fraction rather than a
+   * count, but not scale-free: mask churn lives on the silhouette, whose share of the frame
+   * grows as resolution falls. Compare runs taken at one `maxDimension`.
+   */
+  maxDimension?: number;
+  /**
+   * The plate colour that counts as background — the flat virtual background, normally. Omitted,
+   * the background is learned from the first frame's border ring, as `foregroundBox` does, and
+   * the same palette then classifies every later frame so a flip means the pixel moved, not that
+   * the classifier did.
+   */
+  background?: Rgb & { tolerance?: number };
+}
+
+/**
+ * How much the foreground/background split moves from one presented frame to the next.
+ *
+ * Fed a byte-identical input, a stable segmenter produces the same mask every frame and every
+ * number here is zero.
+ */
+export interface TemporalStability {
+  /** Frames actually classified. */
+  frames: number;
+  /** Frame-to-frame transitions measured, i.e. `frames - 1`. */
+  transitions: number;
+  pixels: number;
+  width: number;
+  height: number;
+  /** Mean fraction of pixels that changed class per transition. The headline number. */
+  flipRate: number;
+  /** Worst single transition, which is what a viewer notices. */
+  maxFlipRate: number;
+  /** Every transition's rate, for diagnostics. */
+  rates: number[];
+  /** Fraction of pixels that flipped at least once over the whole run — the shimmer band. */
+  unstablePixelRatio: number;
+  /**
+   * Mean fraction of pixels classified foreground.
+   *
+   * A sanity check on the classifier: at 0 or 1 it found no subject at all, and a flip rate of
+   * zero would then mean nothing.
+   */
+  foregroundRatio: number;
 }
