@@ -4,7 +4,6 @@
  * The Playwright suite imports these with `import type` so specs compile against the real
  * surface rather than a hand-maintained copy. Keep this file free of runtime imports.
  */
-
 import type { BackgroundOptions } from '../../src';
 
 /**
@@ -426,11 +425,12 @@ export interface TransformerOptionUpdate {
 
 export interface ProbeControl {
   sample(opts?: ProbeOptions): Promise<FrameSample>;
-  sampleSeries(
-    opts: ProbeOptions & { count: number; intervalMs?: number },
-  ): Promise<FrameSample[]>;
+  sampleSeries(opts: ProbeOptions & { count: number; intervalMs?: number }): Promise<FrameSample[]>;
   /** Resolves once `count` further frames have been presented, or rejects on timeout. */
-  waitForFrames(count: number, timeoutMs?: number): Promise<{ presented: number; elapsedMs: number }>;
+  waitForFrames(
+    count: number,
+    timeoutMs?: number,
+  ): Promise<{ presented: number; elapsedMs: number }>;
   /** Resolves once two consecutive samples hash-match. Use before pixel assertions. */
   waitForStable(opts?: { timeoutMs?: number; intervalMs?: number }): Promise<FrameSample>;
   /** Ground truth from the compositor, or null when the source is not the fake camera. */

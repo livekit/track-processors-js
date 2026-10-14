@@ -1,5 +1,5 @@
-import path from 'path';
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 const ROOT = path.join(__dirname, '..');
 /**

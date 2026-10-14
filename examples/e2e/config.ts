@@ -68,7 +68,8 @@ export function parseConfig(search: string = window.location.search): Config {
   const p = new URLSearchParams(search);
 
   const assetMode = p.get('assets');
-  const wasm = p.get('wasm') ?? (assetMode === 'local' ? LOCAL_ASSETS.tasksVisionFileSet : undefined);
+  const wasm =
+    p.get('wasm') ?? (assetMode === 'local' ? LOCAL_ASSETS.tasksVisionFileSet : undefined);
   const model = p.get('model') ?? (assetMode === 'local' ? LOCAL_ASSETS.modelAssetPath : undefined);
   const assetPaths =
     wasm || model ? { tasksVisionFileSet: wasm, modelAssetPath: model } : undefined;
@@ -87,14 +88,22 @@ export function parseConfig(search: string = window.location.search): Config {
     assetPaths,
     maxFps: p.has('maxfps') ? num(p.get('maxfps'), 30) : undefined,
     api: oneOf(p.get('api'), ['modern', 'legacy'] as const, 'modern'),
-    logLevel: optionalOneOf(
-      p.get('loglevel'),
-      ['trace', 'debug', 'info', 'warn', 'error', 'silent'] as const satisfies readonly LogLevelName[],
-    ),
+    logLevel: optionalOneOf(p.get('loglevel'), [
+      'trace',
+      'debug',
+      'info',
+      'warn',
+      'error',
+      'silent',
+    ] as const satisfies readonly LogLevelName[]),
     attach: oneOf(p.get('attach'), ['set', 'capture'] as const, 'set'),
     mode: oneOf(
       p.get('mode'),
-      ['background-blur', 'virtual-background', 'disabled'] as const satisfies readonly ProcessorMode[],
+      [
+        'background-blur',
+        'virtual-background',
+        'disabled',
+      ] as const satisfies readonly ProcessorMode[],
       'background-blur',
     ),
     blurRadius: num(p.get('blur'), 10),
@@ -103,10 +112,22 @@ export function parseConfig(search: string = window.location.search): Config {
     camera: p.get('cam') ?? 'front',
     cameraWidth: width,
     cameraHeight: height,
-    backdrop: oneOf(p.get('backdrop'), ['flat', 'checker', 'gradient'] as const satisfies readonly BackdropKind[], 'checker'),
+    backdrop: oneOf(
+      p.get('backdrop'),
+      ['flat', 'checker', 'gradient'] as const satisfies readonly BackdropKind[],
+      'checker',
+    ),
     backdropColor: p.get('backdropcolor') ?? '#1d6fa5',
-    motion: oneOf(p.get('motion'), ['static', 'pan', 'wave'] as const satisfies readonly MotionKind[], 'static'),
-    clock: oneOf(p.get('camclock'), ['raf', 'interval', 'worker', 'manual'] as const satisfies readonly CameraClock[], 'raf'),
+    motion: oneOf(
+      p.get('motion'),
+      ['static', 'pan', 'wave'] as const satisfies readonly MotionKind[],
+      'static',
+    ),
+    clock: oneOf(
+      p.get('camclock'),
+      ['raf', 'interval', 'worker', 'manual'] as const satisfies readonly CameraClock[],
+      'raf',
+    ),
     cameraFps: num(p.get('camfps'), 30),
     subjectUrl: p.get('subject') ?? DEFAULT_SUBJECT_URL,
     camSrc: p.get('camsrc') ?? undefined,

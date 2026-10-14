@@ -56,6 +56,7 @@ boot().catch((e) => {
   // Boot failures must be visible to a spec, which may never get a harness object.
   document.body.dataset.bootError = (e as Error).message;
   const log = document.getElementById('log');
-  if (log) log.textContent = `ERROR boot failed: ${(e as Error).message}\n${(e as Error).stack ?? ''}`;
+  if (log)
+    log.textContent = `ERROR boot failed: ${(e as Error).message}\n${(e as Error).stack ?? ''}`;
   console.error('[e2e] boot failed', e);
 });

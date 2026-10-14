@@ -90,9 +90,7 @@ export class Media implements MediaControl {
     const captureOptions: VideoCaptureOptions = {
       deviceId: opts.deviceId,
       resolution:
-        opts.width && opts.height
-          ? { width: opts.width, height: opts.height }
-          : undefined,
+        opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
       ...(atCapture ? { processor: this.requireProcessor() } : {}),
     };
 
@@ -119,7 +117,8 @@ export class Media implements MediaControl {
     if (!this.videoTrack) throw new Error('No video track. Call startVideo first.');
     await this.videoTrack.restartTrack({
       deviceId: opts.deviceId,
-      resolution: opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
+      resolution:
+        opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
     });
     this.emit();
     return this.info('video')!;
@@ -142,10 +141,16 @@ export class Media implements MediaControl {
   async switchMode(mode: ProcessorMode): Promise<TrackInfo | null> {
     switch (mode) {
       case 'background-blur':
-        await this.requireProcessor().switchTo({ mode: 'background-blur', blurRadius: this.config.blurRadius });
+        await this.requireProcessor().switchTo({
+          mode: 'background-blur',
+          blurRadius: this.config.blurRadius,
+        });
         break;
       case 'virtual-background':
-        await this.requireProcessor().switchTo({ mode: 'virtual-background', imagePath: this.config.backgroundImage });
+        await this.requireProcessor().switchTo({
+          mode: 'virtual-background',
+          imagePath: this.config.backgroundImage,
+        });
         break;
       case 'disabled':
         await this.requireProcessor().switchTo({ mode: 'disabled' });
@@ -338,14 +343,14 @@ export class Media implements MediaControl {
 
     const source = this.videoTrack?.mediaStreamTrack;
     if (!source) return null;
-    const processed = this.videoProcessorEnabled ? this.processor?.processedTrack ?? null : null;
+    const processed = this.videoProcessorEnabled ? (this.processor?.processedTrack ?? null) : null;
     return {
       id: source.id,
       kind: 'video',
       label: source.label,
       readyState: source.readyState,
       settings: source.getSettings(),
-      processorName: this.videoProcessorEnabled ? this.processor?.name ?? null : null,
+      processorName: this.videoProcessorEnabled ? (this.processor?.name ?? null) : null,
       processedTrackId: processed?.id ?? null,
       processedSettings: processed?.getSettings() ?? null,
       pipeline: this.pipeline(),

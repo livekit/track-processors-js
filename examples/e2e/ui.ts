@@ -93,7 +93,9 @@ export function buildUi(harness: E2EHarness, render: () => void) {
   on('switch-virtual', 'click', () => media.switchMode('virtual-background'));
   on('set-background', 'click', () => {
     const current = harness.snapshot().backgroundImage;
-    return media.setBackgroundImage(current === ALT_BACKGROUND ? config.backgroundImage : ALT_BACKGROUND);
+    return media.setBackgroundImage(
+      current === ALT_BACKGROUND ? config.backgroundImage : ALT_BACKGROUND,
+    );
   });
 
   const blurInput = $<HTMLInputElement>('blur-radius');

@@ -47,17 +47,13 @@ test.describe('frame processing stats', () => {
 
     // processingTimeMs is reported as segmentation + filter; if that stops holding, the stat
     // has silently changed meaning.
-    expect(stats.processingMs.p50).toBeCloseTo(
-      stats.segmentationMs.p50 + stats.filterMs.p50,
-      0,
-    );
+    expect(stats.processingMs.p50).toBeCloseTo(stats.segmentationMs.p50 + stats.filterMs.p50, 0);
 
     // Segmentation runs on the mediapipe delegate, not our WebGL path, and holds near 3ms on
     // both hardware and software renderers.
-    expect(
-      stats.segmentationMs.p50,
-      `segmentation slower than expected: ${report}`,
-    ).toBeLessThan(PERFORMANCE.MAX_P50_SEGMENTATION_MS);
+    expect(stats.segmentationMs.p50, `segmentation slower than expected: ${report}`).toBeLessThan(
+      PERFORMANCE.MAX_P50_SEGMENTATION_MS,
+    );
 
     // The filter step is WebGL and is meaningless to time on a software rasterizer: the same
     // work measures ~2ms on a GPU and ~58ms on SwiftShader. Assert it only where the number

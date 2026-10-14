@@ -188,7 +188,8 @@ export class Probe implements ProbeControl {
     this.recordCtx.drawImage(this.video, 0, 0, w, h);
     const { data } = this.recordCtx.getImageData(0, 0, w, h);
 
-    const fg = this.recordOpts.regions?.fg ?? this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
+    const fg = this.recordOpts.regions?.fg ??
+      this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
     const inFg = rectPredicate(fg, w, h);
     const inBg = this.recordOpts.regions?.bg
       ? rectPredicate(this.recordOpts.regions.bg, w, h)
@@ -282,9 +283,7 @@ export class Probe implements ProbeControl {
       }
       await new Promise((resolve) => setTimeout(resolve, 16));
     }
-    throw new Error(
-      `Only ${this.presented - start} of ${count} frames arrived in ${timeoutMs}ms`,
-    );
+    throw new Error(`Only ${this.presented - start} of ${count} frames arrived in ${timeoutMs}ms`);
   }
 
   // ------------------------------------------------------------------ reference diffing
@@ -497,12 +496,7 @@ function luma(data: Uint8ClampedArray, i: number) {
   return 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
 }
 
-function analyze(
-  data: Uint8ClampedArray,
-  w: number,
-  h: number,
-  include: Predicate,
-): RegionStats {
+function analyze(data: Uint8ClampedArray, w: number, h: number, include: Predicate): RegionStats {
   let n = 0;
   let sumR = 0;
   let sumG = 0;

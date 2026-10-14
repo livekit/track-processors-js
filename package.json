@@ -16,6 +16,8 @@
     "build": "tsup --onSuccess \"tsc --declaration --emitDeclarationOnly\"",
     "build-sample": "cd examples/demo && vite build",
     "lint": "eslint src",
+    "format": "prettier --write \"e2e/**/*.ts\" \"examples/**/*.ts\"",
+    "format:check": "prettier --check \"e2e/**/*.ts\" \"examples/**/*.ts\"",
     "release": "pnpm build && changeset publish",
     "test": "vitest run",
     "test:update": "vitest run --update",

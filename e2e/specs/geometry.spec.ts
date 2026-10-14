@@ -228,9 +228,7 @@ const PIPELINES = [
 
 test.describe('geometry', () => {
   for (const { label: pipeline, fallback } of PIPELINES) {
-    test(`E3: a mid-call resolution change resizes the buffers on ${pipeline}`, async ({
-      app,
-    }) => {
+    test(`E3: a mid-call resolution change resizes the buffers on ${pipeline}`, async ({ app }) => {
       const { page } = app;
       // flat, because foregroundBox learns the background from a border ring and needs a
       // low-frequency one; static, so ground truth stays one rect for the whole run.

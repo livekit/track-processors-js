@@ -56,12 +56,20 @@ export function createBackgroundProcessor(
 
   switch (config.mode) {
     case 'virtual-background':
-      return BackgroundProcessor({ mode: 'virtual-background', imagePath: config.backgroundImage, ...common });
+      return BackgroundProcessor({
+        mode: 'virtual-background',
+        imagePath: config.backgroundImage,
+        ...common,
+      });
     case 'disabled':
       return BackgroundProcessor({ mode: 'disabled', ...common });
     case 'background-blur':
     default:
-      return BackgroundProcessor({ mode: 'background-blur', blurRadius: config.blurRadius, ...common });
+      return BackgroundProcessor({
+        mode: 'background-blur',
+        blurRadius: config.blurRadius,
+        ...common,
+      });
   }
 }
 

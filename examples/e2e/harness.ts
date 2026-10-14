@@ -4,8 +4,8 @@ import type { FakeCamera } from './fakeCamera';
 import { fakeMic } from './fakeMic';
 import { clearLibraryLogRecords, libraryLogRecords } from './logCapture';
 import { Media } from './media';
-import { tryCreateBackgroundProcessor } from './processors';
 import { Probe } from './probe';
+import { tryCreateBackgroundProcessor } from './processors';
 import { RoomMode } from './room';
 import { resetStats, snapshotStats } from './stats';
 import type {
@@ -52,8 +52,7 @@ export class E2EHarness implements Harness {
     this.media = media;
 
     this.probe = new Probe(
-      (source) =>
-        source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack(),
+      (source) => (source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack()),
       () => camera.subjectRect(),
     );
 
@@ -75,9 +74,7 @@ export class E2EHarness implements Harness {
   // ------------------------------------------------------------------ logging
 
   log(...args: unknown[]) {
-    const line = args
-      .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
-      .join(' ');
+    const line = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     this.lines.push(`${new Date().toISOString().slice(11, 23)} ${line}`);
     if (this.lines.length > MAX_LOG_LINES) this.lines.splice(0, this.lines.length - MAX_LOG_LINES);
     if (line.startsWith('ERROR')) this.error = line;
