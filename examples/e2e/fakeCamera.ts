@@ -115,6 +115,20 @@ export class FakeCamera implements FakeCameraControl {
 
   private subjectImage: HTMLImageElement | null = null;
 
+  /**
+   * The procedural figure, rendered once and reused.
+   *
+   * It is a pure function of its size, so redrawing ~40 primitives per frame bought nothing and
+   * cost main-thread time the pipeline under test is competing for — which matters because G1
+   * measures per-frame timings. Keyed on the pixel size, so a resolution change re-renders.
+   */
+  private subjectCache: {
+    canvas: HTMLCanvasElement;
+    w: number;
+    h: number;
+    pad: number;
+  } | null = null;
+
   private videoSource: HTMLVideoElement | null = null;
 
   private rafId?: number;
@@ -471,7 +485,33 @@ export class FakeCamera implements FakeCameraControl {
       ctx.drawImage(this.subjectImage, x, y, rw, rh);
       return;
     }
-    drawProceduralSubject(ctx, x, y, rw, rh);
+
+    // Same single blit, from the figure baked at this size. The bake is padded because the
+    // drawing legitimately exceeds its rect — the shoulders reach ±0.52w and the shadow spreads
+    // further still — so it is blitted back at the matching offset to land pixel-identical.
+    const { canvas, pad } = this.proceduralSubject(rw, rh);
+    ctx.drawImage(canvas, x - pad, y - pad, rw + pad * 2, rh + pad * 2);
+  }
+
+  /** The cached procedural figure at `w`x`h`, rendered on first use and after a resize. */
+  private proceduralSubject(w: number, h: number) {
+    const width = Math.max(1, Math.round(w));
+    const height = Math.max(1, Math.round(h));
+
+    const cached = this.subjectCache;
+    if (cached && cached.w === width && cached.h === height) return cached;
+
+    // Covers the 2% shoulder overhang and the shadow, which is ~2.5% of the width.
+    const pad = Math.ceil(Math.max(width, height) * 0.08);
+    const canvas = document.createElement('canvas');
+    canvas.width = width + pad * 2;
+    canvas.height = height + pad * 2;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get a 2d context for the procedural subject');
+    drawProceduralSubject(ctx, pad, pad, width, height);
+
+    this.subjectCache = { canvas, w: width, h: height, pad };
+    return this.subjectCache;
   }
 
   // ------------------------------------------------------------------ control surface
@@ -503,6 +543,7 @@ export class FakeCamera implements FakeCameraControl {
 
   async setSubjectImage(url: string | null) {
     this.subjectImage = url ? await loadImage(url) : null;
+    this.subjectCache = null;
     this.draw();
   }
 
@@ -588,6 +629,9 @@ function drawCover(
 
 /**
  * A head-and-shoulders figure drawn from primitives, so the harness needs no committed photo.
+ *
+ * Called once per size by `proceduralSubject()` and cached — the frame loop just blits the
+ * result, so this runs at startup rather than 30 times a second.
  *
  * mediapipe's selfie segmenter is trained on real photographs, so mask quality against this is
  * lower than against a real subject — fine for geometry, liveness and pipeline assertions,
