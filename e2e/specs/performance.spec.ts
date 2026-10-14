@@ -3,11 +3,17 @@ import { attachProcessor, startCamera } from '../helpers';
 import { PERFORMANCE } from '../thresholds';
 
 /**
- * G1 — the stats reported through onFrameProcessed.
+ * G1 — the timings reported through `onFrameProcessed`.
  *
- * Performance complaints against this library arrive as "it got slow after updating" and are
- * impossible to adjudicate without numbers. This establishes that the numbers exist, are
- * internally consistent, and clear a floor.
+ * Four assertions, over 60 frames with the warm-up discarded:
+ *
+ * - every reported p50 is finite and positive
+ * - `processingMs` still equals `segmentationMs + filterMs`, so the stat has not changed meaning
+ * - segmentation clears its ceiling, which holds on hardware and software renderers alike
+ * - the pipeline clears a frame-rate floor, and its frame time clears a ceiling
+ *
+ * The frame-time ceiling is asserted only on a hardware renderer: the filter step is WebGL, and
+ * on a software rasterizer the figure describes the rasterizer rather than this library.
  */
 test.describe('frame processing stats', () => {
   test('G1: onFrameProcessed reports coherent timings at a usable frame rate', async ({ app }) => {
