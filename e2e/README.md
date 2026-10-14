@@ -41,7 +41,7 @@ Seventeen cases across eleven concerns.
 | `lifecycle.spec.ts` | B1, B2 | Attach produces blurred frames; detach restores them |
 | `modes.spec.ts` | C1, C1b, C3 | Switching lands correctly, publishes no intermediate frame, and `disabled` is true passthrough |
 | `background.spec.ts` | D1, D5 | Image composited behind the subject; fetched once |
-| `geometry.spec.ts` | E1 | Output dimensions follow the source at three resolutions |
+| `geometry.spec.ts` | E1, E3 | Output dimensions follow the source at three resolutions, and across a mid-call resolution change |
 | `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
 
 [`AGENTS.md`](./AGENTS.md) covers the rest: the conventions these specs follow, how the

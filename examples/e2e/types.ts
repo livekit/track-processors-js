@@ -289,6 +289,20 @@ export interface FakeCameraControl {
   readonly installed: boolean;
   devices(): FakeCameraDevice[];
   setBackdrop(kind: BackdropKind, color?: string): void;
+  /**
+   * Resize every live source mid-stream, with no track swap.
+   *
+   * This is what a resolution change looks like to the library. `restartVideo` does not test it:
+   * `LocalVideoTrack.restartTrack` re-acquires the camera and then rebuilds the processor, so
+   * every buffer is simply allocated at the new size and nothing ever follows a change. Resizing
+   * the compositor canvas leaves the pipeline running and changes the frame size underneath it,
+   * which is the path #112 and #128 are about.
+   *
+   * It also sidesteps `applyConstraints`, which cannot reach the source: once a processor is
+   * attached, `LocalTrack.mediaStreamTrack` returns the processor's output track rather than
+   * the camera's.
+   */
+  setResolution(width: number, height: number): void;
   setMotion(mode: MotionKind): void;
   setClock(mode: CameraClock): void;
   setSubjectVisible(visible: boolean): void;

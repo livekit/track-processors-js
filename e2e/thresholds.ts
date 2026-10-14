@@ -279,4 +279,58 @@ export const BACKGROUND_SWAP = {
    * against 6 without it.
    */
   MIN_HELD_FRAMES: 10,
+ * E3 — the frame size changing under a running processor.
+ *
+ * Separate from GEOMETRY, which is about where the mask sits at one fixed resolution. These are
+ * about how the output follows a resolution change that arrives mid-call.
+ *
+ * Negative controls, one per pipeline, since the two fail differently:
+ *
+ *   - **Canvas fallback.** Pinning `displayCanvas` to its setup size (dropping the per-frame
+ *     resize in ProcessorWrapper's render loop) leaves the published output stuck at 1280x720
+ *     while the source produces 640x360 — the frame is just stretched back up. `aligned` never
+ *     becomes true and the trail shows `size` at "1280x720" for the full 10s. That is the
+ *     control this case is really calibrated against.
+ *   - **Insertable streams.** Making `ensureBuffersMatchCanvas()` a no-op, which is the pre-#128
+ *     "allocate once" behaviour, does *not* fail at a constant aspect ratio: the shaders sample
+ *     the mask through normalized coordinates, so a stale buffer only costs mask resolution
+ *     (coverage 0.1646 against 0.1752 correct, centre off by 0.0016). It is a genuine
+ *     misalignment only once the aspect ratio changes too, which is the rotation half of #128
+ *     and needs a real device. Recorded here so the next person does not read this case as
+ *     covering more of the WebGL path than it does.
+ */
+export const RESOLUTION_CHANGE = {
+  /**
+   * How long the mask may lag the frame size, measured from the first frame carrying the new
+   * size rather than from the click — the click-to-first-frame part is capture latency and is
+   * bounded separately below.
+   *
+   * Observed 0ms on both pipelines and in both directions: `ensureBuffersMatchCanvas()`
+   * reallocates inside the same `renderFrame` call that first sees the new canvas size, so the
+   * first frame out at the new size is already correct. The window absorbs a frame or two of
+   * latency on a slower target; nothing here was seen to need it.
+   */
+  MAX_REALIGN_MS: 500,
+  /**
+   * And how long the new frame size may take to reach the output at all, from the click.
+   * Observed 35-114ms across both pipelines and both directions.
+   */
+  MAX_RESIZE_MS: 1500,
+  /**
+   * Share of each pure-backdrop edge strip that must still carry the backdrop colour.
+   *
+   * The letterbox check: bars pad the frame with something that is not the backdrop. Observed
+   * 1.000 on the top, left and right strips at every resolution, on both pipelines.
+   */
+  EDGE_BACKDROP_RATIO_MIN: 0.9,
+  /**
+   * How far the segmented subject's share of the frame may drift from its share before the
+   * resolution change. The clipping check: a clipped subject loses coverage, and a letterboxed
+   * one shrinks away from the edges.
+   *
+   * Observed 0.064 (insertable streams) and 0.067 (fallback) going down to 360p, and 0.000
+   * coming back to 720p. The 360p figure is the mask being computed from a quarter of the
+   * pixels, not the subject moving.
+   */
+  MAX_COVERAGE_DRIFT: 0.25,
 };
