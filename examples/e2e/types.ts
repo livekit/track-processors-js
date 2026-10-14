@@ -52,6 +52,8 @@ export interface Rgb {
 export interface Config {
   /** Force the canvas.captureStream fallback by removing the insertable-streams globals. */
   forceFallback: boolean;
+  /** Remove one of the primitives `BackgroundTransformer.isSupported` reads, before boot. */
+  breakPrimitive?: BrokenPrimitive;
   delegate?: 'CPU' | 'GPU';
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maxFps?: number;
@@ -402,6 +404,17 @@ export interface Harness {
   resetStats(): void;
   counters(): ResourceCounters;
 
+  /** Whether a processor can be built here, and what is missing when it cannot. */
+  support(): ProcessorSupport;
+  /**
+   * Construct a processor deliberately and catch what it throws.
+   *
+   * The app never calls `BackgroundProcessor()` when `support().supported` is false, which is
+   * the whole point of A2 — so a spec that wants to see the documented message needs a way to
+   * ask for it explicitly.
+   */
+  tryCreateProcessor(): ProcessorConstruction;
+
   camera: FakeCameraControl;
   mic: FakeMicControl;
   media: MediaControl;
@@ -413,4 +426,30 @@ declare global {
   interface Window {
     harness: Harness;
   }
+}
+
+// --------------------------------------------------------------------------- degradation
+
+/**
+ * A primitive `?break=` takes away before boot.
+ *
+ * `BackgroundTransformer.isSupported` reads exactly these four, so removing any one of them is
+ * enough to make the library unsupported — which is the environment issues #10 and #38 were
+ * reported from, and the one the app has to degrade in rather than throw out of.
+ */
+export type BrokenPrimitive = 'offscreencanvas' | 'videoframe' | 'createimagebitmap' | 'webgl2';
+
+/** Whether this browser can run a processor, and why not when it cannot. */
+export interface ProcessorSupport {
+  supported: boolean;
+  /** The primitives the library's support checks wanted and did not find. */
+  missing: string[];
+  /** Shown in the UI beside the disabled controls, and mirrored onto `document.body.dataset`. */
+  reason: string | null;
+}
+
+/** The outcome of calling `BackgroundProcessor()` on purpose, with its throw caught. */
+export interface ProcessorConstruction {
+  ok: boolean;
+  error: string | null;
 }

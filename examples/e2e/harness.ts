@@ -3,10 +3,18 @@ import { readCounters } from './counters';
 import type { FakeCamera } from './fakeCamera';
 import { fakeMic } from './fakeMic';
 import { Media } from './media';
+import { tryCreateBackgroundProcessor } from './processors';
 import { Probe } from './probe';
 import { RoomMode } from './room';
 import { resetStats, snapshotStats } from './stats';
-import type { AppStateSnapshot, Config, EnvInfo, Harness } from './types';
+import type {
+  AppStateSnapshot,
+  Config,
+  EnvInfo,
+  Harness,
+  ProcessorConstruction,
+  ProcessorSupport,
+} from './types';
 
 const MAX_LOG_LINES = 500;
 
@@ -129,6 +137,22 @@ export class E2EHarness implements Harness {
         typeof HTMLCanvasElement !== 'undefined' && 'captureStream' in HTMLCanvasElement.prototype,
       audioContext: typeof AudioContext !== 'undefined',
     };
+  }
+
+  /** Decided once, at construction: the app builds a processor only if this says it can. */
+  support(): ProcessorSupport {
+    return this.media.support;
+  }
+
+  /**
+   * Calls `BackgroundProcessor()` and catches whatever comes back.
+   *
+   * The app never calls it in an unsupported browser, so this is the only way a spec can see
+   * that the documented message is still what the library throws — and that it is thrown on
+   * the call rather than reaching `window.onerror` on its own.
+   */
+  tryCreateProcessor(): ProcessorConstruction {
+    return tryCreateBackgroundProcessor(this.config, () => undefined);
   }
 
   snapshot(): AppStateSnapshot {

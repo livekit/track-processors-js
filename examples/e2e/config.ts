@@ -1,4 +1,11 @@
-import type { BackdropKind, CameraClock, Config, MotionKind, ProcessorMode } from './types';
+import type {
+  BackdropKind,
+  BrokenPrimitive,
+  CameraClock,
+  Config,
+  MotionKind,
+  ProcessorMode,
+} from './types';
 
 /**
  * Query parameters are used for anything that cannot be changed after construction —
@@ -21,6 +28,14 @@ const LOCAL_ASSETS = {
   tasksVisionFileSet: '/mediapipe/wasm',
   modelAssetPath: '/mediapipe/selfie_segmenter.tflite',
 };
+
+/** The four primitives `BackgroundTransformer.isSupported` reads, as `?break=` spells them. */
+const BREAKABLE = [
+  'offscreencanvas',
+  'videoframe',
+  'createimagebitmap',
+  'webgl2',
+] as const satisfies readonly BrokenPrimitive[];
 
 function oneOf<T extends string>(raw: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(raw as T) ? (raw as T) : fallback;
@@ -55,8 +70,13 @@ export function parseConfig(search: string = window.location.search): Config {
   const delegateRaw = p.get('delegate')?.toUpperCase() ?? null;
   const { width, height } = resolution(p.get('camres'));
 
+  const broken = p.get('break')?.toLowerCase() ?? null;
+
   return {
     forceFallback: bool(p.get('fallback')),
+    breakPrimitive: BREAKABLE.includes(broken as BrokenPrimitive)
+      ? (broken as BrokenPrimitive)
+      : undefined,
     delegate: delegateRaw === 'CPU' || delegateRaw === 'GPU' ? delegateRaw : undefined,
     assetPaths,
     maxFps: p.has('maxfps') ? num(p.get('maxfps'), 30) : undefined,

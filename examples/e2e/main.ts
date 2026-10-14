@@ -24,12 +24,12 @@ async function boot() {
 
   harness.log(`booted with ${window.location.search || '(no query params)'}`);
   const env = harness.env();
-  if (!env.transformerSupported) {
-    harness.log(
-      'ERROR BackgroundTransformer is unsupported here ' +
-        `(webgl2=${env.webgl2} offscreenCanvas=${env.offscreenCanvas} videoFrame=${env.videoFrame}). ` +
-        'Processor cases will fail at construction.',
-    );
+  const support = harness.support();
+  if (!support.supported) {
+    // Deliberately not an ERROR line. An unsupported browser is a state the app degrades into
+    // (#10, #38), not a failure: no processor was constructed, and the controls that would
+    // need one are disabled and say why.
+    harness.log(`degraded: ${support.reason}`);
   }
   harness.log(
     `pipeline available: ${env.hasModernApiSupport ? 'insertable-streams' : 'canvas-fallback'}`,
@@ -37,7 +37,9 @@ async function boot() {
 
   if (config.autostart) {
     await media.startVideo();
-    if (config.mode !== 'disabled') await media.setVideoProcessorEnabled(true);
+    if (config.mode !== 'disabled' && support.supported) {
+      await media.setVideoProcessorEnabled(true);
+    }
   }
 
   harness.markReady();

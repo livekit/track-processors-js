@@ -11,6 +11,17 @@ import type { BackdropKind, MotionKind } from './types';
 
 const ALT_BACKGROUND = '/bg-alt.png';
 
+/** Everything that needs a constructed processor, and so has to go dead without one. */
+const PROCESSOR_CONTROLS = [
+  'attach-processor',
+  'detach-processor',
+  'switch-disabled',
+  'switch-blur',
+  'switch-virtual',
+  'set-background',
+  'blur-radius',
+];
+
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export function buildUi(harness: E2EHarness, render: () => void) {
@@ -82,6 +93,21 @@ export function buildUi(harness: E2EHarness, render: () => void) {
     $('blur-radius-value').textContent = String(radius);
     return media.setBlurRadius(radius);
   });
+
+  /**
+   * An unsupported browser gets disabled controls and a reason, not a live button that throws
+   * when it is pressed (#10, #38). The handlers above stay wired: a disabled control dispatches
+   * no click, which is the property A2 drives through a real press.
+   */
+  const support = harness.support();
+  if (!support.supported) {
+    for (const id of PROCESSOR_CONTROLS) {
+      $<HTMLButtonElement | HTMLInputElement>(id).disabled = true;
+    }
+    const notice = $('processor-unsupported');
+    notice.textContent = support.reason;
+    notice.hidden = false;
+  }
 
   // ---------------------------------------------------------------- audio
 
