@@ -65,6 +65,12 @@ Three things follow from that, and they are the reason it isn't a video file:
   colour-match ratio and the foreground box is the bbox of non-matching pixels.
 - **Ground truth.** `harness.camera.subjectRect()` returns where the compositor actually drew
   the subject, so segmentation scores as IoU against truth rather than a golden image.
+- **A resolution change is just a canvas resize.** `harness.camera.setResolution(w, h)` (the
+  `resize-source` button) re-sizes every live source without stopping it, which is the only way
+  to hand the library a mid-call frame-size change. `restartVideo` does not do it: it
+  re-acquires the camera and rebuilds the processor, so nothing ever has to follow a change.
+  Nor does `applyConstraints` — with a processor attached, `LocalTrack.mediaStreamTrack` is the
+  processor's output track, not the camera's.
 
 A video fixture was rejected because no single codec decodes on all five targets (WebKit
 refuses VP8/VP9 WebM; H.264 isn't guaranteed on Playwright's Chromium or Firefox CI builds),

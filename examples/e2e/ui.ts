@@ -75,6 +75,13 @@ export function buildUi(harness: E2EHarness, render: () => void) {
   // would then have to read back, and labels are not something a spec may assert on.
   on('mute-video', 'click', () => media.setVideoMuted(true));
   on('unmute-video', 'click', () => media.setVideoMuted(false));
+  // Separate from 'restart-video' on purpose: this resizes the source the processor is already
+  // reading instead of handing it a new one. See FakeCameraControl.setResolution.
+  on('resize-source', 'click', () => {
+    const { width, height } = readResolution();
+    if (width === undefined || height === undefined) return;
+    camera.setResolution(width, height);
+  });
   on('video-device', 'change', () => media.switchDevice('videoinput', deviceSelect.value));
 
   // ---------------------------------------------------------------- video processor

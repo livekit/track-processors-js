@@ -471,6 +471,17 @@ export class FakeCamera implements FakeCameraControl {
     this.draw();
   }
 
+  /**
+   * Resize every live source, as if the camera had re-negotiated mid-call.
+   *
+   * No track is stopped or replaced: the same captureStream keeps delivering, just at a new
+   * frame size. That is the whole point — it is the only way to hand the library a frame-size
+   * change without also handing it a fresh processor.
+   */
+  setResolution(width: number, height: number) {
+    for (const source of this.sources) this.resize(source, width, height);
+  }
+
   setMotion(mode: MotionKind) {
     this.motion = mode;
     this.draw();
