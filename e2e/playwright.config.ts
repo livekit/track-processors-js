@@ -22,13 +22,13 @@ export default defineConfig({
   fullyParallel: true,
 
   /**
-   * One worker on purpose.
+   * One worker, until livekit/track-processors-js#136 is fixed.
    *
-   * Every attach/detach cycle leaks a WebGL context — src/webgl/index.ts cleanup() never calls
-   * loseContext() — and Chrome caps live contexts per GPU process at around 16, after which it
-   * discards the oldest and the renderer can stop responding entirely. Parallel workers share
-   * that process, so they would hit the cap several times faster and fail in ways that look
-   * like flakiness rather than like the leak they are. Raise this once the leak is fixed.
+   * Each attach/detach cycle creates a WebGL context the library never releases, so contexts
+   * accumulate until GC happens to collect them. Chrome caps live contexts per GPU process at
+   * around 16 and discards the oldest past that, which can leave the renderer unresponsive.
+   * Workers share that GPU process, so running in parallel reaches the cap several times faster
+   * and fails as what looks like flakiness. Raise this once the leak is fixed.
    */
   workers: 1,
 
