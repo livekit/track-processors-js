@@ -33,7 +33,7 @@ Chrome only for now. Firefox, WebKit and BrowserStack devices need their own cal
 
 ## What's covered
 
-Seventeen cases across eleven concerns. IDs match the coverage plan.
+Seventeen cases across eleven concerns.
 
 | Spec | IDs | Concern |
 | --- | --- | --- |
@@ -43,11 +43,6 @@ Seventeen cases across eleven concerns. IDs match the coverage plan.
 | `background.spec.ts` | D1, D5 | Image composited behind the subject; fetched once |
 | `geometry.spec.ts` | E1 | Output dimensions follow the source at three resolutions |
 | `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
-
-Not covered yet, in rough priority order: audio (J1, J2 — the harness measurement already
-works), the attach/detach leak check (blocked on the WebGL context leak below), capture-time
-attachment (B5), mute/unmute (B6), and everything needing rotation, a real device, a room or a
-second browser.
 
 ## How the artifact test works
 
