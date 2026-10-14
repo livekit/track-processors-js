@@ -12,14 +12,6 @@ It is also the fastest way to reproduce a rendering bug by hand. `?fallback=1` i
 runs the canvas-captureStream path — normally only reachable on Safari — under Chrome, where
 you have DevTools.
 
-## Why it exists separately from `examples/demo`
-
-The demo can't be the test target. Every processor action there begins with
-`if (!currentRoom) return;` and pulls the track off `localParticipant`, so nothing works without
-a server and a hand-minted token. It also mocks nothing, exposes no processed track, and shows
-state only as button label text. Fixing that in place would have meant refactoring a
-public-facing sample; a purpose-built app has none of those problems by construction.
-
 ## Driving it
 
 Every control is a thin wrapper over the same harness method, so clicking a button and calling
