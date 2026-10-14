@@ -70,9 +70,15 @@ test.describe('mode switching', () => {
     const { page } = app;
     await app.goto({ backdrop: 'checker', motion: 'static' });
     await startCamera(page);
-    await attachProcessor(page);
-
+    // Sampled before attaching, and that ordering is load-bearing. `setProcessor` leaves
+    // `LocalVideoTrack.mediaStreamTrack` pointing at the processed track, so a 'source' sample
+    // taken after attach returns treated frames — measured identical, hash and all, to
+    // `sampleProcessed()`. Taken that way the ratio below compares passthrough against a
+    // *blurred* baseline, reads 4.14 rather than 1.0, and still clears the floor when
+    // `disabled` leaves the blur on. Which is to say it would pass whatever happened.
     const source = await sampleSource(page);
+
+    await attachProcessor(page);
     await switchMode(page, 'disabled');
     await sampleStable(page);
     const passed = await sampleProcessed(page);
