@@ -43,6 +43,11 @@ export function startPanel(harness: E2EHarness) {
 
     const { dataset } = document.body;
     dataset.ready = String(harness.isReady);
+    // A2 waits on these rather than reading the notice element's text.
+    const support = harness.support();
+    dataset.processorSupported = String(support.supported);
+    if (support.reason) dataset.processorUnsupportedReason = support.reason;
+    else delete dataset.processorUnsupportedReason;
     dataset.mode = snapshot.mode;
     dataset.pipeline = snapshot.video?.pipeline ?? 'none';
     dataset.videoProcessor = String(snapshot.videoProcessorEnabled);

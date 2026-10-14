@@ -7,12 +7,13 @@ import {
   createLocalVideoTrack,
 } from 'livekit-client';
 import type { BackgroundProcessorWrapper, GainAudioProcessor } from '../../src';
-import { createBackgroundProcessor, createGainProcessor } from './processors';
+import { createBackgroundProcessor, createGainProcessor, processorSupport } from './processors';
 import type {
   Config,
   MediaControl,
   PipelinePath,
   ProcessorMode,
+  ProcessorSupport,
   ReportedMode,
   StartVideoOptions,
   TrackInfo,
@@ -31,7 +32,15 @@ export class Media implements MediaControl {
 
   audioTrack?: LocalAudioTrack;
 
-  processor: BackgroundProcessorWrapper;
+  /**
+   * Undefined when the environment cannot support one — see `support`.
+   *
+   * Optional rather than built-and-hoped-for: #10 and #38 are both an app constructing a
+   * processor in an environment that cannot have one, and the throw reaching the user.
+   */
+  processor?: BackgroundProcessorWrapper;
+
+  readonly support: ProcessorSupport;
 
   gainProcessor: GainAudioProcessor;
 
@@ -50,7 +59,12 @@ export class Media implements MediaControl {
     private config: Config,
     onFrameProcessed: Parameters<typeof createBackgroundProcessor>[1],
   ) {
-    this.processor = createBackgroundProcessor(config, onFrameProcessed);
+    this.support = processorSupport();
+    // Ask before building. Constructing unconditionally here is exactly what turns a missing
+    // primitive into a blank page (#10), because this runs during boot.
+    if (this.support.supported) {
+      this.processor = createBackgroundProcessor(config, onFrameProcessed);
+    }
     this.gainProcessor = createGainProcessor(this.gain);
   }
 
@@ -75,7 +89,7 @@ export class Media implements MediaControl {
         opts.width && opts.height
           ? { width: opts.width, height: opts.height }
           : undefined,
-      ...(atCapture ? { processor: this.processor } : {}),
+      ...(atCapture ? { processor: this.requireProcessor() } : {}),
     };
 
     this.videoTrack = await createLocalVideoTrack(captureOptions);
@@ -110,7 +124,7 @@ export class Media implements MediaControl {
     if (enabled === this.videoProcessorEnabled) return this.info('video');
 
     if (enabled) {
-      await this.videoTrack.setProcessor(this.processor);
+      await this.videoTrack.setProcessor(this.requireProcessor());
     } else {
       await this.videoTrack.stopProcessor();
     }
@@ -122,13 +136,13 @@ export class Media implements MediaControl {
   async switchMode(mode: ProcessorMode): Promise<TrackInfo | null> {
     switch (mode) {
       case 'background-blur':
-        await this.processor.switchTo({ mode: 'background-blur', blurRadius: this.config.blurRadius });
+        await this.requireProcessor().switchTo({ mode: 'background-blur', blurRadius: this.config.blurRadius });
         break;
       case 'virtual-background':
-        await this.processor.switchTo({ mode: 'virtual-background', imagePath: this.config.backgroundImage });
+        await this.requireProcessor().switchTo({ mode: 'virtual-background', imagePath: this.config.backgroundImage });
         break;
       case 'disabled':
-        await this.processor.switchTo({ mode: 'disabled' });
+        await this.requireProcessor().switchTo({ mode: 'disabled' });
         break;
     }
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
@@ -138,7 +152,7 @@ export class Media implements MediaControl {
 
   async setBackgroundImage(url: string): Promise<TrackInfo | null> {
     this.config = { ...this.config, backgroundImage: url };
-    await this.processor.switchTo({ mode: 'virtual-background', imagePath: url });
+    await this.requireProcessor().switchTo({ mode: 'virtual-background', imagePath: url });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
     this.emit();
     return this.info('video');
@@ -146,7 +160,7 @@ export class Media implements MediaControl {
 
   async setBlurRadius(radius: number): Promise<TrackInfo | null> {
     this.config = { ...this.config, blurRadius: radius };
-    await this.processor.switchTo({ mode: 'background-blur', blurRadius: radius });
+    await this.requireProcessor().switchTo({ mode: 'background-blur', blurRadius: radius });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
     this.emit();
     return this.info('video');
@@ -222,7 +236,7 @@ export class Media implements MediaControl {
 
   /** The track a remote peer would receive. Falls back to the raw track when unprocessed. */
   processedVideoTrack(): MediaStreamTrack | undefined {
-    if (this.videoProcessorEnabled && this.processor.processedTrack) {
+    if (this.videoProcessorEnabled && this.processor?.processedTrack) {
       return this.processor.processedTrack;
     }
     return this.videoTrack?.mediaStreamTrack;
@@ -245,12 +259,25 @@ export class Media implements MediaControl {
    * library change. If that ever becomes true on both paths, this silently lies.
    */
   private pipeline(): PipelinePath {
-    if (!this.videoProcessorEnabled) return 'none';
+    if (!this.videoProcessorEnabled || !this.processor) return 'none';
     return this.processor.displayCanvas ? 'canvas-fallback' : 'insertable-streams';
   }
 
   reportedMode(): ReportedMode {
-    return this.videoProcessorEnabled ? this.processor.mode : 'off';
+    return this.videoProcessorEnabled && this.processor ? this.processor.mode : 'off';
+  }
+
+  /**
+   * The processor, or a throw naming what the browser is missing.
+   *
+   * Reached only by a caller that ignored `support`: every control that leads here is disabled
+   * while `support.supported` is false.
+   */
+  private requireProcessor(): BackgroundProcessorWrapper {
+    if (!this.processor) {
+      throw new Error(this.support.reason ?? 'No background processor was constructed');
+    }
+    return this.processor;
   }
 
   info(kind: 'video' | 'audio' = 'video'): TrackInfo | null {
@@ -274,14 +301,14 @@ export class Media implements MediaControl {
 
     const source = this.videoTrack?.mediaStreamTrack;
     if (!source) return null;
-    const processed = this.videoProcessorEnabled ? this.processor.processedTrack : null;
+    const processed = this.videoProcessorEnabled ? this.processor?.processedTrack ?? null : null;
     return {
       id: source.id,
       kind: 'video',
       label: source.label,
       readyState: source.readyState,
       settings: source.getSettings(),
-      processorName: this.videoProcessorEnabled ? this.processor.name : null,
+      processorName: this.videoProcessorEnabled ? this.processor?.name ?? null : null,
       processedTrackId: processed?.id ?? null,
       processedSettings: processed?.getSettings() ?? null,
       pipeline: this.pipeline(),

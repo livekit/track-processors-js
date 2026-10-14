@@ -127,3 +127,45 @@ export const FORBIDDEN_CONSOLE = [
   // #30 / #84 — the context leak becoming visible
   'too many active WebGL contexts',
 ];
+
+/**
+ * A2 — what an environment missing one of the four primitives has to look like.
+ *
+ * Strings rather than numbers, but the same rule applies: both were read off real runs
+ * (`?break=offscreencanvas|videoframe|createimagebitmap|webgl2` on headless Chrome 153 /
+ * macOS) rather than copied out of the source, so a reworded message fails here instead of
+ * quietly passing a `toContain` that no longer means anything.
+ *
+ * The case has two negative controls, both reproduced by a one-line edit rather than
+ * committed, since each asserts the bug rather than the fix:
+ *
+ * - Construct unconditionally in `Media`'s constructor instead of asking
+ *   `support.supported` first — i.e. #10. Every `?break=` load then dies during boot with
+ *   `body.dataset.bootError = "Background transformer is not supported in this browser"`,
+ *   no `window.harness` at all, and the attach button left enabled behind a blank panel. All
+ *   four A2 cases fail at `app.goto()`; A2b still passes, which is the point of having it.
+ * - Keep that guard but drop the `PROCESSOR_CONTROLS` disable loop in `ui.ts`. The boot
+ *   survives, and A2 fails on `toBeDisabled()` with `Received: enabled` — so the UI half of
+ *   the assertion has teeth of its own and is not carried by the construction guard.
+ */
+export const DEGRADED = {
+  /**
+   * Thrown by `BackgroundProcessor()` when `BackgroundTransformer.isSupported` is false.
+   *
+   * Observed verbatim from `harness.tryCreateProcessor()` with each of the four primitives
+   * removed in turn. It is a public, documented failure: an integration that calls the factory
+   * without asking `supportsBackgroundProcessors()` first gets this, which is how #10 and #38
+   * reached users as a white screen and an uncaught error.
+   */
+  TRANSFORMER_ERROR: 'Background transformer is not supported in this browser',
+  /**
+   * The start of the harness's own explanatory label, mirrored onto
+   * `document.body.dataset.processorUnsupportedReason`.
+   *
+   * Observed in full as "Background processing is unavailable in this browser: missing
+   * webgl2." and, with the other three removed, the same sentence naming `OffscreenCanvas`,
+   * `VideoFrame` or `createImageBitmap`. The spec asserts the missing primitive is named as
+   * well as the prefix, which is what makes the label explanatory rather than merely present.
+   */
+  REASON_PREFIX: 'Background processing is unavailable in this browser',
+};

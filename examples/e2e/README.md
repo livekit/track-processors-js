@@ -89,6 +89,7 @@ reloading, which matches how a real integration would.
 | Param | Default | Effect |
 | --- | --- | --- |
 | `fallback` | `0` | Removes the insertable-streams globals before boot, forcing the canvas path |
+| `break` | — | Takes away one primitive before boot — `offscreencanvas`, `videoframe`, `createimagebitmap` or `webgl2` — so the unsupported path can be driven here |
 | `delegate` | GPU | `segmenterOptions.delegate` — `CPU` or `GPU` |
 | `assets` | `cdn` | `local` points wasm and model at self-hosted copies |
 | `wasm` / `model` | CDN | Individual `assetPaths` overrides |
@@ -116,6 +117,12 @@ reloading, which matches how a real integration would.
 
 Reads `processor.processedTrack` through its own offscreen video element. It never reads the
 on-page preview, which is CSS-mirrored.
+
+`harness.support()` reports whether a processor can be built at all, and `?break=` is how a
+spec makes it say no. When it says no the app never calls `BackgroundProcessor()`: the
+processor controls are disabled and carry a reason, mirrored onto
+`document.body.dataset.processorSupported` / `.processorUnsupportedReason`.
+`harness.tryCreateProcessor()` calls the factory anyway and hands back what it threw.
 
 - `sample(opts)` → `FrameSample`: real `width`/`height`, a 64-bit average `hash`, per-region
   `blurEnergy` / `stdDev` / `edgeDensity` / `mean`, `backgroundMatchRatio`, `foregroundBox`.

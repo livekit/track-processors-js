@@ -37,7 +37,7 @@ Seventeen cases across eleven concerns.
 
 | Spec | IDs | Concern |
 | --- | --- | --- |
-| `capability.spec.ts` | A1, A1b, A3, A4 | Support predicates; both pipelines selected and working |
+| `capability.spec.ts` | A1, A1b, A2, A3, A4 | Support predicates; graceful degradation; both pipelines selected and working |
 | `lifecycle.spec.ts` | B1, B2 | Attach produces blurred frames; detach restores them |
 | `modes.spec.ts` | C1, C1b, C3 | Switching lands correctly, publishes no intermediate frame, and `disabled` is true passthrough |
 | `background.spec.ts` | D1, D5 | Image composited behind the subject; fetched once |
