@@ -5,11 +5,61 @@
  *
  */
 import { LoggerNames, getLogger } from '../logger';
+import { createAdaptiveMaskProgram } from './shader-programs/adaptiveMaskShader';
 import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
 import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
 import { createFramebuffer, createVertexBuffer, getEmptyImageData, initTexture, resizeImageToCover, resizeTexture } from './utils';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -33,7 +83,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   let maskBlurRadius: number | null = 12;
 
   const downsampleFactor = 4;
-  const maskBufferTargetEdge = 920;
+  const maskBufferTargetEdge = 640;
   // The segmentation mask is at most a few hundred pixels across, so feathering it at
   // full frame size only multiplies the box-blur cost. The mask buffers are kept near
   // this longest edge and the composite upsamples them with LINEAR filtering.
@@ -72,8 +122,21 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const boxBlurProgram = boxBlur.program;
   const boxBlurUniforms = boxBlur.uniforms;
 
+  // Dynamisches Temporal Smoothing
+  const adaptiveMask = createAdaptiveMaskProgram(gl);
+  const adaptiveMaskProgram = adaptiveMask.program;
+  const adaptiveMaskUniforms = adaptiveMask.uniforms;
+
   const bgTexture = initTexture(gl, 0);
   const frameTexture = initTexture(gl, 1);
+
+  // Zwei getrennte Kameraframes für die Bewegungserkennung
+  const motionFrameTextures = [initTexture(gl, 8), initTexture(gl, 9)];
+
+  let previousMotionIndex = 1;
+  let currentMotionIndex = 0;
+  let motionHistoryValid = false;
+
   const vertexBuffer = createVertexBuffer(gl);
 
   if (!vertexBuffer) {
@@ -145,6 +208,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       return;
     }
     maskHistoryValid = false;
+    motionHistoryValid = false;
     bufferWidth = canvas.width;
     bufferHeight = canvas.height;
     bgBlurTextureWidth = Math.floor(bufferWidth / downsampleFactor);
@@ -291,99 +355,123 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     backgroundImageDisabled = disabled;
   }
 
-  function updateMask(mask: WebGLTexture) {
-    // Same guard as renderFrame: cleanup() empties the arrays, a late segmentation callback must not touch them.
+  function updateMask(mask: WebGLTexture, frame: VideoFrame) {
     if (finalMaskTextures.length === 0) {
       return;
     }
+
     ensureBuffersMatchCanvas();
 
-    // Use the existing applyBlur function to apply the first blur pass
-    // The second blur pass will be written to finalMaskTextures[writeMaskIndex]
+    // Aktuellen Kameraframe in einer separaten Textur speichern
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[currentMotionIndex]);
 
-    // Create temporary arrays for the single blur operation
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+
+    // Bestehenden räumlichen Masken-Blur beibehalten
     const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
 
     const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
 
-    // Apply the blur using the existing function
     applyBlur(
       gl,
       mask,
       maskBufferWidth,
       maskBufferHeight,
-      // The radius is in mask-buffer texels, so scale it down with the buffer.
-      Math.max(1, Math.round((maskBlurRadius || 1.0) / maskDownsampleFactor)),
+      Math.max(1, Math.round((maskBlurRadius || 1) / maskDownsampleFactor)),
       boxBlurProgram,
       boxBlurUniforms,
       vertexBuffer!,
       tempFramebuffers,
       tempTextures,
     );
-    // Temporal Smoothing: 45 % alte Maske, 55 % neue Maske
-    if (maskHistoryValid) {
-      gl.bindFramebuffer(
-        gl.FRAMEBUFFER,
-        finalMaskFrameBuffers[writeMaskIndex],
-      );
+
+    // Dynamisches Temporal Smoothing
+    if (maskHistoryValid && motionHistoryValid) {
+      gl.disable(gl.BLEND);
+
+      // Separaten Puffer verwenden, damit nicht gleichzeitig
+      // dieselbe Textur gelesen und beschrieben wird
+      gl.bindFramebuffer(gl.FRAMEBUFFER, tempMaskFrameBuffer);
 
       gl.viewport(0, 0, maskBufferWidth, maskBufferHeight);
 
-      gl.useProgram(boxBlurProgram);
+      gl.useProgram(adaptiveMaskProgram);
       gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 
-      gl.vertexAttribPointer(
-        boxBlurUniforms.position,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0,
-      );
+      gl.vertexAttribPointer(adaptiveMaskUniforms.position, 2, gl.FLOAT, false, 0, 0);
 
-      gl.enableVertexAttribArray(boxBlurUniforms.position);
+      gl.enableVertexAttribArray(adaptiveMaskUniforms.position);
 
-      // Vorherige Maske lesen
+      // Vorherige geglättete Maske
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(
-        gl.TEXTURE_2D,
-        finalMaskTextures[readMaskIndex],
-      );
+      gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[readMaskIndex]);
+      gl.uniform1i(adaptiveMaskUniforms.previousMask, 0);
 
-      gl.uniform1i(boxBlurUniforms.texture, 0);
-      gl.uniform2f(
-        boxBlurUniforms.texelSize,
-        1 / maskBufferWidth,
-        1 / maskBufferHeight,
-      );
-      gl.uniform2f(boxBlurUniforms.direction, 1, 0);
-      gl.uniform1f(boxBlurUniforms.radius, 0);
+      // Neue Maske nach räumlichem Blur
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[writeMaskIndex]);
+      gl.uniform1i(adaptiveMaskUniforms.currentMask, 1);
 
-      gl.enable(gl.BLEND);
-      gl.blendColor(0, 0, 0, 0.45);
+      // Vorheriger Kameraframe
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[previousMotionIndex]);
+      gl.uniform1i(adaptiveMaskUniforms.previousFrame, 2);
 
-      gl.blendFunc(
-        gl.CONSTANT_ALPHA,
-        gl.ONE_MINUS_CONSTANT_ALPHA,
-      );
+      // Aktueller Kameraframe
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[currentMotionIndex]);
+      gl.uniform1i(adaptiveMaskUniforms.currentFrame, 3);
 
+      // Neue geglättete Maske berechnen
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      gl.disable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      // Ergebnis zurück in den Masken-Ping-Pong-Puffer
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, tempMaskFrameBuffer);
+
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, finalMaskFrameBuffers[writeMaskIndex]);
+
+      gl.blitFramebuffer(
+        0,
+        0,
+        maskBufferWidth,
+        maskBufferHeight,
+        0,
+        0,
+        maskBufferWidth,
+        maskBufferHeight,
+        gl.COLOR_BUFFER_BIT,
+        gl.NEAREST,
+      );
+
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     }
 
+    // Kameraframes tauschen
+    [previousMotionIndex, currentMotionIndex] = [currentMotionIndex, previousMotionIndex];
+
+    motionHistoryValid = true;
     maskHistoryValid = true;
-    // Swap indices for the next frame
+
+    // Maskenpuffer tauschen
     readMaskIndex = writeMaskIndex;
     writeMaskIndex = 1 - writeMaskIndex;
   }
+
 
   function cleanup() {
     gl.deleteProgram(compositeProgram);
     gl.deleteProgram(blurProgram);
     gl.deleteProgram(boxBlurProgram);
+    gl.deleteProgram(adaptiveMaskProgram);
+
+    gl.deleteShader(adaptiveMask.vertexShader);
+    gl.deleteShader(adaptiveMask.fragmentShader);
+
+    for (const texture of motionFrameTextures) {
+      gl.deleteTexture(texture);
+    }
     gl.deleteTexture(bgTexture);
     gl.deleteTexture(frameTexture);
     gl.deleteTexture(tempMaskTexture);

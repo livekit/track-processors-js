@@ -2,6 +2,10 @@ import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
 
+
+
+
+
 // Fragment shader source for compositing
 export const compositeFragmentShader = glsl`#version 300 es
   precision mediump float;
@@ -28,7 +32,13 @@ export const compositeFragmentShader = glsl`#version 300 es
       float edgeSoftness = 2.0; // higher = softer
 
       // Create a smooth edge around binary transition
-      float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
+     float halfWidth = max(0.015, grad * edgeSoftness);
+
+float smoothAlpha = smoothstep(
+  0.5 - halfWidth,
+  0.5 + halfWidth,
+  maskVal
+);
 
       // Optional: preserve frame alpha, or override as fully opaque
       vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);

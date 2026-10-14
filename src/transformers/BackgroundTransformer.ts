@@ -175,7 +175,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(result.confidenceMasks?.[0]);
+            this.updateMask(result.confidenceMasks?.[0], frame);
             result.close();
             resolve();
           });
@@ -228,8 +228,15 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.renderFrame(frame);
   }
 
-  private async updateMask(mask: vision.MPMask | undefined) {
+  private async updateMask(
+    mask: vision.MPMask | undefined,
+    frame: VideoFrame,
+  ) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture());
+
+    this.gl?.updateMask(
+      mask.getAsWebGLTexture(),
+      frame,
+    );
   }
 }
