@@ -198,7 +198,7 @@ export class Media implements MediaControl {
    * without changing mode, so C7 drives it directly.
    */
   async updateTransformerOptions(opts: TransformerOptionUpdate): Promise<TrackInfo | null> {
-    await this.processor.updateTransformerOptions(opts);
+    await this.requireProcessor().updateTransformerOptions(opts);
     this.emit();
     return this.info('video');
   }

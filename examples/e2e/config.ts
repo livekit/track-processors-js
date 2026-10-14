@@ -3,8 +3,6 @@ import type {
   BrokenPrimitive,
   CameraClock,
   Config,
-  CameraClock,
-  Config,
   LogLevelName,
   MotionKind,
   ProcessorMode,
