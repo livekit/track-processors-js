@@ -333,4 +333,41 @@ export const RESOLUTION_CHANGE = {
    * pixels, not the subject moving.
    */
   MAX_COVERAGE_DRIFT: 0.25,
+ * Mask stability, measured as the fraction of pixels whose foreground/background classification
+ * changes between two consecutive output frames (H2, issues #76 and #98).
+ *
+ * Measured at the probe's default 160px classification scale. The rate is a fraction rather than
+ * a count, so it is resolution-independent in that sense — but not scale-free: churn lives on
+ * the silhouette, whose share of the frame grows as resolution falls, so these numbers belong to
+ * that scale.
+ */
+export const SEGMENTATION = {
+  /**
+   * Observed **0.000% on all 59 transitions** — not a small number, an exact zero, and still
+   * exactly zero when the sweep is repeated at 320px and 640px and at tolerances of 20 and 100.
+   * Fed byte-identical input, mediapipe returns a byte-identical mask; the shimmer users report
+   * is the segmenter amplifying real sensor noise, not instability of its own.
+   *
+   * Set well above that and well below the control, so a regression that introduced any
+   * per-frame mask churn at all would be caught while ordinary noise would not trip it.
+   */
+  MAX_STATIC_FLIP_RATE: 0.002,
+  /** Worst single transition. Observed 0.000%; the moving control peaks at 1.188%. */
+  MAX_STATIC_PEAK_FLIP_RATE: 0.005,
+  /**
+   * The negative control, and the reason the zero above means anything: the same measurement
+   * under `motion=pan`, where the subject genuinely moves, observed 0.485-0.503% mean with a
+   * 1.188% peak and 21-23% of pixels flipping at least once. A measurement that could not
+   * report motion could not report flicker either.
+   */
+  MIN_MOVING_FLIP_RATE: 0.001,
+  /**
+   * The classifier has to have found a subject: at 0 or 1 the frame is uniform and a flip rate
+   * of zero says nothing. Observed 14.5-14.7% of the frame.
+   */
+  FOREGROUND_RATIO_MIN: 0.03,
+  FOREGROUND_RATIO_MAX: 0.8,
+  /** Frames to classify, and the transitions that must survive frame drops. Observed 59 of 59. */
+  SAMPLE_FRAMES: 60,
+  MIN_TRANSITIONS: 40,
 };
