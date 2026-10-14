@@ -2,7 +2,11 @@ import path from 'path';
 import { defineConfig, devices } from '@playwright/test';
 
 const ROOT = path.join(__dirname, '..');
-const PORT = 8081;
+/**
+ * Overridable so several checkouts can run at once without fighting over one dev server —
+ * a parallel worktree sets E2E_PORT and gets its own vite instance.
+ */
+const PORT = Number(process.env.E2E_PORT) || 8081;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 /**
@@ -74,7 +78,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'pnpm exec vite examples/e2e --host 127.0.0.1',
+    command: `pnpm exec vite examples/e2e --host 127.0.0.1 --port ${PORT} --strictPort`,
     cwd: ROOT,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
