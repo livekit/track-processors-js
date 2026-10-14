@@ -233,4 +233,50 @@ export const MUTE_RESTORE = {
    * records it in its failure message for exactly that reason.
    */
   MIN_PLATE_DISTANCE: 60,
+ * D4 — swapping one virtual background image for another.
+ *
+ * Classification reuses SWITCH.MATCH_TOLERANCE and SWITCH.ENERGY_TOLERANCE: the measurement is
+ * C1b's, taken at the same 96px recording scale against references from the same run.
+ */
+export const BACKGROUND_SWAP = {
+  /** bg-alt.png is flat #00FFFF, picked so it cannot be confused with bg-solid.png's #FF00FF. */
+  ALT_COLOR: { r: 0, g: 255, b: 255 },
+  /**
+   * How long the incoming image's response is held back while the swap is recorded.
+   *
+   * The delay is the case. Off the local dev server bg-alt.png arrives in a couple of
+   * milliseconds, and a flash confined to that window lands on no frame at all — which is why
+   * #105 was only ever reported from slow machines. With the bug reinstated and no delay the
+   * recording reads AAAAAABBBBBBBB, zero bad frames; at 800ms it reads
+   * AAAAAAAXXXXXXXXXXXXXXXXXXXXXXXBBBBBBBB.
+   *
+   * 800ms spans ~23 frames at 30fps, which is wide enough to be unambiguous and short enough
+   * that the case still runs in about four seconds.
+   */
+  IMAGE_DELAY_MS: 800,
+  /**
+   * Frames captured across the swap matching neither image.
+   *
+   * Zero, for the same reason SWITCH.MAX_UNCLASSIFIED_FRAMES is zero: the outgoing plate has to
+   * stay up until the incoming one is ready. Observed 0 of 39.
+   *
+   * The negative control is the #105 shape itself — clearing bgTexture to the empty placeholder
+   * in setBackgroundImage(null), so the plate is dropped when the swap is requested rather than
+   * when the new image lands. That gives 23 frames of bg=(255,255,255), the empty background
+   * showing through as white. Not committed, since it asserts that a bug exists.
+   *
+   * Driving the swap from the spec cannot produce it: clearing the image and re-setting it,
+   * or routing through background-blur in between, both still read 0, because the GL keeps the
+   * old plate in bgTexture and nothing overwrites it until the new crop is ready.
+   */
+  MAX_UNCLASSIFIED_FRAMES: 0,
+  /**
+   * Frames of the outgoing image before the new one lands.
+   *
+   * Guards against the opposite failure of a too-short measurement: if the response were served
+   * from cache, or the recording started late, the window the bug lives in would never have been
+   * covered and a clean timeline would prove nothing. Observed 31 of 39 with the delay applied,
+   * against 6 without it.
+   */
+  MIN_HELD_FRAMES: 10,
 };
