@@ -82,9 +82,10 @@ compositor is mandatory regardless. `?camsrc=<url>` remains as an escape hatch.
 ### The subject
 
 The default figure is drawn from primitives, so nothing has to be licensed or committed. It is
-detected by mediapipe, but less reliably than a real person. For segmentation-*quality* work,
-drop a cutout at `examples/e2e/public/subject.png` — it is picked up automatically. See
-`examples/e2e/public/CREDITS.md`.
+detected by mediapipe, but less reliably than a real person, since the selfie segmenter is
+trained on photographs. For segmentation-*quality* work, drop a PNG cutout with an alpha channel
+at `examples/e2e/public/subject.png` and it is picked up automatically, or pass `?subject=<url>`.
+Record the licence here if you commit one.
 
 ## Query parameters
 
