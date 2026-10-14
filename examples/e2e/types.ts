@@ -102,6 +102,8 @@ export interface EnvInfo {
   softwareRenderer: boolean;
   offscreenCanvas: boolean;
   videoFrame: boolean;
+  /** The fourth primitive BackgroundTransformer.isSupported reads. */
+  createImageBitmap: boolean;
   insertableStreams: boolean;
   requestVideoFrameCallback: boolean;
   canvasCaptureStream: boolean;

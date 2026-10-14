@@ -118,6 +118,7 @@ export class E2EHarness implements Harness {
       softwareRenderer,
       offscreenCanvas: typeof OffscreenCanvas !== 'undefined',
       videoFrame: typeof VideoFrame !== 'undefined',
+      createImageBitmap: typeof createImageBitmap !== 'undefined',
       insertableStreams:
         typeof MediaStreamTrackGenerator !== 'undefined' &&
         typeof MediaStreamTrackProcessor !== 'undefined',

@@ -4,26 +4,76 @@ import { attachProcessor, startCamera } from '../helpers';
 /**
  * A1, A3, A4 — which pipeline the library selects, and that both of them work.
  *
- * Support is inferred from the presence of four globals, and the choice between the
+ * Support is inferred from the presence of a handful of globals, and the choice between the
  * insertable-streams path and the canvas.captureStream fallback follows from two of them. These
  * assertions are cheap, and they fail loudly if the environment changes underneath every other
  * spec rather than letting those fail obscurely.
  */
+
+/**
+ * What each browser is expected to report.
+ *
+ * Only entries confirmed by a real run belong here. A project with no entry fails rather than
+ * inheriting Chrome's answers: these flags decide which pipeline the library picks, so a new
+ * target has to have them observed rather than assumed. Safari is the interesting case — no
+ * insertable streams, so `hasModernApiSupport` is false and the fallback becomes the live path
+ * rather than something A3 has to force.
+ */
+const EXPECTED_CAPABILITIES: Record<string, Record<string, boolean>> = {
+  chrome: {
+    transformerSupported: true,
+    processorSupported: true,
+    hasModernApiSupport: true,
+    webgl2: true,
+    offscreenCanvas: true,
+    videoFrame: true,
+    createImageBitmap: true,
+    insertableStreams: true,
+    canvasCaptureStream: true,
+  },
+};
+
 test.describe('capability detection', () => {
-  test('A1: Chrome reports full modern support', async ({ app }) => {
+  test('A1: the browser reports the capabilities this suite was calibrated against', async ({
+    app,
+  }, testInfo) => {
+    await app.goto();
+
+    const env = await app.page.evaluate(() => window.harness.env());
+    const expected = EXPECTED_CAPABILITIES[testInfo.project.name];
+    expect(
+      expected,
+      `no capability matrix for project "${testInfo.project.name}". Add one observed from a real run on that browser rather than assuming Chrome's.`,
+    ).toBeDefined();
+
+    for (const [capability, value] of Object.entries(expected)) {
+      expect(env[capability as keyof typeof env], capability).toBe(value);
+    }
+
+    // The probe counts presented frames with it, so a run without it would silently measure
+    // less. Required on every target, which is why it sits outside the per-browser matrix.
+    expect(env.requestVideoFrameCallback, 'requestVideoFrameCallback').toBe(true);
+  });
+
+  /**
+   * The predicates are derived values, and this pins them to the primitives they are derived
+   * from. It holds on any browser, so it needs no matrix entry — and it is what would catch the
+   * library's support checks drifting out of step with the environment on a new target.
+   */
+  test('A1b: the support predicates follow from the underlying primitives', async ({ app }) => {
     await app.goto();
 
     const env = await app.page.evaluate(() => window.harness.env());
 
-    expect(env.transformerSupported, 'BackgroundTransformer.isSupported').toBe(true);
-    expect(env.processorSupported, 'ProcessorWrapper.isSupported').toBe(true);
-    expect(env.hasModernApiSupport, 'ProcessorWrapper.hasModernApiSupport').toBe(true);
-    expect(env.webgl2).toBe(true);
-    expect(env.offscreenCanvas).toBe(true);
-    expect(env.videoFrame).toBe(true);
-    expect(env.insertableStreams).toBe(true);
-    // The probe's frame counting depends on this; a run without it would silently measure less.
-    expect(env.requestVideoFrameCallback).toBe(true);
+    expect(env.transformerSupported, 'BackgroundTransformer.isSupported').toBe(
+      env.offscreenCanvas && env.videoFrame && env.createImageBitmap && env.webgl2,
+    );
+    expect(env.hasModernApiSupport, 'ProcessorWrapper.hasModernApiSupport').toBe(
+      env.insertableStreams,
+    );
+    expect(env.processorSupported, 'ProcessorWrapper.isSupported').toBe(
+      env.hasModernApiSupport || env.canvasCaptureStream,
+    );
   });
 
   test('A4: the modern path adds no canvas to the document', async ({ app }) => {

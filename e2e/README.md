@@ -33,11 +33,11 @@ Chrome only for now. Firefox, WebKit and BrowserStack devices need their own cal
 
 ## What's covered
 
-Sixteen cases across eleven concerns. IDs match the coverage plan.
+Seventeen cases across eleven concerns. IDs match the coverage plan.
 
 | Spec | IDs | Concern |
 | --- | --- | --- |
-| `capability.spec.ts` | A1, A3, A4 | Support predicates; both pipelines selected and working |
+| `capability.spec.ts` | A1, A1b, A3, A4 | Support predicates; both pipelines selected and working |
 | `lifecycle.spec.ts` | B1, B2 | Attach produces blurred frames; detach restores them |
 | `modes.spec.ts` | C1, C1b, C3 | Switching lands correctly, publishes no intermediate frame, and `disabled` is true passthrough |
 | `background.spec.ts` | D1, D5 | Image composited behind the subject; fetched once |
