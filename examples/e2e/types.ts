@@ -329,6 +329,24 @@ export interface FakeMicControl {
   setAmplitude(a: number): void;
   /** Measures the published audio track. Returns silence-level rms if nothing is flowing. */
   level(windowMs?: number): Promise<{ rms: number; peak: number; dominantHz: number }>;
+  /**
+   * Rejects when the oscillator's AudioContext is not running.
+   *
+   * WebKit and iOS suspend an AudioContext until a user gesture, which makes every level()
+   * read silent. Audio specs call this first so that failure says so rather than looking like
+   * a gain bug.
+   */
+  assertRunning(): Promise<void>;
+}
+
+/** What `FakeMicControl.level()` returns. Named so specs can hold a measurement in a variable. */
+export interface AudioLevel {
+  /** Root-mean-square amplitude over the window, 0..1. */
+  rms: number;
+  /** Largest absolute sample in the window, 0..1. Above 1.0 would mean clipping. */
+  peak: number;
+  /** Centre frequency of the loudest FFT bin. 2048-point FFT, so bins are ~23 Hz apart. */
+  dominantHz: number;
 }
 
 export interface StartVideoOptions {
