@@ -104,6 +104,7 @@ reloading, which matches how a real integration would.
 | `wasm` / `model` | CDN | Individual `assetPaths` overrides |
 | `maxfps` | `30` | `ProcessorWrapperOptions.maxFps` |
 | `api` | `modern` | `legacy` routes through the deprecated `BackgroundBlur()` / `VirtualBackground()` |
+| `loglevel` | library default | `setLogLevel` before the processor is built, plus `harness.libraryLogs()` |
 | `attach` | `set` | `capture` routes through `createLocalVideoTrack({ processor })` |
 | `mode` | `background-blur` | Initial mode |
 | `blur` | `10` | Blur radius |
@@ -172,6 +173,14 @@ await harness.room.connect(url, token);
 await harness.room.publish();
 const { fps, framesEncodedDelta } = await harness.room.measure(5000);
 ```
+
+### `libraryLogs` — what the library itself said
+
+Only populated when the page was loaded with `?loglevel=`, which is what installs the library's
+`setLogExtension` hook. Use it rather than scraping the console: loglevel binds `console.error`
+and friends directly, so a library line carries no logger name and cannot be told apart from one
+livekit-client or the harness wrote. Each record is `{ level, levelName, msg }`, with `level` the
+numeric `LogLevel` the hook was handed.
 
 ### `counters` — leaks
 

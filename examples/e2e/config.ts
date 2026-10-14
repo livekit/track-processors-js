@@ -3,6 +3,9 @@ import type {
   BrokenPrimitive,
   CameraClock,
   Config,
+  CameraClock,
+  Config,
+  LogLevelName,
   MotionKind,
   ProcessorMode,
 } from './types';
@@ -39,6 +42,11 @@ const BREAKABLE = [
 
 function oneOf<T extends string>(raw: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(raw as T) ? (raw as T) : fallback;
+}
+
+/** Like `oneOf`, but an absent or unrecognised value means "leave it alone" rather than a default. */
+function optionalOneOf<T extends string>(raw: string | null, allowed: readonly T[]): T | undefined {
+  return allowed.includes(raw as T) ? (raw as T) : undefined;
 }
 
 function num(raw: string | null, fallback: number): number {
@@ -81,6 +89,10 @@ export function parseConfig(search: string = window.location.search): Config {
     assetPaths,
     maxFps: p.has('maxfps') ? num(p.get('maxfps'), 30) : undefined,
     api: oneOf(p.get('api'), ['modern', 'legacy'] as const, 'modern'),
+    logLevel: optionalOneOf(
+      p.get('loglevel'),
+      ['trace', 'debug', 'info', 'warn', 'error', 'silent'] as const satisfies readonly LogLevelName[],
+    ),
     attach: oneOf(p.get('attach'), ['set', 'capture'] as const, 'set'),
     mode: oneOf(
       p.get('mode'),
