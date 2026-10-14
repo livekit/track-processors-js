@@ -3,6 +3,8 @@
   "version": "0.8.2",
   "description": "LiveKit track processors",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "source": "src/index.ts",
   "types": "dist/src/index.d.ts",
   "repository": {
     "type": "git",
