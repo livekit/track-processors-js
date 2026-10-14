@@ -17,6 +17,7 @@ import type {
   ReportedMode,
   StartVideoOptions,
   TrackInfo,
+  TransformerOptionUpdate,
 } from './types';
 
 /**
@@ -184,6 +185,20 @@ export class Media implements MediaControl {
     this.config = { ...this.config, blurRadius: radius };
     await this.requireProcessor().switchTo({ mode: 'background-blur', blurRadius: radius });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
+    this.emit();
+    return this.info('video');
+  }
+
+  /**
+   * Hands options to the transformer exactly as given, bypassing `switchTo()`.
+   *
+   * `switchTo()` fills in a default blur radius and picks the image path out of the config, so
+   * it cannot express `blurRadius: 0` or `imagePath: undefined` — the falsy values #37 was
+   * about. This is the API a real integration reaches for when it wants to clear an effect
+   * without changing mode, so C7 drives it directly.
+   */
+  async updateTransformerOptions(opts: TransformerOptionUpdate): Promise<TrackInfo | null> {
+    await this.processor.updateTransformerOptions(opts);
     this.emit();
     return this.info('video');
   }

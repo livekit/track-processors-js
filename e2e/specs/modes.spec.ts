@@ -10,7 +10,7 @@ import {
   startCamera,
   switchMode,
 } from '../helpers';
-import { PASSTHROUGH, SWITCH, VIRTUAL_BACKGROUND } from '../thresholds';
+import { BLUR, FALSY_OPTIONS, PASSTHROUGH, SWITCH, VIRTUAL_BACKGROUND } from '../thresholds';
 
 const BUTTON: Record<ProcessorMode, string> = {
   'background-blur': '[data-testid="switch-blur"]',
@@ -199,4 +199,104 @@ test.describe('mode switching', () => {
       expect(revertedAt, `treatment reverted after switching\n${diagnostics}`).toBe(-1);
     });
   }
+
+  /**
+   * C7 — a falsy option value is an instruction, not a missing argument.
+   *
+   * #37: option updates were merged behind `if (opts.x)` style guards, so `blurRadius: 0` and
+   * `imagePath: undefined` were indistinguishable from "caller said nothing about this" and the
+   * effect stayed on. Both are the only way to turn an effect off without changing mode, and
+   * both go through `updateTransformerOptions` — which is why these drive that call directly
+   * rather than a button: `switchTo()`, and every control built on it, substitutes a default for
+   * anything a mode leaves out and so can never carry a falsy value through.
+   */
+  test('C7: blurRadius 0 clears the blur', async ({ app }) => {
+    /**
+     * Currently broken, in a different way than #37 described.
+     *
+     * `blurRadius: 0` now reaches the GL layer — `setBlurRadius(0)` stores null, since zero is
+     * falsy there too — but nothing then puts the camera back behind the subject: the composite
+     * keeps using the (cleared) background texture, so the output is the subject over black.
+     * Measured bg energy 0.0030 against a raw 0.0700, i.e. flatter than the blur it replaced.
+     *
+     * So the assertion below is what the API promises, and Playwright will report this test as
+     * unexpectedly passing once that is fixed — which is the signal to drop this annotation.
+     */
+    test.fail();
+
+    const { page } = app;
+    await app.goto({ backdrop: 'checker', motion: 'static' });
+    await startCamera(page);
+
+    // Before attaching: `setProcessor` swaps the track's own mediaStreamTrack for the processed
+    // one, so once a processor is running the 'source' probe reads the treated frame too.
+    const source = await sampleSource(page);
+
+    await attachProcessor(page);
+    await sampleStable(page);
+    const blurred = await sampleProcessed(page);
+
+    // Precondition: the blur is on, or "clearing it" would assert nothing.
+    const reduction = 1 - blurred.regions.bg.blurEnergy / source.regions.bg.blurEnergy;
+    expect(
+      reduction,
+      `blur never took effect: ${blurred.regions.bg.blurEnergy.toFixed(4)}`,
+    ).toBeGreaterThan(BLUR.MIN_REDUCTION);
+
+    await page.evaluate(() => window.harness.media.updateTransformerOptions({ blurRadius: 0 }));
+    await page.evaluate(() => window.harness.probe.waitForFrames(10, 25_000));
+    await sampleStable(page);
+    const cleared = await sampleProcessed(page);
+
+    const ratio = cleared.regions.bg.blurEnergy / source.regions.bg.blurEnergy;
+    expect(
+      ratio,
+      `radius 0 did not restore the camera background: source ${source.regions.bg.blurEnergy.toFixed(4)}, ` +
+        `blurred ${blurred.regions.bg.blurEnergy.toFixed(4)}, cleared ${cleared.regions.bg.blurEnergy.toFixed(4)}`,
+    ).toBeGreaterThan(FALSY_OPTIONS.CLEARED_ENERGY_RATIO_MIN);
+  });
+
+  test('C7b: imagePath undefined clears the virtual background', async ({ app }) => {
+    const { page } = app;
+    await app.goto({ backdrop: 'checker', motion: 'static' });
+    await startCamera(page);
+
+    // Sampled before attaching, for the reason given in C7 above.
+    const source = await sampleSource(page);
+
+    await attachProcessor(page);
+    await switchMode(page, 'virtual-background');
+    await sampleStable(page);
+
+    const expectPlate = { ...VIRTUAL_BACKGROUND.COLOR, tolerance: VIRTUAL_BACKGROUND.TOLERANCE };
+    const composited = await sampleProcessed(page, expectPlate);
+
+    // Precondition, as above: the plate has to be there before clearing it means anything.
+    expect(composited.backgroundMatchRatio).not.toBeNull();
+    expect(composited.backgroundMatchRatio!).toBeGreaterThan(VIRTUAL_BACKGROUND.MATCH_RATIO_MIN);
+
+    await page.evaluate(() =>
+      window.harness.media.updateTransformerOptions({ imagePath: undefined }),
+    );
+    await page.evaluate(() => window.harness.probe.waitForFrames(10, 25_000));
+    await sampleStable(page);
+    const cleared = await sampleProcessed(page, expectPlate);
+
+    const report =
+      `plate match ${composited.backgroundMatchRatio!.toFixed(3)} -> ${cleared.backgroundMatchRatio!.toFixed(3)}, ` +
+      `bg energy source ${source.regions.bg.blurEnergy.toFixed(4)}, ` +
+      `composited ${composited.regions.bg.blurEnergy.toFixed(4)}, cleared ${cleared.regions.bg.blurEnergy.toFixed(4)}`;
+
+    expect(cleared.backgroundMatchRatio!, `the plate is still there: ${report}`).toBeLessThan(
+      FALSY_OPTIONS.CLEARED_MATCH_RATIO_MAX,
+    );
+
+    // The plate being gone is not the same as the camera being back: a black or frozen frame
+    // would also stop matching magenta. The checker detail returning is what says the background
+    // is camera content again.
+    const ratio = cleared.regions.bg.blurEnergy / source.regions.bg.blurEnergy;
+    expect(ratio, `the camera background did not return: ${report}`).toBeGreaterThan(
+      FALSY_OPTIONS.CLEARED_ENERGY_RATIO_MIN,
+    );
+  });
 });

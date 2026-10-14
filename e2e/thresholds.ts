@@ -116,6 +116,30 @@ export const SWITCH = {
   MIN_FRAMES_EACH_SIDE: 3,
 };
 
+/**
+ * Clearing an effect by handing `updateTransformerOptions` a falsy value — #37.
+ *
+ * Both numbers are about the same thing: after `blurRadius: 0` or `imagePath: undefined` the
+ * background must be camera content again, not a treated or blank plate.
+ */
+export const FALSY_OPTIONS = {
+  /**
+   * Background energy after clearing, as a fraction of the same background unprocessed.
+   *
+   * Observed 0.83 (0.0579 of a raw 0.0700) once the effect is genuinely gone — the shortfall is
+   * the encode hop, not a residual effect. Three negative controls sit well below it: a blur
+   * that stayed on measures 0.24, `blurRadius: 0` on the library as it stands measures 0.04
+   * (it blanks the background to black rather than restoring it — see C7), and a virtual
+   * background that stayed up measures 0.02.
+   */
+  CLEARED_ENERGY_RATIO_MIN: 0.6,
+  /**
+   * And no trace of the virtual background plate may remain. Observed 0.000, against 0.994 with
+   * the plate still composited, which is what reintroducing #37's guard on `imagePath` produces.
+   */
+  CLEARED_MATCH_RATIO_MAX: 0.1,
+};
+
 /** Strings that must never appear in the console. Each one is a filed issue. */
 export const FORBIDDEN_CONSOLE = [
   // #47 — logged when the blur effect is stopped
