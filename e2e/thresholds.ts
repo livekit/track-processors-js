@@ -495,4 +495,63 @@ export const DEVICE_SWITCH = {
    */
   MATCH_TOLERANCE: 30,
   ENERGY_TOLERANCE: 0.02,
+ * M1 — what the library is allowed to say at a given log level. Guards #106 and #109.
+ *
+ * Categorical rather than numeric: the assertion is which records exist, not how large a
+ * measurement is, so there is nothing here to recalibrate per target. The one number,
+ * `ERROR_LEVEL`, is the `LogLevel` enum value from src/logger.ts rather than an observation.
+ */
+export const LOGGING = {
+  /** `LogLevel.error`. Nothing below it may survive `setLogLevel('error')`. */
+  ERROR_LEVEL: 4,
+  /**
+   * The error `BackgroundTransformer.init()` logs when the background image will not load.
+   *
+   * The cheapest reproducible library error there is, and the only image one that is *logged*:
+   * `init()` catches the rejection and logs it, where `update()` — the `switchTo` path —
+   * propagates it to the caller and logs nothing. Observed exactly once per forced failure, at
+   * level 4, with no other record in the same run.
+   */
+  IMAGE_LOAD_ERROR: 'Error while loading processor background image',
+  /**
+   * A below-error record every attach produces (`ProcessorWrapper.init`).
+   *
+   * The same forced failure yields 4 records at `?loglevel=debug` — `Init called`, `Media was
+   * exhausted from source`, `stream processor underlying stream closed`, plus the image error —
+   * against 1 at `error` and 0 at `silent`. That spread is what gives "nothing below error"
+   * something to suppress; without it the assertion would hold on a run with nothing to say.
+   */
+  INIT_DEBUG: 'Init called',
+  /**
+   * Every string the library can write to the console, from `grep -n 'log\.' src/`.
+   *
+   * Needed because loglevel binds `console.error` and friends directly: the line carries no
+   * logger name, so a library record is indistinguishable from one livekit-client or the
+   * harness wrote except by its text. This is the check that is independent of the
+   * `setLogExtension` capture — a mis-wired hook could agree with itself, but it could not also
+   * keep the console clean.
+   */
+  LIBRARY_CONSOLE_TEXT: [
+    'Init called',
+    'Restart called',
+    'Destroy called',
+    'Media was exhausted from source',
+    'stream processor path aborted',
+    'stream processor underlying stream closed',
+    'error when trying to pipe',
+    'Error in transform:',
+    'Error in render loop:',
+    'Video is paused, trying to play',
+    'Unable to play video',
+    'Estimated video FPS',
+    'empty frame detected, ignoring',
+    'Error while loading processor background image',
+    'Error while processing frame:',
+    'Error processing background image, falling back to black background:',
+    'Shader compile failed:',
+    'Program link failed:',
+    'Failed to create WebGL context',
+    'Frame ticker worker could not be created',
+    'Frame ticker worker failed',
+  ],
 };

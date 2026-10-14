@@ -1,6 +1,7 @@
 import { parseConfig } from './config';
 import { E2EHarness } from './harness';
 import { installMocks } from './install';
+import { installLogCapture } from './logCapture';
 import { Media } from './media';
 import { startPanel } from './panel';
 import { recordFrame } from './stats';
@@ -13,6 +14,11 @@ async function boot() {
   // Called rather than relying on an import side effect, so prettier's import sorting can't
   // silently move it.
   const camera = await installMocks(config);
+
+  // Before `new Media`, which constructs the processor: BackgroundTransformer resolves its
+  // logger in its own constructor, so a level applied afterwards would be testing a different
+  // thing than an integration that configures logging at startup.
+  installLogCapture(config);
 
   const media = new Media(config, recordFrame);
   const harness = new E2EHarness(config, camera, media);

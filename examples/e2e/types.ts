@@ -27,6 +27,25 @@ export type ReportedMode = ProcessorMode | 'legacy' | 'off';
 
 export type PipelinePath = 'insertable-streams' | 'canvas-fallback' | 'none';
 
+/** The level names the library's `setLogLevel` accepts, in ascending severity. */
+export type LogLevelName = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent';
+
+/**
+ * One record the library emitted through its own `setLogExtension` hook.
+ *
+ * Identified by origin rather than by scraping the console: loglevel binds `console.error` and
+ * friends directly, so a library line carries no logger name and is indistinguishable from one
+ * livekit-client or the page wrote. `setLogExtension` is the library's documented sink for its
+ * internal records, which makes it the only precise answer to "what did the *library* log".
+ */
+export interface LibraryLogRecord {
+  /** Numeric `LogLevel`, exactly as the `LogExtension` signature delivers it. */
+  level: number;
+  /** The same level by name, so a failure message is readable. */
+  levelName: string;
+  msg: string;
+}
+
 export type BackdropKind = 'flat' | 'checker' | 'gradient';
 
 export type MotionKind = 'static' | 'pan' | 'wave';
@@ -59,6 +78,13 @@ export interface Config {
   maxFps?: number;
   /** `legacy` builds through the deprecated BackgroundBlur()/VirtualBackground() factories. */
   api: 'modern' | 'legacy';
+  /**
+   * Level handed to the library's `setLogLevel` before the processor is constructed, plus the
+   * record capture that goes with it. A parameter rather than a method because
+   * `BackgroundTransformer` resolves its logger in its constructor, which `Media` runs at boot.
+   * Absent means the page leaves the library's logging alone.
+   */
+  logLevel?: LogLevelName;
   /** `capture` passes the processor through VideoCaptureOptions instead of setProcessor. */
   attach: 'set' | 'capture';
   mode: ProcessorMode;
@@ -464,6 +490,9 @@ export interface Harness {
   logs(): string[];
   lastError(): string | null;
   clearLogs(): void;
+  /** Records the library emitted through `setLogExtension`. Empty unless `?loglevel=` was set. */
+  libraryLogs(): LibraryLogRecord[];
+  clearLibraryLogs(): void;
 
   stats(): ProcessorStatsSnapshot;
   resetStats(): void;

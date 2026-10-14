@@ -2,6 +2,7 @@ import { BackgroundTransformer, ProcessorWrapper } from '../../src';
 import { readCounters } from './counters';
 import type { FakeCamera } from './fakeCamera';
 import { fakeMic } from './fakeMic';
+import { clearLibraryLogRecords, libraryLogRecords } from './logCapture';
 import { Media } from './media';
 import { tryCreateBackgroundProcessor } from './processors';
 import { Probe } from './probe';
@@ -93,6 +94,19 @@ export class E2EHarness implements Harness {
   clearLogs() {
     this.lines = [];
     this.error = null;
+  }
+
+  /**
+   * What the *library* logged, as opposed to what the harness or livekit-client logged.
+   *
+   * Empty unless the page was loaded with `?loglevel=`, which is what installs the hook.
+   */
+  libraryLogs() {
+    return libraryLogRecords();
+  }
+
+  clearLibraryLogs() {
+    clearLibraryLogRecords();
   }
 
   private captureErrors() {
