@@ -1,4 +1,5 @@
 import type {
+  FrameDiff,
   FrameFingerprint,
   FrameSample,
   ProbeControl,
@@ -47,6 +48,8 @@ export class Probe implements ProbeControl {
   private recordCtx: CanvasRenderingContext2D;
 
   private recorded: FrameFingerprint[] | null = null;
+
+  private reference: { data: Uint8ClampedArray; width: number; height: number } | null = null;
 
   private recordOpts: Required<Pick<RecordOptions, 'maxFrames' | 'maxDimension'>> &
     Pick<RecordOptions, 'regions'> = {
@@ -200,7 +203,8 @@ export class Probe implements ProbeControl {
 
   // ------------------------------------------------------------------ sampling
 
-  async sample(opts: ProbeOptions = {}): Promise<FrameSample> {
+  /** Bind, draw the current frame to the sampling canvas and hand back its pixels. */
+  private async readFrame(opts: ProbeOptions = {}) {
     await this.bind(opts.source ?? 'processed');
 
     const srcW = this.video.videoWidth;
@@ -214,6 +218,12 @@ export class Probe implements ProbeControl {
     this.canvas.height = h;
     this.ctx.drawImage(this.video, 0, 0, w, h);
     const { data } = this.ctx.getImageData(0, 0, w, h);
+
+    return { data, w, h, srcW, srcH };
+  }
+
+  async sample(opts: ProbeOptions = {}): Promise<FrameSample> {
+    const { data, w, h, srcW, srcH } = await this.readFrame(opts);
 
     const fg = opts.regions?.fg ?? this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
     const bg = opts.regions?.bg;
@@ -269,6 +279,57 @@ export class Probe implements ProbeControl {
     throw new Error(
       `Only ${this.presented - start} of ${count} frames arrived in ${timeoutMs}ms`,
     );
+  }
+
+  // ------------------------------------------------------------------ reference diffing
+
+  /**
+   * Grab the current frame as the reference for later `diffFromReference` calls.
+   *
+   * Only one reference is held; capturing again replaces it.
+   */
+  async captureReference(opts: ProbeOptions = {}) {
+    const { data, w, h } = await this.readFrame(opts);
+    // Copy: getImageData hands back a view that the next draw would overwrite.
+    this.reference = { data: new Uint8ClampedArray(data), width: w, height: h };
+    return { width: w, height: h };
+  }
+
+  async diffFromReference(opts: ProbeOptions & { tolerance?: number } = {}): Promise<FrameDiff> {
+    const reference = this.reference;
+    if (!reference) throw new Error('No reference captured. Call captureReference() first.');
+
+    const { data, w, h } = await this.readFrame(opts);
+    if (w !== reference.width || h !== reference.height) {
+      throw new Error(
+        `Frame is ${w}x${h} but the reference is ${reference.width}x${reference.height}; they cannot be compared`,
+      );
+    }
+
+    const tolerance = opts.tolerance ?? DEFAULT_TOLERANCE;
+    let sum = 0;
+    let max = 0;
+    let matching = 0;
+    const pixels = w * h;
+
+    for (let i = 0; i < pixels; i += 1) {
+      const o = i * 4;
+      const dr = Math.abs(data[o] - reference.data[o]);
+      const dg = Math.abs(data[o + 1] - reference.data[o + 1]);
+      const db = Math.abs(data[o + 2] - reference.data[o + 2]);
+      sum += dr + dg + db;
+      const worst = Math.max(dr, dg, db);
+      if (worst > max) max = worst;
+      if (worst <= tolerance) matching += 1;
+    }
+
+    return {
+      meanAbsDiff: pixels ? sum / (pixels * 3) : 0,
+      maxAbsDiff: max,
+      matchingPixelRatio: pixels ? matching / pixels : 0,
+      width: w,
+      height: h,
+    };
   }
 
   async waitForStable(opts: { timeoutMs?: number; intervalMs?: number } = {}) {

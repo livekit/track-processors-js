@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { FrameSample, ProcessorMode, Rgb } from '../examples/e2e/types';
+import type { FrameDiff, FrameSample, ProcessorMode, Rgb } from '../examples/e2e/types';
 import type {} from '../examples/e2e/types';
 
 /**
@@ -41,6 +41,19 @@ export async function sampleProcessed(page: Page, expectBackground?: Rgb & { tol
     (expect) => window.harness.probe.sample(expect ? { expectBackground: expect } : {}),
     expectBackground ?? null,
   );
+}
+
+/** Store the current frame as the baseline for `diffFromReference`. */
+export async function captureReference(page: Page, source: 'processed' | 'source' = 'source') {
+  return page.evaluate((src) => window.harness.probe.captureReference({ source: src }), source);
+}
+
+/** Compare the current frame against the stored reference. */
+export async function diffFromReference(
+  page: Page,
+  source: 'processed' | 'source' = 'processed',
+): Promise<FrameDiff> {
+  return page.evaluate((src) => window.harness.probe.diffFromReference({ source: src }), source);
 }
 
 export async function snapshot(page: Page) {

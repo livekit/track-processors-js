@@ -1,5 +1,12 @@
 import { expect, test } from '../fixtures';
-import { sampleProcessed, sampleSource, sampleStable, startCamera } from '../helpers';
+import {
+  captureReference,
+  diffFromReference,
+  sampleProcessed,
+  sampleSource,
+  sampleStable,
+  startCamera,
+} from '../helpers';
 import { BLUR } from '../thresholds';
 
 /**
@@ -53,6 +60,9 @@ test.describe('processor lifecycle', () => {
 
     await startCamera(page);
     const raw = await sampleSource(page);
+    // The frame to come back to. `motion: 'static'` makes the camera deterministic, so after
+    // detaching, the output should be this frame again rather than merely something like it.
+    await captureReference(page, 'source');
 
     await page.click('[data-testid="attach-processor"]');
     await page.waitForFunction(() => window.harness.snapshot().videoProcessorEnabled === true);
@@ -70,6 +80,18 @@ test.describe('processor lifecycle', () => {
       ratio,
       `background energy after detach ${restored.regions.bg.blurEnergy.toFixed(4)} vs raw ${raw.regions.bg.blurEnergy.toFixed(4)}`,
     ).toBeGreaterThan(BLUR.RESTORED_RATIO_MIN);
+
+    // Energy alone only says the detail came back, not that the *same* image did: a frame that
+    // kept the blur but regained detail elsewhere would pass it. Compare against the frame
+    // captured before attaching.
+    const diff = await diffFromReference(page, 'processed');
+    const report = `mean ${diff.meanAbsDiff.toFixed(2)}, max ${diff.maxAbsDiff}, matching ${(diff.matchingPixelRatio * 100).toFixed(2)}%`;
+    expect(diff.matchingPixelRatio, `pixels unchanged after detach: ${report}`).toBeGreaterThan(
+      BLUR.RESTORED_PIXEL_RATIO_MIN,
+    );
+    expect(diff.meanAbsDiff, `mean pixel difference after detach: ${report}`).toBeLessThan(
+      BLUR.RESTORED_MEAN_DIFF_MAX,
+    );
 
     // And the track is still live — a detach that stops the camera would also "restore" energy.
     const snapshot = await page.evaluate(() => window.harness.snapshot());

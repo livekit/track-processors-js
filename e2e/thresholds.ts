@@ -19,6 +19,16 @@ export const BLUR = {
    */
   RESTORED_RATIO_MIN: 0.7,
   /**
+   * And the frame itself must be the one from before the processor was attached, not merely one
+   * with comparable energy.
+   *
+   * Observed 99.90% of pixels unchanged at a mean difference of 1.49/255. The negative control
+   * is the same comparison taken while the blur is still attached, which gives 62.87% and 10.43
+   * — so these sit with a wide margin on both sides.
+   */
+  RESTORED_PIXEL_RATIO_MIN: 0.98,
+  RESTORED_MEAN_DIFF_MAX: 5,
+  /**
    * Segmentation is working when the subject stays sharper than the background it sits on.
    * Observed fg 0.028 vs bg 0.017.
    */

@@ -173,6 +173,24 @@ export interface FrameSample {
 }
 
 /**
+ * A pixel-level comparison of the current frame against a stored reference.
+ *
+ * Region energy says a frame is *as detailed as* the reference; this says it is *the same
+ * frame*. Used for passthrough and detach, where the output should be the input rather than
+ * merely something with the same statistics.
+ */
+export interface FrameDiff {
+  /** Mean per-channel absolute difference over all pixels, 0-255. */
+  meanAbsDiff: number;
+  /** Largest per-channel absolute difference at any single pixel, 0-255. */
+  maxAbsDiff: number;
+  /** Fraction of pixels whose every channel is within `tolerance`. */
+  matchingPixelRatio: number;
+  width: number;
+  height: number;
+}
+
+/**
  * A cheap per-frame fingerprint, captured on every presented frame while recording.
  *
  * Deliberately far smaller than a FrameSample: this runs inside the requestVideoFrameCallback
@@ -337,6 +355,16 @@ export interface ProbeControl {
   startRecording(opts?: RecordOptions): Promise<void>;
   stopRecording(): FrameFingerprint[];
   isRecording(): boolean;
+
+  /**
+   * Store the current frame to compare later frames against.
+   *
+   * Captured at the same scale the diff uses, so source and processed frames stay comparable as
+   * long as the track dimensions match — which E1 asserts separately.
+   */
+  captureReference(opts?: ProbeOptions): Promise<{ width: number; height: number }>;
+  /** Compare the current frame against the stored reference. */
+  diffFromReference(opts?: ProbeOptions & { tolerance?: number }): Promise<FrameDiff>;
 }
 
 export interface RoomControl {

@@ -131,6 +131,11 @@ on-page preview, which is CSS-mirrored.
 - `waitForStable()` — resolves once two consecutive samples hash-match. Call it before any
   pixel assertion.
 - `expectedForegroundBox()` — compositor ground truth.
+- `captureReference(opts)` / `diffFromReference(opts)` → `FrameDiff`: store a frame, then
+  compare a later one against it pixel by pixel, giving `meanAbsDiff`, `maxAbsDiff` and
+  `matchingPixelRatio`. Region energy says a frame is *as detailed as* the reference; this says
+  it is *the same frame*, which is what detach and passthrough actually need to assert. Both
+  sides must be the same size, so capture and compare at one resolution.
 - `startRecording(opts)` / `stopRecording()` — fingerprint **every** presented frame, rather
   than polling. This is how mode-switch artifacts are caught: polling can only show that no bad
   frame was observed, never that none was published. Recording runs at 96px so it keeps up with
