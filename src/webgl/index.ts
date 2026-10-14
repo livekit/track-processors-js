@@ -12,64 +12,6 @@ import { createCompositeProgram } from './shader-programs/compositeShader';
 import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
 import { createFramebuffer, createVertexBuffer, getEmptyImageData, initTexture, resizeImageToCover, resizeTexture } from './utils';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const log = getLogger(LoggerNames.WebGl);
 
 export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
@@ -80,7 +22,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   }) as WebGL2RenderingContext;
 
   let blurRadius: number | null = null;
-  let maskBlurRadius: number | null = 12;
+  let maskBlurRadius: number | null = 8;
 
   const downsampleFactor = 4;
   const maskBufferTargetEdge = 640;
@@ -130,7 +72,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const bgTexture = initTexture(gl, 0);
   const frameTexture = initTexture(gl, 1);
 
-  // Zwei getrennte Kameraframes für die Bewegungserkennung
+  // Two different frames to detect motion
   const motionFrameTextures = [initTexture(gl, 8), initTexture(gl, 9)];
 
   let previousMotionIndex = 1;
@@ -362,13 +304,12 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
     ensureBuffersMatchCanvas();
 
-    // Aktuellen Kameraframe in einer separaten Textur speichern
+    // save current camera frame
     gl.activeTexture(gl.TEXTURE3);
     gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[currentMotionIndex]);
 
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
 
-    // Bestehenden räumlichen Masken-Blur beibehalten
     const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
 
     const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
@@ -386,12 +327,11 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       tempTextures,
     );
 
-    // Dynamisches Temporal Smoothing
+
     if (maskHistoryValid && motionHistoryValid) {
       gl.disable(gl.BLEND);
 
-      // Separaten Puffer verwenden, damit nicht gleichzeitig
-      // dieselbe Textur gelesen und beschrieben wird
+
       gl.bindFramebuffer(gl.FRAMEBUFFER, tempMaskFrameBuffer);
 
       gl.viewport(0, 0, maskBufferWidth, maskBufferHeight);
@@ -403,7 +343,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
       gl.enableVertexAttribArray(adaptiveMaskUniforms.position);
 
-      // Vorherige geglättete Maske
+      // Old smothened mask
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[readMaskIndex]);
       gl.uniform1i(adaptiveMaskUniforms.previousMask, 0);
@@ -413,20 +353,19 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[writeMaskIndex]);
       gl.uniform1i(adaptiveMaskUniforms.currentMask, 1);
 
-      // Vorheriger Kameraframe
+      // previous frame from camera
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[previousMotionIndex]);
       gl.uniform1i(adaptiveMaskUniforms.previousFrame, 2);
 
-      // Aktueller Kameraframe
+      // actual camera frame
       gl.activeTexture(gl.TEXTURE3);
       gl.bindTexture(gl.TEXTURE_2D, motionFrameTextures[currentMotionIndex]);
       gl.uniform1i(adaptiveMaskUniforms.currentFrame, 3);
 
-      // Neue geglättete Maske berechnen
+      // calculate new smoothened mask
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      // Ergebnis zurück in den Masken-Ping-Pong-Puffer
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, tempMaskFrameBuffer);
 
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, finalMaskFrameBuffers[writeMaskIndex]);
@@ -448,13 +387,11 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     }
 
-    // Kameraframes tauschen
     [previousMotionIndex, currentMotionIndex] = [currentMotionIndex, previousMotionIndex];
 
     motionHistoryValid = true;
     maskHistoryValid = true;
 
-    // Maskenpuffer tauschen
     readMaskIndex = writeMaskIndex;
     writeMaskIndex = 1 - writeMaskIndex;
   }

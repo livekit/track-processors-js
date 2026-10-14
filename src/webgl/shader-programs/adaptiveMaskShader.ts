@@ -1,7 +1,7 @@
 import { createProgram, createShader, glsl } from '../utils';
 import { vertexShaderSource } from './vertexShader';
 
-// Dynamisches Temporal Smoothing
+// Dynamic Temporal Smoothing
 export const adaptiveMaskFragmentShader = glsl`#version 300 es
   precision highp float;
 
@@ -80,7 +80,7 @@ export const adaptiveMaskFragmentShader = glsl`#version 300 es
 `;
 
 export function createAdaptiveMaskProgram(gl: WebGL2RenderingContext) {
-  // Keine vertikale Spiegelung der Masken
+
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource(false));
 
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, adaptiveMaskFragmentShader);
