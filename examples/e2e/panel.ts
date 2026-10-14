@@ -52,6 +52,7 @@ export function startPanel(harness: E2EHarness) {
     dataset.pipeline = snapshot.video?.pipeline ?? 'none';
     dataset.videoProcessor = String(snapshot.videoProcessorEnabled);
     dataset.audioProcessor = String(snapshot.audioProcessorEnabled);
+    dataset.videoMuted = String(snapshot.videoMuted);
     dataset.videoTrack = snapshot.video ? 'live' : 'none';
     // A MediaStreamTrackGenerator track reports no width/height, so processedSettings is
     // usually empty on the modern path. Fall back to the source, and note that the only

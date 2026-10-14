@@ -48,6 +48,9 @@ export class Media implements MediaControl {
 
   audioProcessorEnabled = false;
 
+  /** `enabled === false` on the source track. See setVideoMuted. */
+  videoMuted = false;
+
   gain = 1.0;
 
   /** Created here because a Room normally supplies it; see startAudio. */
@@ -94,6 +97,7 @@ export class Media implements MediaControl {
 
     this.videoTrack = await createLocalVideoTrack(captureOptions);
     this.videoProcessorEnabled = atCapture;
+    this.videoMuted = false;
     this.emit();
     return this.info('video')!;
   }
@@ -106,6 +110,7 @@ export class Media implements MediaControl {
     this.videoTrack.stop();
     this.videoTrack = undefined;
     this.videoProcessorEnabled = false;
+    this.videoMuted = false;
     this.emit();
   }
 
@@ -154,6 +159,23 @@ export class Media implements MediaControl {
     this.config = { ...this.config, backgroundImage: url };
     await this.requireProcessor().switchTo({ mode: 'virtual-background', imagePath: url });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
+    this.emit();
+    return this.info('video');
+  }
+
+  /**
+   * Mute or unmute the camera, as `enabled = false` on the source MediaStreamTrack.
+   *
+   * Deliberately not `LocalVideoTrack.mute()`: for a camera source that stops the underlying
+   * track outright so the capture indicator goes out, which is `stopVideo()` by another name
+   * and rebuilds the whole pipeline on the way back. The mute an application actually performs
+   * on a published track leaves the track live and the processor attached, still pulling
+   * frames — only black ones. That is the path #41 broke, so that is the path to drive.
+   */
+  async setVideoMuted(muted: boolean): Promise<TrackInfo | null> {
+    if (!this.videoTrack) throw new Error('No video track. Call startVideo first.');
+    this.videoTrack.mediaStreamTrack.enabled = !muted;
+    this.videoMuted = muted;
     this.emit();
     return this.info('video');
   }
