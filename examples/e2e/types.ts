@@ -138,6 +138,8 @@ export interface AppStateSnapshot {
   audio: TrackInfo | null;
   videoProcessorEnabled: boolean;
   audioProcessorEnabled: boolean;
+  /** True while the source camera track is muted (`enabled === false`). */
+  videoMuted: boolean;
   mode: ReportedMode;
   backgroundImage: string | null;
   blurRadius: number | null;
@@ -332,6 +334,8 @@ export interface MediaControl {
   switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void>;
 
   setVideoProcessorEnabled(enabled: boolean): Promise<TrackInfo | null>;
+  /** Mute as an application does it: `enabled = false` on the source track, processor intact. */
+  setVideoMuted(muted: boolean): Promise<TrackInfo | null>;
   switchMode(mode: ProcessorMode): Promise<TrackInfo | null>;
   setBackgroundImage(url: string): Promise<TrackInfo | null>;
   setBlurRadius(radius: number): Promise<TrackInfo | null>;

@@ -161,6 +161,7 @@ export class E2EHarness implements Harness {
       audio: this.media.info('audio'),
       videoProcessorEnabled: this.media.videoProcessorEnabled,
       audioProcessorEnabled: this.media.audioProcessorEnabled,
+      videoMuted: this.media.videoMuted,
       mode: this.media.reportedMode(),
       backgroundImage: this.config.backgroundImage,
       blurRadius: this.config.blurRadius,

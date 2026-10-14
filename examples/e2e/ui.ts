@@ -71,6 +71,10 @@ export function buildUi(harness: E2EHarness, render: () => void) {
   on('restart-video', 'click', () =>
     media.restartVideo({ deviceId: deviceSelect.value || undefined, ...readResolution() }),
   );
+  // Separate buttons rather than one toggle: a toggle's meaning depends on state the spec
+  // would then have to read back, and labels are not something a spec may assert on.
+  on('mute-video', 'click', () => media.setVideoMuted(true));
+  on('unmute-video', 'click', () => media.setVideoMuted(false));
   on('video-device', 'change', () => media.switchDevice('videoinput', deviceSelect.value));
 
   // ---------------------------------------------------------------- video processor

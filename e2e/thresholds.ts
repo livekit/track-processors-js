@@ -168,4 +168,45 @@ export const DEGRADED = {
    * well as the prefix, which is what makes the label explanatory rather than merely present.
    */
   REASON_PREFIX: 'Background processing is unavailable in this browser',
+ * B6 — the virtual background surviving a mute/unmute cycle.
+ *
+ * Observed on headless Chrome 153 / macOS with `backdrop=flat`, `motion=static` and the default
+ * `/bg-solid.png` plate. See [#41](https://github.com/livekit/track-processors-js/issues/41):
+ * unmuting brought the pipeline back as a flat green plate rather than the configured image.
+ */
+export const MUTE_RESTORE = {
+  /** How long to leave the camera muted. Long enough for the pipeline to settle on black. */
+  MUTED_MS: 2000,
+  /**
+   * The image must be back this soon after the unmute click, measured from before the click so
+   * the dispatch and the handler count against it. Observed 74-104ms over five runs, i.e. the
+   * first or second frame after the source started producing again.
+   *
+   * Left at a second rather than tightened around that: the property worth guarding is that
+   * the image returns promptly, not that it returns in two frames on this machine. The
+   * negative control below sits at the deadline, so the gap is an order of magnitude wide.
+   */
+  MAX_RECOVERY_MS: 1000,
+  /**
+   * The specific colour #41 produced: a flat green where the image belongs.
+   *
+   * It is what a zero-filled YUV420 frame decodes to under BT.601 — Y=U=V=0 gives r 0, g 135,
+   * b 0 — which is the shape of that bug, a frame handed on before anything was drawn into it.
+   */
+  GREEN_PLATE: { r: 0, g: 135, b: 0 },
+  /**
+   * Minimum per-channel distance the restored background mean must keep from that green, and
+   * from black (#111's failure).
+   *
+   * The restored background measures rgb(255, 0, 255) — the plate exactly — which is 255 from
+   * both, so this has four times the margin it needs. It is asserted separately from the match
+   * ratio so a regression names the colour it came back as instead of only reporting that the
+   * ratio fell.
+   *
+   * Negative control: suppressing the unmute click leaves the frame at rgb(0, 0, 0), a
+   * distance of 0 from black, and the recovery assertion fails first at 1002ms with a 0.0%
+   * match. The same sample taken during the mute reads 0.0% and rgb(0, 0, 0) too, and B6
+   * records it in its failure message for exactly that reason.
+   */
+  MIN_PLATE_DISTANCE: 60,
 };
