@@ -16,6 +16,11 @@ app they drive is documented in [`examples/e2e`](../examples/e2e/README.md).
 - **The clean-console assertion is automatic.** The `app` fixture checks after every passing test
   that no forbidden string appeared, so specs never repeat it. Strings in `FORBIDDEN_CONSOLE` are
   each a filed issue.
+- **Take raw-camera baselines before attaching.** `setProcessor` leaves
+  `LocalVideoTrack.mediaStreamTrack` pointing at the processed track, so `sampleSource()` returns
+  *treated* frames once a processor is attached — measured identical to `sampleProcessed()`, hash
+  and all. A before/after comparison taken the wrong way round compares a thing with itself and
+  cannot fail; that is exactly how `C3` passed while asserting nothing.
 - **Prefer comparing frames to comparing statistics.** Region energy says a frame is *as detailed
   as* the reference; `probe.captureReference()` / `probe.diffFromReference()` say it is *the same
   frame*. B2 uses the second for exactly that reason.
@@ -68,13 +73,31 @@ check has been waiting on.
 
 Roughly in priority order:
 
-- **audio** (`J1`, `J2`) — the harness measurement already works, the specs just are not written
-- **the attach/detach leak check** — blocked on #136, and the counters above are what it will use
-- **capture-time attachment** (`B5`) and **mute/unmute** (`B6`)
-- anything needing rotation, a real device, a room, or a second browser
+- **the attach/detach leak check** (`G5`, `G6`) — blocked on #136; `counters().webgl.contextsLost`
+  is already instrumented and is what the check will assert on
+- **capture-time attachment** (`B5`) and the un-awaited attach/detach race (`B3`)
+- **cross-origin and failing images** (`D2`, `D3`), and crop/mirror geometry (`D6`, `D7`)
+- **the rest of suite J** (`J3`-`J7`) — live gain changes, teardown, audio and video together
+- anything needing rotation, a real device, a room, or a second browser engine
 
 `examples/e2e/room.ts` is the publishing path those last ones will use. Nothing automated drives
 it today; it is reachable from the harness UI for manual reproduction against a real SFU.
+
+### Known gaps in the harness itself
+
+- **The fake camera has no noise.** `H2` measures a flip rate of exactly zero on a static input,
+  because mediapipe is deterministic and a canvas compositor has no sensor noise. The shimmer in
+  #76 and #98 is the segmenter amplifying noise that this harness cannot produce, so `H2` guards
+  against a regression rather than reproducing the complaint. Closing those issues needs a noise
+  option on the compositor, or a real-camera fixture.
+- **`setBackgroundImage` rebinds its own config copy**, so `snapshot().backgroundImage` is stale
+  after any image change, and the "Swap bg image" control is advertised as a toggle but only moves
+  one way. Sample pixels through the probe rather than trusting that field.
+- **Rebinding the probe to the source serves stale frames.** After the probe has been bound to the
+  processor's output, `sample({ source: 'source' })` can return the previously painted processed
+  frame for ~300 ms: `waitForData()` returns immediately because `readyState` is still ≥2 from the
+  old stream, and `waitForStable()` does not save you, since two stale reads hash-match. Take raw
+  baselines *before* attaching.
 
 ## Known slow spot
 
