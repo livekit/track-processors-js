@@ -446,4 +446,53 @@ export const AUDIO = {
    * because a clipped 2x would still measure close to +6 dB on rms alone.
    */
   PEAK_MAX: 0.99,
+ * K1 — switching camera device while the processor is attached ([#70]).
+ *
+ * Observed switching the fake 1280x720 camera for the fake 640x480 one on `backdrop=checker`,
+ * `motion=static`. The negative control throughout is the same switch performed with the
+ * processor detached: that is what the numbers look like when the restart drops the effect, and
+ * it was measured rather than imagined.
+ *
+ * [#70]: https://github.com/livekit/track-processors-js/issues/70
+ */
+export const DEVICE_SWITCH = {
+  /**
+   * Background detail the blur must still be removing once the new device is live, as a fraction
+   * of the raw input measured before the switch.
+   *
+   * Observed 0.90 — 0.0700 raw to 0.0067 processed. Detached, the same background measures
+   * 0.0597, a reduction of 0.15, so the threshold has a wide margin on both sides. The raw
+   * baseline is taken at 1280x720 and the processed figure at 640x480; the two scales are close
+   * enough that the gap between 0.15 and 0.90 is nowhere near it.
+   */
+  BLUR_REDUCTION_MIN: 0.55,
+  /**
+   * And the subject must stay sharper than the background it sits on, which says segmentation is
+   * running rather than that the whole frame was smeared.
+   *
+   * Observed 2.19 (fg 0.0147, bg 0.0067) against 0.65 detached, where the subject is the
+   * *least* detailed part of a checker frame.
+   */
+  FG_OVER_BG_MIN: 1.25,
+
+  /** Frames to ask for after the switch, and the rate they have to arrive at. */
+  FRAMES_AFTER_SWITCH: 15,
+  /** Observed 27.9fps over the 15 frames; a restart that never republished would give zero. */
+  MIN_FPS_AFTER: 12,
+
+  /** Settled output to record before the switch, so the old treatment has its own reference. */
+  PRE_ROLL_MS: 600,
+  /** Observed 18 frames before the switch and 16 after it. */
+  MIN_FRAMES_EACH_SIDE: 8,
+  /**
+   * Per-channel distance from the reference fingerprint for a recorded frame to count as that
+   * treatment, and the matching tolerance on its background energy.
+   *
+   * The input is static, so within each half of the recording both are observed to be exactly
+   * constant — 127,127,128 at energy 0.1437 before, 127,127,127 at 0.0560 after. These only have
+   * to leave a green plate (#41) or a black frame (#111) outside: a green plate sits 128 away in
+   * colour, and any flat plate reads energy 0.0000, 0.056 from the nearer of the two.
+   */
+  MATCH_TOLERANCE: 30,
+  ENERGY_TOLERANCE: 0.02,
 };
