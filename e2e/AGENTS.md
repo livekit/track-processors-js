@@ -13,9 +13,16 @@ app they drive is documented in [`examples/e2e`](../examples/e2e/README.md).
 - **Every threshold lives in `thresholds.ts`**, each with the value actually observed beside it.
   Move one only with its observation updated too, and prefer recording the negative control —
   the value the same measurement takes when the behaviour is broken — next to it.
-- **The clean-console assertion is automatic.** The `app` fixture checks after every passing test
-  that no forbidden string appeared, so specs never repeat it. Strings in `FORBIDDEN_CONSOLE` are
-  each a filed issue.
+- **The clean-console assertion is automatic, and it is an allowlist.** The `app` fixture checks
+  after every passing test that nothing reached `console.error`, `pageerror` or the harness's own
+  log that an entry in `ALLOWED_CONSOLE` does not explain. Strings in `FORBIDDEN_CONSOLE` are
+  each a filed issue and are named first, so a known bug reports by name. If your case provokes
+  an error on purpose, declare it — `app.allowConsole()` beside the provocation where it is
+  local to one test, or a URL- and test-scoped entry in `ALLOWED_CONSOLE` where the browser
+  emits it and the page cannot clear it. Never widen an existing entry to cover a new case.
+- **Frame count is not liveness.** A muted or frozen pipeline still presents frames: D2 measured
+  60 frames at 29.8 fps with **one distinct hash** and zero foreground luma. If you mean "still
+  working", assert on distinct hashes, foreground luma or energy — not on `waitForFrames` alone.
 - **Take raw-camera baselines before attaching.** `setProcessor` leaves
   `LocalVideoTrack.mediaStreamTrack` pointing at the processed track, so `sampleSource()` returns
   *treated* frames once a processor is attached — measured identical to `sampleProcessed()`, hash
@@ -71,17 +78,22 @@ check has been waiting on.
 
 ## Not covered yet
 
-Roughly in priority order:
+Thirty-four of the ninety-nine cases in the coverage plan are written. Every P0 that runs on
+desktop Chrome is now covered; what is left falls into four groups.
 
-- **the attach/detach leak check** (`G5`, `G6`) — blocked on #136; `counters().webgl.contextsLost`
-  is already instrumented and is what the check will assert on
-- **capture-time attachment** (`B5`) and the un-awaited attach/detach race (`B3`)
-- **cross-origin and failing images** (`D2`, `D3`), and crop/mirror geometry (`D6`, `D7`)
-- **the rest of suite J** (`J3`-`J7`) — live gain changes, teardown, audio and video together
-- anything needing rotation, a real device, a room, or a second browser engine
+- **Thirty cases that could be written today**, all P1 or P2: the rest of suite J (`J3`-`J7`),
+  more of D (`D3`, `D6`, `D7`, `D9`), C (`C5`, `C6`, `C8`), A (`A5`, `A6`, `A7`), H (`H3`, `H4`),
+  I (`I3`, `I5`, `I6`), K (`K2`-`K4`), M (`M2`, `M4`), B (`B3`, `B10`-`B12`), E (`E10`), G (`G3`).
+- **Five blocked on [#136](https://github.com/livekit/track-processors-js/issues/136)** — the
+  leak checks (`G5`, `G6`, `B3`, `B9`, `B12`). `counters().webgl.contextsLost` is already
+  instrumented and is what they will assert on.
+- **Seventeen needing a target this runner does not have**: Firefox (`C4`, `D8`, `F1`, `F4`,
+  `F5`, `F7`, `G4`, `G7`), real iOS (`E4`-`E7`, `E9`, `F6`, `J6`, `K5`) and Android (`E8`).
+- **Thirteen that are not Playwright work**: suite N (packaging, seven) and suite L (peer
+  interop, six — two browsers or a real room).
 
-`examples/e2e/room.ts` is the publishing path those last ones will use. Nothing automated drives
-it today; it is reachable from the harness UI for manual reproduction against a real SFU.
+`examples/e2e/room.ts` is the publishing path suite L will use. Nothing automated drives it
+today; `harness.loopback` covers the cases that only need an encoder, without a server.
 
 ### Known gaps in the harness itself
 
@@ -104,3 +116,33 @@ it today; it is reachable from the harness UI for manual reproduction against a 
 A page load fetches the mediapipe wasm fileset and model from a CDN, which dominates per-test
 cost and puts a network dependency in a suite that is otherwise hermetic. Self-hosting them
 behind `?assets=local` is the fix.
+
+## Traps, each one measured
+
+Every item here cost an agent a wrong result before it was found. Read before writing a case
+that touches the same machinery.
+
+- **The probe binds on the track object, not its id.** Chrome names a remote track after the
+  `a=msid` of the offer, so a loopback's far end carries the *sender's* track id. Keyed by id,
+  a rebind is a silent no-op and every sample re-reads the local frame. Worse, the obvious guard
+  does not catch it: the encoder ramps 320→480→640→960→1280, so once it reaches 1280 a stale
+  local 1280x720 frame agrees with the decoded size by coincidence. Assert the probe's frame
+  counter restarted as well.
+- **The probe presents one black frame when a generator track ends.** Proven with no library
+  code at all: 20 orange `VideoFrame`s into a bare `MediaStreamTrackGenerator`, then
+  `writer.close(); gen.stop()`, presents 21 frames — the last at (0,0,0). Exclude that one
+  frame, keep a longest-run bound, and never attribute it to the library.
+- **Counting frames straight after a teardown reads 1, not 0**, on about two runs in three — a
+  frame already decoded and queued at the probe. Open the window after a settle.
+- **`route.fulfill` injects `access-control-allow-origin: *`.** A truly absent CORS header is
+  not expressible; use a mismatched origin instead. The two-real-origins trick does not work
+  either, since vite's dev server answers both.
+- **`camera.freeze()` stops the redraw, and a canvas-captured track only emits while something
+  draws into it.** Freezing alone kills the track. Pin a frame with `freeze()` plus a repaint of
+  the same index. `motion=static` with `setFrame(n)` does not work: under static the offset is
+  hard-coded to 0, so the index has no effect on pixels.
+- **The encoder ramps.** A 1280x720 source decodes at 320x180 for the first seconds. The aspect
+  ratio is right from the first frame; the absolute size is not.
+- **Assets can be served locally.** `?assets=local` serves the wasm fileset out of
+  `node_modules` and a cached model, with nothing committed, and attaches in 141-194 ms against
+  762-874 ms on a warm CDN. Prefer it for any case that does not test the CDN itself.

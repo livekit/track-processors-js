@@ -33,22 +33,35 @@ Chrome only for now. Firefox, WebKit and BrowserStack devices need their own cal
 
 ## What's covered
 
-Twenty-eight cases across eleven spec files; thirty-six tests at runtime, since several are
-parameterised over primitives, resolutions or transitions.
+Forty-three cases across twenty spec files; fifty-five tests at runtime, since several are
+parameterised over primitives, pipelines, resolutions or transitions.
 
 | Spec | IDs | Concern |
 | --- | --- | --- |
 | `capability.spec.ts` | A1, A1b, A2, A2b, A3, A4 | Support predicates, both pipelines, and degrading to a disabled control |
 | `lifecycle.spec.ts` | B1, B2, B6 | Attach, detach, and mute/unmute with a virtual background |
-| `modes.spec.ts` | C1, C1b, C3, C7, C7b | Switching lands correctly and publishes no intermediate frame; `disabled` is true passthrough; falsy options clear the effect |
-| `background.spec.ts` | D1, D4, D5 | Image composited behind the subject, swapped without a blank frame, fetched once |
-| `geometry.spec.ts` | E1, E3 | Output dimensions follow the source, and a mid-call resolution change resizes the buffers |
-| `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
-| `segmentation.spec.ts` | H2 | A static subject does not make the mask flicker |
+| `prepublish.spec.ts` | B4 | A processor attached before publishing still publishes an aligned mask |
+| `capture-time.spec.ts` | B5 | A processor handed to `createLocalTracks` at capture time |
+| `restart.spec.ts` | B7 | `restartTrack()` publishes no black or grey frame |
+| `track-ending.spec.ts` | B8 | A source track ending leaves the processor stoppable |
+| `modes.spec.ts` | C1, C1b, C2, C3, C7, C7b | Switching publishes no intermediate frame; `disabled` is passthrough; falsy options clear the effect; the image texture is released |
+| `background.spec.ts` | D1, D4, D5 | Composited behind the subject, swapped without a blank frame, fetched once |
+| `cors.spec.ts` | D2 | A cross-origin image loads with CORS and degrades without |
+| `geometry.spec.ts` | E1, E3 | Output dimensions follow the source, and a mid-call change resizes the buffers |
+| `peer-geometry.spec.ts` | E2 | A remote peer decodes the source's aspect ratio |
+| `performance.spec.ts` | G1, G2 | `onFrameProcessed` timings, and a sustained frame rate at the far end |
+| `segmentation.spec.ts` | H1, H2 | The mask matches a committed golden, and does not flicker on a static subject |
 | `assets.spec.ts` | I4 | A 404 fileset fails fast, and a retry recovers |
+| `assets-cdn.spec.ts` | I1a, I1b | The default asset URLs resolve, and the fileset carries the pinned version |
+| `assets-selfhosted.spec.ts` | I2 | Self-hosted assets segment with both CDNs blocked |
 | `audio.spec.ts` | J1, J2 | Gain at unity preserves the tone; gain values map to measured level |
 | `devices.spec.ts` | K1 | A camera switch keeps the processor attached at the new resolution |
 | `logging.spec.ts` | M1, M1b, M1c | The library's log level is respected |
+| `console.spec.ts` | M3, M3b | The happy path logs nothing, and that check has teeth |
+
+Two tests are not ordinary cases. `C7` and `C2` are `test.fail()` — they document live library
+bugs and will report as unexpectedly passing when those are fixed. `H1-regen` is skipped unless
+`E2E_UPDATE_GOLDEN` is set, and rewrites the golden mask.
 
 IDs come from the coverage plan linked in the pull request.
 
