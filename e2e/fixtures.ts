@@ -86,6 +86,26 @@ export const ALLOWED_CONSOLE: ConsoleAllowance[] = [
     why: 'The log-level cases force the image load to fail, and assert on what was logged.',
   },
   {
+    // I1a routes both asset hosts to 404 to prove the version check needs no network. Same
+    // provocation as I4's entry above, different case, so it gets its own rather than widening
+    // that one's `tests` — the two specs block the assets for unrelated reasons.
+    pattern: /Failed to load resource.*\b404\b/,
+    url: /tasks-vision|storage\.googleapis\.com/,
+    tests: /^I1a\b/,
+    why: 'I1a 404s both hosts so the pinned-version assertion runs without the network.',
+  },
+  {
+    // D2 serves a cross-origin image with a deliberately mismatched Access-Control-Allow-Origin.
+    // Chrome reports it twice: the CORS policy explanation against the page's own URL, and the
+    // request failure against the image URL. Observed:
+    //   url=<page> :: Access to image at 'https://cdn.example.test/bg.png' ... blocked by CORS
+    //   url=https://cdn.example.test/bg.png :: Failed to load resource: net::ERR_FAILED
+    pattern: /blocked by CORS policy|net::ERR_FAILED/,
+    url: /cdn\.example\.test|127\.0\.0\.1/,
+    tests: /^D2\b/,
+    why: 'D2 blocks a cross-origin image on purpose and asserts the pipeline survives it.',
+  },
+  {
     // ...and at `error` and `debug` the library correctly reports that failure. Observed from
     // src/logger.ts in M1b and M1c as "Error while loading processor background image:  Event".
     //
