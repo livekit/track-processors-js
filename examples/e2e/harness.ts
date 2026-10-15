@@ -3,6 +3,7 @@ import { readCounters } from './counters';
 import type { FakeCamera } from './fakeCamera';
 import { fakeMic } from './fakeMic';
 import { clearLibraryLogRecords, libraryLogRecords } from './logCapture';
+import { Loopback } from './loopback';
 import { Media } from './media';
 import { Probe } from './probe';
 import { tryCreateBackgroundProcessor } from './processors';
@@ -34,6 +35,8 @@ export class E2EHarness implements Harness {
 
   room: RoomMode;
 
+  loopback: Loopback;
+
   config: Readonly<Config>;
 
   private lines: string[] = [];
@@ -57,6 +60,7 @@ export class E2EHarness implements Harness {
     );
 
     this.room = new RoomMode(config, media, (message) => this.log(message));
+    this.loopback = new Loopback();
 
     fakeMic.setMeasurementSource(() => media.processedAudioTrack());
     this.captureErrors();

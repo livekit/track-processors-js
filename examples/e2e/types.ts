@@ -300,6 +300,26 @@ export interface SenderStatsSample {
   qualityLimitationReason?: string;
 }
 
+/** Inbound-rtp stats from the receiving end of the in-page loopback. */
+export interface LoopbackStatsSample {
+  framesDecoded: number;
+  framesReceived: number;
+  framesPerSecond: number | null;
+  frameWidth: number | null;
+  frameHeight: number | null;
+}
+
+export interface LoopbackControl {
+  /** Publish `track` through a self-connected peer pair; resolves once frames are decoding. */
+  start(track: MediaStreamTrack, timeoutMs?: number): Promise<void>;
+  stop(): Promise<void>;
+  isConnected(): boolean;
+  stats(): Promise<LoopbackStatsSample | null>;
+  /** Mean decoded fps over `windowMs`, counted rather than read from `framesPerSecond`. */
+  measure(windowMs?: number): Promise<{ fps: number; framesDecoded: number; elapsedMs: number }>;
+  receivedTrack(): MediaStreamTrack | undefined;
+}
+
 // --------------------------------------------------------------------------- controls
 
 export interface FakeCameraDevice {
@@ -514,6 +534,8 @@ export interface Harness {
   media: MediaControl;
   probe: ProbeControl;
   room: RoomControl;
+  /** An in-page peer connection, for cases about what reaches the encoder. */
+  loopback: LoopbackControl;
 }
 
 declare global {
