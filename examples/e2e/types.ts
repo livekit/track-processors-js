@@ -509,6 +509,15 @@ export interface ProbeControl {
    * what makes mask shimmer (#76, #98) an objective number instead of a complaint.
    */
   measureTemporalStability(opts?: TemporalStabilityOptions): Promise<TemporalStability>;
+
+  /**
+   * The current frame's whole mask, classified exactly as `measureTemporalStability` classifies
+   * each of its frames.
+   *
+   * What H1 compares against a committed golden: if the mediapipe build or the model asset
+   * changes under us, the silhouette moves and the comparison says so (#59, #72).
+   */
+  captureMask(opts?: MaskOptions): Promise<MaskSnapshot>;
 }
 
 export interface RoomControl {
@@ -672,4 +681,26 @@ export interface ProcessorStateReport {
   source: MediaStreamTrackState | null;
   /** The track the wrapper publishes. */
   processed: MediaStreamTrackState | null;
+// --------------------------------------------------------------------------- golden masks
+
+export interface MaskOptions {
+  source?: 'processed' | 'source';
+  /**
+   * Longest edge of the classification canvas. Default 160 — the scale
+   * `measureTemporalStability` works at, so a golden captured here is a mask H2 has already
+   * shown to be reproducible frame to frame.
+   */
+  maxDimension?: number;
+  /** The plate colour that counts as background. Omitted, it is learned from a border ring. */
+  background?: Rgb & { tolerance?: number };
+}
+
+/** One frame's foreground/background mask, in a form that can be committed and diffed. */
+export interface MaskSnapshot {
+  width: number;
+  height: number;
+  /** `height` strings of `width` characters: `#` foreground, `.` background. */
+  rows: string[];
+  /** Share of the frame classified foreground. Zero or one means nothing was segmented. */
+  foregroundRatio: number;
 }
