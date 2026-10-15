@@ -24,7 +24,11 @@ export const DEFAULT_BACKGROUND_IMAGE = '/bg-solid.png';
  */
 export const DEFAULT_SUBJECT_URL = '/subject.png';
 
-/** The local copies written by `pnpm assets:mediapipe`, used when `?assets=local`. */
+/**
+ * Where `?assets=local` points `assetPaths`. The dev server answers both out of `node_modules`
+ * and a one-time cache — see the `e2e-mediapipe-assets` plugin in `vite.config.js` — so nothing
+ * has to be committed or prepared before a run (I2).
+ */
 const LOCAL_ASSETS = {
   tasksVisionFileSet: '/mediapipe/wasm',
   modelAssetPath: '/mediapipe/selfie_segmenter.tflite',
