@@ -7,15 +7,17 @@ import {
   createLocalVideoTrack,
 } from 'livekit-client';
 import type { BackgroundProcessorWrapper, GainAudioProcessor } from '../../src';
-import { createBackgroundProcessor, createGainProcessor } from './processors';
+import { createBackgroundProcessor, createGainProcessor, processorSupport } from './processors';
 import type {
   Config,
   MediaControl,
   PipelinePath,
   ProcessorMode,
+  ProcessorSupport,
   ReportedMode,
   StartVideoOptions,
   TrackInfo,
+  TransformerOptionUpdate,
 } from './types';
 
 /**
@@ -31,13 +33,24 @@ export class Media implements MediaControl {
 
   audioTrack?: LocalAudioTrack;
 
-  processor: BackgroundProcessorWrapper;
+  /**
+   * Undefined when the environment cannot support one — see `support`.
+   *
+   * Optional rather than built-and-hoped-for: #10 and #38 are both an app constructing a
+   * processor in an environment that cannot have one, and the throw reaching the user.
+   */
+  processor?: BackgroundProcessorWrapper;
+
+  readonly support: ProcessorSupport;
 
   gainProcessor: GainAudioProcessor;
 
   videoProcessorEnabled = false;
 
   audioProcessorEnabled = false;
+
+  /** `enabled === false` on the source track. See setVideoMuted. */
+  videoMuted = false;
 
   gain = 1.0;
 
@@ -50,7 +63,12 @@ export class Media implements MediaControl {
     private config: Config,
     onFrameProcessed: Parameters<typeof createBackgroundProcessor>[1],
   ) {
-    this.processor = createBackgroundProcessor(config, onFrameProcessed);
+    this.support = processorSupport();
+    // Ask before building. Constructing unconditionally here is exactly what turns a missing
+    // primitive into a blank page (#10), because this runs during boot.
+    if (this.support.supported) {
+      this.processor = createBackgroundProcessor(config, onFrameProcessed);
+    }
     this.gainProcessor = createGainProcessor(this.gain);
   }
 
@@ -72,14 +90,13 @@ export class Media implements MediaControl {
     const captureOptions: VideoCaptureOptions = {
       deviceId: opts.deviceId,
       resolution:
-        opts.width && opts.height
-          ? { width: opts.width, height: opts.height }
-          : undefined,
-      ...(atCapture ? { processor: this.processor } : {}),
+        opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
+      ...(atCapture ? { processor: this.requireProcessor() } : {}),
     };
 
     this.videoTrack = await createLocalVideoTrack(captureOptions);
     this.videoProcessorEnabled = atCapture;
+    this.videoMuted = false;
     this.emit();
     return this.info('video')!;
   }
@@ -92,6 +109,7 @@ export class Media implements MediaControl {
     this.videoTrack.stop();
     this.videoTrack = undefined;
     this.videoProcessorEnabled = false;
+    this.videoMuted = false;
     this.emit();
   }
 
@@ -99,7 +117,8 @@ export class Media implements MediaControl {
     if (!this.videoTrack) throw new Error('No video track. Call startVideo first.');
     await this.videoTrack.restartTrack({
       deviceId: opts.deviceId,
-      resolution: opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
+      resolution:
+        opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
     });
     this.emit();
     return this.info('video')!;
@@ -110,7 +129,7 @@ export class Media implements MediaControl {
     if (enabled === this.videoProcessorEnabled) return this.info('video');
 
     if (enabled) {
-      await this.videoTrack.setProcessor(this.processor);
+      await this.videoTrack.setProcessor(this.requireProcessor());
     } else {
       await this.videoTrack.stopProcessor();
     }
@@ -122,13 +141,19 @@ export class Media implements MediaControl {
   async switchMode(mode: ProcessorMode): Promise<TrackInfo | null> {
     switch (mode) {
       case 'background-blur':
-        await this.processor.switchTo({ mode: 'background-blur', blurRadius: this.config.blurRadius });
+        await this.requireProcessor().switchTo({
+          mode: 'background-blur',
+          blurRadius: this.config.blurRadius,
+        });
         break;
       case 'virtual-background':
-        await this.processor.switchTo({ mode: 'virtual-background', imagePath: this.config.backgroundImage });
+        await this.requireProcessor().switchTo({
+          mode: 'virtual-background',
+          imagePath: this.config.backgroundImage,
+        });
         break;
       case 'disabled':
-        await this.processor.switchTo({ mode: 'disabled' });
+        await this.requireProcessor().switchTo({ mode: 'disabled' });
         break;
     }
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
@@ -138,16 +163,47 @@ export class Media implements MediaControl {
 
   async setBackgroundImage(url: string): Promise<TrackInfo | null> {
     this.config = { ...this.config, backgroundImage: url };
-    await this.processor.switchTo({ mode: 'virtual-background', imagePath: url });
+    await this.requireProcessor().switchTo({ mode: 'virtual-background', imagePath: url });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
+    this.emit();
+    return this.info('video');
+  }
+
+  /**
+   * Mute or unmute the camera, as `enabled = false` on the source MediaStreamTrack.
+   *
+   * Deliberately not `LocalVideoTrack.mute()`: for a camera source that stops the underlying
+   * track outright so the capture indicator goes out, which is `stopVideo()` by another name
+   * and rebuilds the whole pipeline on the way back. The mute an application actually performs
+   * on a published track leaves the track live and the processor attached, still pulling
+   * frames — only black ones. That is the path #41 broke, so that is the path to drive.
+   */
+  async setVideoMuted(muted: boolean): Promise<TrackInfo | null> {
+    if (!this.videoTrack) throw new Error('No video track. Call startVideo first.');
+    this.videoTrack.mediaStreamTrack.enabled = !muted;
+    this.videoMuted = muted;
     this.emit();
     return this.info('video');
   }
 
   async setBlurRadius(radius: number): Promise<TrackInfo | null> {
     this.config = { ...this.config, blurRadius: radius };
-    await this.processor.switchTo({ mode: 'background-blur', blurRadius: radius });
+    await this.requireProcessor().switchTo({ mode: 'background-blur', blurRadius: radius });
     if (!this.videoProcessorEnabled) await this.setVideoProcessorEnabled(true);
+    this.emit();
+    return this.info('video');
+  }
+
+  /**
+   * Hands options to the transformer exactly as given, bypassing `switchTo()`.
+   *
+   * `switchTo()` fills in a default blur radius and picks the image path out of the config, so
+   * it cannot express `blurRadius: 0` or `imagePath: undefined` — the falsy values #37 was
+   * about. This is the API a real integration reaches for when it wants to clear an effect
+   * without changing mode, so C7 drives it directly.
+   */
+  async updateTransformerOptions(opts: TransformerOptionUpdate): Promise<TrackInfo | null> {
+    await this.requireProcessor().updateTransformerOptions(opts);
     this.emit();
     return this.info('video');
   }
@@ -222,7 +278,7 @@ export class Media implements MediaControl {
 
   /** The track a remote peer would receive. Falls back to the raw track when unprocessed. */
   processedVideoTrack(): MediaStreamTrack | undefined {
-    if (this.videoProcessorEnabled && this.processor.processedTrack) {
+    if (this.videoProcessorEnabled && this.processor?.processedTrack) {
       return this.processor.processedTrack;
     }
     return this.videoTrack?.mediaStreamTrack;
@@ -245,12 +301,25 @@ export class Media implements MediaControl {
    * library change. If that ever becomes true on both paths, this silently lies.
    */
   private pipeline(): PipelinePath {
-    if (!this.videoProcessorEnabled) return 'none';
+    if (!this.videoProcessorEnabled || !this.processor) return 'none';
     return this.processor.displayCanvas ? 'canvas-fallback' : 'insertable-streams';
   }
 
   reportedMode(): ReportedMode {
-    return this.videoProcessorEnabled ? this.processor.mode : 'off';
+    return this.videoProcessorEnabled && this.processor ? this.processor.mode : 'off';
+  }
+
+  /**
+   * The processor, or a throw naming what the browser is missing.
+   *
+   * Reached only by a caller that ignored `support`: every control that leads here is disabled
+   * while `support.supported` is false.
+   */
+  private requireProcessor(): BackgroundProcessorWrapper {
+    if (!this.processor) {
+      throw new Error(this.support.reason ?? 'No background processor was constructed');
+    }
+    return this.processor;
   }
 
   info(kind: 'video' | 'audio' = 'video'): TrackInfo | null {
@@ -274,14 +343,14 @@ export class Media implements MediaControl {
 
     const source = this.videoTrack?.mediaStreamTrack;
     if (!source) return null;
-    const processed = this.videoProcessorEnabled ? this.processor.processedTrack : null;
+    const processed = this.videoProcessorEnabled ? (this.processor?.processedTrack ?? null) : null;
     return {
       id: source.id,
       kind: 'video',
       label: source.label,
       readyState: source.readyState,
       settings: source.getSettings(),
-      processorName: this.videoProcessorEnabled ? this.processor.name : null,
+      processorName: this.videoProcessorEnabled ? (this.processor?.name ?? null) : null,
       processedTrackId: processed?.id ?? null,
       processedSettings: processed?.getSettings() ?? null,
       pipeline: this.pipeline(),

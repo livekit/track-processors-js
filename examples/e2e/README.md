@@ -65,6 +65,12 @@ Three things follow from that, and they are the reason it isn't a video file:
   colour-match ratio and the foreground box is the bbox of non-matching pixels.
 - **Ground truth.** `harness.camera.subjectRect()` returns where the compositor actually drew
   the subject, so segmentation scores as IoU against truth rather than a golden image.
+- **A resolution change is just a canvas resize.** `harness.camera.setResolution(w, h)` (the
+  `resize-source` button) re-sizes every live source without stopping it, which is the only way
+  to hand the library a mid-call frame-size change. `restartVideo` does not do it: it
+  re-acquires the camera and rebuilds the processor, so nothing ever has to follow a change.
+  Nor does `applyConstraints` — with a processor attached, `LocalTrack.mediaStreamTrack` is the
+  processor's output track, not the camera's.
 
 A video fixture was rejected because no single codec decodes on all five targets (WebKit
 refuses VP8/VP9 WebM; H.264 isn't guaranteed on Playwright's Chromium or Firefox CI builds),
@@ -89,11 +95,13 @@ reloading, which matches how a real integration would.
 | Param | Default | Effect |
 | --- | --- | --- |
 | `fallback` | `0` | Removes the insertable-streams globals before boot, forcing the canvas path |
+| `break` | — | Takes away one primitive before boot — `offscreencanvas`, `videoframe`, `createimagebitmap` or `webgl2` — so the unsupported path can be driven here |
 | `delegate` | GPU | `segmenterOptions.delegate` — `CPU` or `GPU` |
 | `assets` | `cdn` | `local` points wasm and model at self-hosted copies |
 | `wasm` / `model` | CDN | Individual `assetPaths` overrides |
 | `maxfps` | `30` | `ProcessorWrapperOptions.maxFps` |
 | `api` | `modern` | `legacy` routes through the deprecated `BackgroundBlur()` / `VirtualBackground()` |
+| `loglevel` | library default | `setLogLevel` before the processor is built, plus `harness.libraryLogs()` |
 | `attach` | `set` | `capture` routes through `createLocalVideoTrack({ processor })` |
 | `mode` | `background-blur` | Initial mode |
 | `blur` | `10` | Blur radius |
@@ -116,6 +124,12 @@ reloading, which matches how a real integration would.
 
 Reads `processor.processedTrack` through its own offscreen video element. It never reads the
 on-page preview, which is CSS-mirrored.
+
+`harness.support()` reports whether a processor can be built at all, and `?break=` is how a
+spec makes it say no. When it says no the app never calls `BackgroundProcessor()`: the
+processor controls are disabled and carry a reason, mirrored onto
+`document.body.dataset.processorSupported` / `.processorUnsupportedReason`.
+`harness.tryCreateProcessor()` calls the factory anyway and hands back what it threw.
 
 - `sample(opts)` → `FrameSample`: real `width`/`height`, a 64-bit average `hash`, per-region
   `blurEnergy` / `stdDev` / `edgeDensity` / `mean`, `backgroundMatchRatio`, `foregroundBox`.
@@ -156,6 +170,14 @@ await harness.room.connect(url, token);
 await harness.room.publish();
 const { fps, framesEncodedDelta } = await harness.room.measure(5000);
 ```
+
+### `libraryLogs` — what the library itself said
+
+Only populated when the page was loaded with `?loglevel=`, which is what installs the library's
+`setLogExtension` hook. Use it rather than scraping the console: loglevel binds `console.error`
+and friends directly, so a library line carries no logger name and cannot be told apart from one
+livekit-client or the harness wrote. Each record is `{ level, levelName, msg }`, with `level` the
+numeric `LogLevel` the hook was handed.
 
 ### `counters` — leaks
 

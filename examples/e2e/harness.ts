@@ -2,11 +2,20 @@ import { BackgroundTransformer, ProcessorWrapper } from '../../src';
 import { readCounters } from './counters';
 import type { FakeCamera } from './fakeCamera';
 import { fakeMic } from './fakeMic';
+import { clearLibraryLogRecords, libraryLogRecords } from './logCapture';
 import { Media } from './media';
 import { Probe } from './probe';
+import { tryCreateBackgroundProcessor } from './processors';
 import { RoomMode } from './room';
 import { resetStats, snapshotStats } from './stats';
-import type { AppStateSnapshot, Config, EnvInfo, Harness } from './types';
+import type {
+  AppStateSnapshot,
+  Config,
+  EnvInfo,
+  Harness,
+  ProcessorConstruction,
+  ProcessorSupport,
+} from './types';
 
 const MAX_LOG_LINES = 500;
 
@@ -43,8 +52,7 @@ export class E2EHarness implements Harness {
     this.media = media;
 
     this.probe = new Probe(
-      (source) =>
-        source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack(),
+      (source) => (source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack()),
       () => camera.subjectRect(),
     );
 
@@ -66,9 +74,7 @@ export class E2EHarness implements Harness {
   // ------------------------------------------------------------------ logging
 
   log(...args: unknown[]) {
-    const line = args
-      .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
-      .join(' ');
+    const line = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     this.lines.push(`${new Date().toISOString().slice(11, 23)} ${line}`);
     if (this.lines.length > MAX_LOG_LINES) this.lines.splice(0, this.lines.length - MAX_LOG_LINES);
     if (line.startsWith('ERROR')) this.error = line;
@@ -85,6 +91,19 @@ export class E2EHarness implements Harness {
   clearLogs() {
     this.lines = [];
     this.error = null;
+  }
+
+  /**
+   * What the *library* logged, as opposed to what the harness or livekit-client logged.
+   *
+   * Empty unless the page was loaded with `?loglevel=`, which is what installs the hook.
+   */
+  libraryLogs() {
+    return libraryLogRecords();
+  }
+
+  clearLibraryLogs() {
+    clearLibraryLogRecords();
   }
 
   private captureErrors() {
@@ -131,12 +150,29 @@ export class E2EHarness implements Harness {
     };
   }
 
+  /** Decided once, at construction: the app builds a processor only if this says it can. */
+  support(): ProcessorSupport {
+    return this.media.support;
+  }
+
+  /**
+   * Calls `BackgroundProcessor()` and catches whatever comes back.
+   *
+   * The app never calls it in an unsupported browser, so this is the only way a spec can see
+   * that the documented message is still what the library throws — and that it is thrown on
+   * the call rather than reaching `window.onerror` on its own.
+   */
+  tryCreateProcessor(): ProcessorConstruction {
+    return tryCreateBackgroundProcessor(this.config, () => undefined);
+  }
+
   snapshot(): AppStateSnapshot {
     return {
       video: this.media.info('video'),
       audio: this.media.info('audio'),
       videoProcessorEnabled: this.media.videoProcessorEnabled,
       audioProcessorEnabled: this.media.audioProcessorEnabled,
+      videoMuted: this.media.videoMuted,
       mode: this.media.reportedMode(),
       backgroundImage: this.config.backgroundImage,
       blurRadius: this.config.blurRadius,

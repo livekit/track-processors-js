@@ -1,8 +1,8 @@
 import { type Page, test as base, expect } from '@playwright/test';
-import { FORBIDDEN_CONSOLE } from './thresholds';
 // Pulls in the `declare global { interface Window { harness } }` from the harness app, so specs
 // can write page.evaluate(() => window.harness.snapshot()) with full typing.
 import type {} from '../examples/e2e/types';
+import { FORBIDDEN_CONSOLE } from './thresholds';
 
 /**
  * Console noise that is expected and not a library problem.

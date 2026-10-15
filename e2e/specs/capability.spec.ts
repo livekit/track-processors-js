@@ -1,8 +1,11 @@
+import type { EnvInfo } from '../../examples/e2e/types';
 import { expect, test } from '../fixtures';
 import { attachProcessor, startCamera } from '../helpers';
+import { DEGRADED } from '../thresholds';
 
 /**
- * A1, A3, A4 — which pipeline the library selects, and that both of them work.
+ * A1, A2, A3, A4 — which pipeline the library selects, that both of them work, and what
+ * happens when neither can.
  *
  * Support is inferred from the presence of a handful of globals, and the choice between the
  * insertable-streams path and the canvas.captureStream fallback follows from two of them. These
@@ -74,6 +77,91 @@ test.describe('capability detection', () => {
     expect(env.processorSupported, 'ProcessorWrapper.isSupported').toBe(
       env.hasModernApiSupport || env.canvasCaptureStream,
     );
+  });
+
+  /**
+   * The four primitives `BackgroundTransformer.isSupported` reads, each removable before boot
+   * with `?break=`, paired with the `env()` flag that has to go false and the name the label is
+   * expected to say out loud.
+   */
+  const BREAKABLE_PRIMITIVES: readonly { param: string; flag: keyof EnvInfo; label: string }[] = [
+    { param: 'offscreencanvas', flag: 'offscreenCanvas', label: 'OffscreenCanvas' },
+    { param: 'videoframe', flag: 'videoFrame', label: 'VideoFrame' },
+    { param: 'createimagebitmap', flag: 'createImageBitmap', label: 'createImageBitmap' },
+    { param: 'webgl2', flag: 'webgl2', label: 'webgl2' },
+  ];
+
+  /**
+   * A2 — an unsupported environment has to degrade to a disabled control.
+   *
+   * `BackgroundProcessor()` throws when any one of those primitives is missing, and issues #10
+   * and #38 are both what an app gets for not asking first: the throw escapes module scope or a
+   * click handler, and the user is left with a white screen or an uncaught error instead of a
+   * button that says why it cannot run. The documented message is still the library's — but
+   * only for a caller that deliberately asks for it.
+   *
+   * One test per primitive, because each is a separate route into the same state and a partial
+   * support check (reading three of the four, say) would otherwise pass.
+   */
+  for (const primitive of BREAKABLE_PRIMITIVES) {
+    test(`A2: without ${primitive.label} the processor control is disabled, not throwing`, async ({
+      app,
+    }) => {
+      const { page } = app;
+      // That this returns at all is half the case: `goto` fails on `body.dataset.bootError`,
+      // which is what #10's white screen looks like from out here.
+      await app.goto({ break: primitive.param });
+
+      const env = await page.evaluate(() => window.harness.env());
+      expect(env[primitive.flag], `?break=${primitive.param} should have removed it`).toBe(false);
+      expect(env.transformerSupported, 'BackgroundTransformer.isSupported').toBe(false);
+
+      // Losing background processing must not take the rest of the app with it.
+      await startCamera(page);
+      await expect(page.locator('body')).toHaveAttribute('data-video-track', 'live');
+
+      const attach = page.getByTestId('attach-processor');
+      await expect(attach, 'attach control').toBeDisabled();
+      await expect(page.getByTestId('processor-unsupported'), 'explanatory label').toBeVisible();
+
+      // The label's wording is read from the mirrored dataset value rather than from rendered
+      // text, per the house rule — but it still has to name what is missing, since "disabled
+      // with no reason" is the other half of what #38 reported.
+      const reason = await page.evaluate(() => document.body.dataset.processorUnsupportedReason);
+      expect(reason, 'reason').toContain(DEGRADED.REASON_PREFIX);
+      expect(reason, 'reason names the missing primitive').toContain(primitive.label);
+
+      // Now press it for real. A disabled control dispatches no click, so this has to leave the
+      // app exactly where it was — no processor attached, and nothing thrown out of a handler.
+      await attach.click({ force: true });
+      await expect(page.locator('body')).toHaveAttribute('data-video-processor', 'false');
+
+      // The throw is still there for a caller that asks for it by name. The app does not: it
+      // checks `supportsBackgroundProcessors()` and never constructs one here.
+      const construction = await page.evaluate(() => window.harness.tryCreateProcessor());
+      expect(construction.ok, 'BackgroundProcessor() should refuse').toBe(false);
+      expect(construction.error, 'documented message').toBe(DEGRADED.TRANSFORMER_ERROR);
+
+      // Nothing reached `window.onerror`: the app fixture fails any test whose run produced a
+      // page error or a logged harness error, so it is not asserted again here.
+    });
+  }
+
+  /**
+   * The other direction, and what keeps the four above honest: a harness that disabled the
+   * control unconditionally, or a `?break=` that quietly did nothing, would pass all of them.
+   */
+  test('A2b: with every primitive present the control is live and carries no reason', async ({
+    app,
+  }) => {
+    const { page } = app;
+    await app.goto();
+
+    await expect(page.locator('body')).toHaveAttribute('data-processor-supported', 'true');
+    await expect(page.getByTestId('attach-processor')).toBeEnabled();
+    await expect(page.getByTestId('processor-unsupported')).toBeHidden();
+    const reason = await page.evaluate(() => document.body.dataset.processorUnsupportedReason);
+    expect(reason, 'no reason when nothing is missing').toBeUndefined();
   });
 
   test('A4: the modern path adds no canvas to the document', async ({ app }) => {
