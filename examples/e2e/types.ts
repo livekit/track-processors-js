@@ -681,6 +681,8 @@ export interface ProcessorStateReport {
   source: MediaStreamTrackState | null;
   /** The track the wrapper publishes. */
   processed: MediaStreamTrackState | null;
+}
+
 // --------------------------------------------------------------------------- golden masks
 
 export interface MaskOptions {

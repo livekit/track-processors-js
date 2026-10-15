@@ -107,6 +107,18 @@ export class App {
    */
   readonly pageErrors: string[] = [];
 
+  /**
+   * Every console error as plain text.
+   *
+   * Kept as a derived view over `consoleLines`, which carries the originating URL that the
+   * allowlist matches on. Specs that only want to search the text — B5 looking for #50's
+   * DataCloneError, B8 for #22's, D2 for a CORS block — read this and do not have to know
+   * about allowances.
+   */
+  get consoleErrors(): string[] {
+    return this.consoleLines.map((line) => line.text);
+  }
+
   private readonly declared: ConsoleAllowance[] = [];
 
   constructor(
