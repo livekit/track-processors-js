@@ -113,13 +113,24 @@ export class Media implements MediaControl {
     this.emit();
   }
 
+  /**
+   * `LocalVideoTrack.restartTrack` — re-acquire the source and rebuild the processor over it.
+   *
+   * Keys are omitted rather than set to undefined, and an empty option set becomes no argument
+   * at all. Both matter: `restartTrack()` with nothing falls back to the constraints the track
+   * was captured with, which is the plain restart, while `restartTrack({ resolution:
+   * undefined })` throws — `constraintsForOptions` flattens `resolution` through
+   * `Object.keys(source.resolution)` without a null check, so an explicit undefined is a
+   * TypeError rather than "say nothing about the resolution". That is what the Restart track
+   * button used to do on the default dropdown setting, and it reached the harness log as
+   * `ERROR Cannot convert undefined or null to object` with no track restarted at all.
+   */
   async restartVideo(opts: { deviceId?: string; width?: number; height?: number } = {}) {
     if (!this.videoTrack) throw new Error('No video track. Call startVideo first.');
-    await this.videoTrack.restartTrack({
-      deviceId: opts.deviceId,
-      resolution:
-        opts.width && opts.height ? { width: opts.width, height: opts.height } : undefined,
-    });
+    const options: VideoCaptureOptions = {};
+    if (opts.deviceId) options.deviceId = opts.deviceId;
+    if (opts.width && opts.height) options.resolution = { width: opts.width, height: opts.height };
+    await this.videoTrack.restartTrack(Object.keys(options).length > 0 ? options : undefined);
     this.emit();
     return this.info('video')!;
   }
