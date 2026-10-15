@@ -4,6 +4,7 @@ import type {
   FrameSample,
   ProbeControl,
   ProbeOptions,
+  ProbeSource,
   RecordOptions,
   Rect,
   RegionStats,
@@ -34,7 +35,7 @@ const STABILITY_FRAMES = 60;
 /** Big enough that the silhouette is several hundred pixels long, small enough to keep up. */
 const STABILITY_MAX_DIMENSION = 160;
 
-type TrackResolver = (source: 'processed' | 'source') => MediaStreamTrack | undefined;
+type TrackResolver = (source: ProbeSource) => MediaStreamTrack | undefined;
 
 export class Probe implements ProbeControl {
   private video: HTMLVideoElement;
@@ -45,7 +46,16 @@ export class Probe implements ProbeControl {
 
   private presented = 0;
 
-  private boundTrackId: string | null = null;
+  /**
+   * The track object currently wired to the probe video, not its id.
+   *
+   * It has to be identity: Chrome names a remote track after the `a=msid` of the offer, so the
+   * far end of `harness.loopback` carries the *sender's* track id. Keyed by id, a rebind from
+   * `processed` to `received` is a no-op and every later sample silently re-reads the local
+   * frame — a comparison of a thing with itself, which is the shape of the C3 mistake recorded
+   * in e2e/AGENTS.md.
+   */
+  private boundTrack: MediaStreamTrack | null = null;
 
   private rvfcHandle?: number;
 
@@ -104,12 +114,18 @@ export class Probe implements ProbeControl {
 
   // ------------------------------------------------------------------ binding
 
-  private async bind(source: 'processed' | 'source') {
+  private async bind(source: ProbeSource) {
     const track = this.resolveTrack(source);
-    if (!track) throw new Error(`No ${source} track to probe. Start the camera first.`);
+    if (!track) {
+      throw new Error(
+        source === 'received'
+          ? 'No received track to probe. Call loopback.start() first.'
+          : `No ${source} track to probe. Start the camera first.`,
+      );
+    }
 
-    if (this.boundTrackId !== track.id) {
-      this.boundTrackId = track.id;
+    if (this.boundTrack !== track) {
+      this.boundTrack = track;
       this.presented = 0;
       this.video.srcObject = new MediaStream([track]);
       this.startFrameCounter();
