@@ -244,9 +244,19 @@ export interface RecordOptions {
   regions?: { fg?: Rect; bg?: Rect };
 }
 
+/**
+ * Which track the probe reads.
+ *
+ * `processed` is what the application would publish, `source` bypasses the processor, and
+ * `received` is the decoded far end of `harness.loopback` — the frames a remote peer actually
+ * gets, after an encode/decode round trip. Only `received` can answer a case about publishing;
+ * the other two are both local to the sending side.
+ */
+export type ProbeSource = 'processed' | 'source' | 'received';
+
 export interface ProbeOptions {
-  /** Which track to read. 'source' bypasses the processor. */
-  source?: 'processed' | 'source';
+  /** Which track to read. 'source' bypasses the processor; 'received' is the loopback far end. */
+  source?: ProbeSource;
   regions?: { fg?: Rect; bg?: Rect };
   expectBackground?: Rgb & { tolerance?: number };
   includeImage?: boolean;
@@ -427,6 +437,17 @@ export interface MediaControl {
 
   setAudioProcessorEnabled(enabled: boolean): Promise<TrackInfo | null>;
   setGain(value: number): void;
+
+  /**
+   * The video track a remote peer would receive — the processor's output while one is
+   * attached, the raw camera otherwise.
+   *
+   * Exposed on the interface because a publishing case has to hand exactly this track to
+   * `harness.loopback.start()`, and has to be able to name it without knowing whether a
+   * processor is attached — which `LocalVideoTrack.mediaStreamTrack` cannot be read for, since
+   * `setProcessor` silently repoints it at the processed track.
+   */
+  processedVideoTrack(): MediaStreamTrack | undefined;
 
   info(kind?: 'video' | 'audio'): TrackInfo | null;
 }

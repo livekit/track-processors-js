@@ -579,3 +579,107 @@ export const LOGGING = {
     'Frame ticker worker failed',
   ],
 };
+
+/**
+ * B4 — a processor attached to a track that has never been published, then published.
+ *
+ * Guards [#97](https://github.com/livekit/track-processors-js/issues/97): on iPhone, a
+ * processor attached before the track was published came out with the background laid over the
+ * subject. The order is the case. `ProcessorWrapper.setup()` sizes `sourceDummy`, the GL canvas
+ * and — on the canvas fallback — the `displayCanvas` the published track is captured from, all
+ * from `waitForTrackResolution(source)`; attaching before anything has pulled from the track is
+ * the moment that call is least likely to have an answer, and a processor that sizes its
+ * buffers from a track with no dimensions is the bug shape #97 describes.
+ *
+ * Measured at the *far end* of `harness.loopback`, not on the local processed track, because
+ * the case is about publishing. Two things make that a real measurement rather than a
+ * re-reading of the local frame:
+ *
+ *   - The probe binds by track identity, not by track id. Chrome names a remote track after
+ *     the `a=msid` of the offer, so the loopback's far end carries the *sender's* id — keyed by
+ *     id the rebind is a no-op and every later sample silently re-reads the local frame. That
+ *     is the C3 mistake recorded in e2e/AGENTS.md, and it is why `Probe` now holds the track
+ *     object rather than its id.
+ *   - The spec waits for `MIN_RECEIVED_FRAMES` frames presented *after* that rebind, and for
+ *     the decoded size to equal the size inbound-rtp reports. A stale local frame is 1280x720
+ *     while the far end is still ramping at 320x180, so it cannot pass for a received one.
+ *
+ * ### What the attach order turned out to be worth on Chrome
+ *
+ * Nothing, and that is a result rather than a gap. Forcing `waitForTrackResolution` to return
+ * `{ width: undefined, height: undefined }` — the outcome of its 500ms timeout, i.e. the iOS
+ * condition the `sleep(10)` at the top of it exists for — changes none of the numbers below, on
+ * either pipeline: dx 0.0016, dy 0.0539, coverage 0.1455, subject-patch plate ratio 0.000, the
+ * same figures a healthy run gives. Both pipelines re-derive the frame size every frame
+ * afterwards — `BackgroundTransformer.transform` assigns `canvas.width = frame.displayWidth`,
+ * and the fallback's enqueue follows `sourceDummy.videoWidth` — so the 300x300 fallback inside
+ * `setup()` is corrected before a frame is ever published. #97's symptom does not reproduce
+ * from the attach order here; reproducing it would need a device that reports a resolution
+ * which is *wrong* rather than absent, which this harness cannot fake.
+ *
+ * So the assertions are calibrated against misalignment introduced directly, with a one-line
+ * edit to `compositeShader.ts`. Neither control is committed, since each asserts that a bug
+ * exists:
+ *
+ *   - `texture(mask, texCoords + vec2(0.0, 0.25))`, a mask offset by a quarter of the frame.
+ *     dy goes 0.0539 -> 0.2400 local and received alike, the subject-patch plate ratio goes
+ *     0.000 -> 0.217 local / 0.208 received, and coverage 0.1455 -> 0.0744. It fails on the
+ *     centre tolerance and on the patch ratio, with roughly 2x and 4x margin.
+ *   - `float maskVal = 1.0;`, the whole frame classified as background. The plate covers
+ *     everything, `foregroundBox` returns null and the patch ratio is exactly 1.000. That is
+ *     #97's symptom verbatim — the background over the subject — and it fails every assertion
+ *     here.
+ *
+ * Geometry tolerances are GEOMETRY's, reused rather than redefined: read its comment first for
+ * why the assertions are on the mask's centre and containment and not on its edges.
+ */
+export const PREPUBLISH = {
+  /**
+   * Frames the far end must present *after* the probe rebinds to it, before anything is
+   * measured. Twenty is about two thirds of a second of the decoded track, reached in ~0.8s.
+   */
+  MIN_RECEIVED_FRAMES: 20,
+  /**
+   * The probe's presented-frame counter on the first sample of the far end.
+   *
+   * It restarts at a rebind, so a small number here *is* the proof that one happened. Observed
+   * **0** on both pipelines. Keyed by track id instead of identity the probe never rebinds and
+   * the same read returns 24-25 — the counter still running on the local track, and still
+   * climbing past 590 by the time the measurement gives up.
+   *
+   * It carries the guard on its own, because the size check does not: the encoder ramps
+   * 320 -> 480 -> 640 -> 960 -> 1280 over about fifteen seconds, and once it reaches 1280 a
+   * stale 1280x720 local frame agrees with inbound-rtp by coincidence. With only the size
+   * check, the id-keyed probe failed on insertable streams and *passed* on the canvas
+   * fallback — a self-comparison that asserted nothing, which is the whole thing AGENTS.md
+   * warns about.
+   */
+  MAX_REBIND_FRAME_INDEX: 5,
+  /**
+   * A patch well inside the segmented subject, in frame coordinates.
+   *
+   * Chosen against the observed mask rather than against the compositor's rect: mediapipe finds
+   * head-and-shoulders at 0.344/0.122 0.313x0.728, so this sits comfortably inside it with room
+   * on every side for the feathered edge. The compositor's own rect (0.20/0.08 0.60x0.92) would
+   * not do — most of it is legitimately background.
+   */
+  SUBJECT_PATCH: { x: 0.42, y: 0.3, w: 0.16, h: 0.3 },
+  /**
+   * How much of that patch may be the virtual-background plate.
+   *
+   * This is #97 stated as a number: the background must not be drawn over the subject. Observed
+   * **0.000** on both pipelines, locally and at the far end — not a small value, an exact zero.
+   * The two negative controls above read 0.208-0.217 and 1.000, so the threshold has four times
+   * the margin it needs in each direction.
+   */
+  MAX_SUBJECT_PLATE_RATIO: 0.05,
+  /**
+   * How far the far end's subject coverage may drift from the local track's, as a fraction.
+   *
+   * Observed 0.014 (0.1455 local at 1280x720 against 0.1476 received at 320x180). Secondary: it
+   * says publishing did not change the picture, and it does *not* separate the controls above —
+   * the shifted mask moves both sides equally, to a drift of 0.04. Kept because a published
+   * frame that lost the subject while the local one kept it would show up here and nowhere else.
+   */
+  MAX_COVERAGE_DRIFT: 0.2,
+};

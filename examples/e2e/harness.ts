@@ -54,13 +54,19 @@ export class E2EHarness implements Harness {
     this.camera = camera;
     this.media = media;
 
+    this.loopback = new Loopback();
+
     this.probe = new Probe(
-      (source) => (source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack()),
+      (source) => {
+        // 'received' is the decoded far end of the in-page loopback, so a case about what
+        // publishing delivers can measure pixels rather than only inbound-rtp counters.
+        if (source === 'received') return this.loopback.receivedTrack();
+        return source === 'source' ? media.sourceVideoTrack() : media.processedVideoTrack();
+      },
       () => camera.subjectRect(),
     );
 
     this.room = new RoomMode(config, media, (message) => this.log(message));
-    this.loopback = new Loopback();
 
     fakeMic.setMeasurementSource(() => media.processedAudioTrack());
     this.captureErrors();
