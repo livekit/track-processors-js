@@ -1149,6 +1149,18 @@ export const PEER_ASPECT = {
  * — recalibrate upward on a serial run if they turn out to be loose, and treat them as ratchets
  * from there.
  */
+/**
+ * Re-measured serially after integration, with no other agent driving a browser.
+ *
+ * median / p5 / min over three runs: 25.9 / 19.9 / 19.9, then 29.9 / 27.9 / 26.0, then
+ * 29.9 / 27.9 / 27.9. The first run is the worst of the six taken either way — worse than any
+ * of the five contended ones — which says the cost that matters here is a cold start (CDN
+ * fetch, shader compile, segmenter warm-up) rather than CPU contention.
+ *
+ * So the floors below were NOT raised. They were set from contended numbers and asked to be
+ * recalibrated upward; the serial run says they are already about right, sitting ~1.9 above the
+ * worst observed median and p5. Raising the median floor to 27 would have failed that cold run.
+ */
 export const SUSTAINED_FPS = {
   /**
    * How long to hold the measurement.
