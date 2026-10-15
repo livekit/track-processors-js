@@ -13,6 +13,7 @@ import type {
   MediaControl,
   PipelinePath,
   ProcessorMode,
+  ProcessorStateReport,
   ProcessorSupport,
   ReportedMode,
   StartVideoOptions,
@@ -366,6 +367,29 @@ export class Media implements MediaControl {
       processedSettings: processed?.getSettings() ?? null,
       pipeline: this.pipeline(),
       mode: this.reportedMode(),
+    };
+  }
+
+  /**
+   * The wrapper's view of its own pipeline, for the cases about it losing its input (#22).
+   *
+   * `info()` cannot serve this: it reads `LocalVideoTrack.mediaStreamTrack`, which is the
+   * *processed* track while a processor is attached, so the source half would report the
+   * output. `ProcessorWrapper.source` is the track the library was actually handed.
+   *
+   * `lifecycleState` is `private` in TypeScript — compile-time only, so it is readable here
+   * through a cast. Kept behind this one documented reach rather than cast at each call site:
+   * if the library renames the field, `lifecycle` goes null and the comment above says why.
+   */
+  processorState(): ProcessorStateReport {
+    const wrapper = this.processor;
+    // Through `unknown`, because intersecting the wrapper's type with a field it declares
+    // `private` collapses to `never`.
+    const internals = wrapper as unknown as { lifecycleState?: string } | undefined;
+    return {
+      lifecycle: internals?.lifecycleState ?? null,
+      source: wrapper?.source?.readyState ?? null,
+      processed: wrapper?.processedTrack?.readyState ?? null,
     };
   }
 }
