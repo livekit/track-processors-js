@@ -49,3 +49,41 @@ jobs:
         name: screenshot-diffs
         path: .vitest/attachments/
         retention-days: 7
+
+  e2e:
+    # Apple Silicon: the platform thresholds.ts is calibrated on. The Linux runners render WebGL on
+    # SwiftShader at about 5 fps, below G1's frame-rate floor.
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+    - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+    - name: Use Node.js 24
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 24
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Typecheck
+      run: pnpm typecheck
+
+    # e2e/playwright.config.ts runs installed Google Chrome (channel: 'chrome'), not the bundled
+    # headless shell.
+    - name: Install Google Chrome
+      run: pnpm exec playwright install --with-deps chrome
+
+    - name: Run e2e tests
+      run: pnpm test:e2e
+
+    - name: Upload e2e report
+      if: failure()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: e2e-report
+        path: |
+          e2e/.report/
+          e2e/.results/
+        retention-days: 7
