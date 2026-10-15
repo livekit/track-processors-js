@@ -2,6 +2,8 @@ import type {
   FrameDiff,
   FrameFingerprint,
   FrameSample,
+  MaskOptions,
+  MaskSnapshot,
   ProbeControl,
   ProbeOptions,
   ProbeSource,
@@ -480,6 +482,54 @@ export class Probe implements ProbeControl {
       rates,
       unstablePixelRatio: pixels ? unstablePixels / pixels : 0,
       foregroundRatio: observed && pixels ? 1 - backgroundPixels / (observed * pixels) : 0,
+    };
+  }
+
+  // ------------------------------------------------------------------ golden masks
+
+  /**
+   * One frame's whole foreground/background mask, as rows of `#` and `.`.
+   *
+   * The same classification `measureTemporalStability` applies, through the same
+   * `classifyBackground` palette rule and at the same default scale. H1 and H2 have to agree
+   * about what a mask *is*, or the golden would be guarding a different quantity from the one
+   * H2 reports as byte-stable. All that differs is that this keeps a single frame's mask
+   * instead of reducing a run of them to a flip count.
+   *
+   * Rows rather than a packed bitmap or a screenshot: the committed artifact stays diffable,
+   * so a reviewer looking at a failing golden sees which part of the silhouette moved.
+   */
+  async captureMask(opts: MaskOptions = {}): Promise<MaskSnapshot> {
+    const { data, w, h } = await this.readFrame({
+      source: opts.source ?? 'processed',
+      maxDimension: opts.maxDimension ?? STABILITY_MAX_DIMENSION,
+    });
+
+    const tolerance = opts.background?.tolerance ?? DEFAULT_TOLERANCE;
+    const palette: Rgb[] = opts.background
+      ? [{ r: opts.background.r, g: opts.background.g, b: opts.background.b }]
+      : borderPalette(data, w, h);
+    if (palette.length === 0) throw new Error('no background palette could be learned');
+
+    const background = classifyBackground(data, w * h, palette, tolerance);
+
+    const rows: string[] = [];
+    let foreground = 0;
+    for (let y = 0; y < h; y += 1) {
+      let row = '';
+      for (let x = 0; x < w; x += 1) {
+        const isForeground = background[y * w + x] === 0;
+        if (isForeground) foreground += 1;
+        row += isForeground ? '#' : '.';
+      }
+      rows.push(row);
+    }
+
+    return {
+      width: w,
+      height: h,
+      rows,
+      foregroundRatio: w * h ? foreground / (w * h) : 0,
     };
   }
 
