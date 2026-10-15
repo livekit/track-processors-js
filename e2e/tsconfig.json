@@ -5,5 +5,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node", "offscreencanvas", "dom-mediacapture-transform"]
   },
-  "include": ["**/*.ts", "../examples/e2e/**/*.ts"]
+  "include": ["**/*.ts", "scripts/*.mts", "../examples/e2e/**/*.ts"]
 }

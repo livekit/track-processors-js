@@ -2,7 +2,7 @@
  * Every number the suite asserts on, in one place.
  *
  * Each carries the value actually observed on headless Chrome 153 / macOS at 1280x720 with the
- * default procedural subject. They are deliberately loose around those observations: the point
+ * default subject, public/subject.png. They are deliberately loose around those observations: the point
  * is to catch a pipeline that has stopped working, not to pin rendering to the pixel. Recalibrate
  * per target before enabling a new browser, and move a threshold only with the observation
  * updated alongside it.

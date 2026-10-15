@@ -70,8 +70,8 @@ export interface Config {
   motion: MotionKind;
   clock: CameraClock;
   cameraFps: number;
-  /** Override the procedural subject with an image (expects alpha). */
-  subjectUrl?: string;
+  /** The subject cutout, stretched into the subject rect (expects alpha). */
+  subjectUrl: string;
   /** Replace the whole compositor with a video file. Escape hatch; unused by the suite. */
   camSrc?: string;
   autostart: boolean;
@@ -288,7 +288,7 @@ export interface FakeCameraControl {
   setMotion(mode: MotionKind): void;
   setClock(mode: CameraClock): void;
   setSubjectVisible(visible: boolean): void;
-  /** Swap the subject for an image at `url`; pass null to return to the procedural figure. */
+  /** Swap the subject for an image at `url`; pass null to return to `config.subjectUrl`. */
   setSubjectImage(url: string | null): Promise<void>;
   setFrame(n: number): void;
   /** Advance the frame index. Only deterministic under clock 'manual'. */

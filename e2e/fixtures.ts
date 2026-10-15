@@ -4,13 +4,8 @@ import { FORBIDDEN_CONSOLE } from './thresholds';
 // can write page.evaluate(() => window.harness.snapshot()) with full typing.
 import type {} from '../examples/e2e/types';
 
-/**
- * Console noise that is expected and not a library problem.
- *
- * `/subject.png` is intentionally absent — the compositor draws a procedural figure unless a
- * real cutout is committed — so its 404 is normal.
- */
-const ALLOWED_CONSOLE = [/subject\.png/, /Failed to load resource.*404/];
+/** Console noise that is expected and not a library problem. */
+const ALLOWED_CONSOLE: RegExp[] = [];
 
 /** Query parameters for the harness app. See examples/e2e/README.md for the full list. */
 export type AppParams = Record<string, string | number | boolean>;

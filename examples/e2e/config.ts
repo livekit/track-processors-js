@@ -10,6 +10,12 @@ import type { BackdropKind, CameraClock, Config, MotionKind, ProcessorMode } fro
 /** Flat magenta. Chosen because it appears nowhere in the subject or any backdrop. */
 export const DEFAULT_BACKGROUND_IMAGE = '/bg-solid.png';
 
+/**
+ * A head-and-shoulders figure, written by e2e/scripts/bakeSubject.mts (`pnpm bake:subject`).
+ * The thresholds are calibrated against this image.
+ */
+export const DEFAULT_SUBJECT_URL = '/subject.png';
+
 /** The local copies written by `pnpm assets:mediapipe`, used when `?assets=local`. */
 const LOCAL_ASSETS = {
   tasksVisionFileSet: '/mediapipe/wasm',
@@ -72,7 +78,7 @@ export function parseConfig(search: string = window.location.search): Config {
     motion: oneOf(p.get('motion'), ['static', 'pan', 'wave'] as const satisfies readonly MotionKind[], 'static'),
     clock: oneOf(p.get('camclock'), ['raf', 'interval', 'worker', 'manual'] as const satisfies readonly CameraClock[], 'raf'),
     cameraFps: num(p.get('camfps'), 30),
-    subjectUrl: p.get('subject') ?? undefined,
+    subjectUrl: p.get('subject') ?? DEFAULT_SUBJECT_URL,
     camSrc: p.get('camsrc') ?? undefined,
 
     autostart: bool(p.get('autostart')),
