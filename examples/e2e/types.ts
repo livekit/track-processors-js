@@ -450,6 +450,8 @@ export interface MediaControl {
   processedVideoTrack(): MediaStreamTrack | undefined;
 
   info(kind?: 'video' | 'audio'): TrackInfo | null;
+  /** Ready states either side of the processor, plus the wrapper's own lifecycle state. */
+  processorState(): ProcessorStateReport;
 }
 
 /**
@@ -643,4 +645,31 @@ export interface TemporalStability {
    * zero would then mean nothing.
    */
   foregroundRatio: number;
+}
+
+// --------------------------------------------------------------------------- processor state
+
+/**
+ * What the wrapper looks like from outside, either side of its pipeline.
+ *
+ * Added for B8, which drives the source track's own `.stop()` — a device unplug — and has to
+ * tell "the wrapper noticed and tore the pipeline down" apart from "the wrapper is still
+ * holding a dead stream". `snapshot().video` cannot answer that: `LocalVideoTrack.
+ * mediaStreamTrack` is the *processed* track once a processor is attached, so its `readyState`
+ * reports the output on exactly the runs where the input is the interesting half.
+ */
+export interface ProcessorStateReport {
+  /**
+   * `ProcessorWrapper.lifecycleState`, which is `private` in TypeScript and so not part of the
+   * library's public surface — readable at runtime only. Null when no processor exists.
+   *
+   * Read through a cast rather than exported, deliberately: a spec asserting on it is asserting
+   * on an internal, and when a rename makes this null the failure points here rather than
+   * looking like a behaviour change.
+   */
+  lifecycle: string | null;
+  /** The camera track the wrapper was handed — `ProcessorWrapper.source`, which is public. */
+  source: MediaStreamTrackState | null;
+  /** The track the wrapper publishes. */
+  processed: MediaStreamTrackState | null;
 }
