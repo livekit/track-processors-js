@@ -2,6 +2,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { setupWebGL } from '../src/webgl';
 
+
+
+
+
+
 /**
  * Runs the WebGL compositing pipeline (the part of BackgroundProcessor after segmentation) on a
  * camera frame and its person mask: a white robot doll in front of an office, with its exact
@@ -15,15 +20,51 @@ let frame: ImageBitmap;
 let mask: ImageBitmap;
 let background: ImageBitmap;
 
+
 beforeAll(async () => {
   const load = async (name: string) =>
-    createImageBitmap(await (await fetch(new URL(`./fixtures/${name}`, import.meta.url))).blob());
+    createImageBitmap(
+      await (
+        await fetch(new URL(`./fixtures/${name}`, import.meta.url))
+      ).blob()
+    );
+
+  // Zuerst alle Bilder laden
   [frame, mask, background] = await Promise.all([
     load('robot-office.jpg'),
     load('robot-office-mask.png'),
     load('lounge.jpg'),
   ]);
+
+  // Testmaske von Category Mask auf Confidence Mask umstellen
+  // Bisher: Person = 0, Hintergrund = 255
+  // Neu:    Person = 255, Hintergrund = 0
+
+  const canvas = new OffscreenCanvas(mask.width, mask.height);
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.drawImage(mask, 0, 0);
+
+  const imageData = ctx.getImageData(
+    0,
+    0,
+    mask.width,
+    mask.height,
+  );
+
+  // RGB-Werte invertieren
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    imageData.data[i] = 255 - imageData.data[i];
+    imageData.data[i + 1] = 255 - imageData.data[i + 1];
+    imageData.data[i + 2] = 255 - imageData.data[i + 2];
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  mask.close();
+  mask = await createImageBitmap(canvas);
 });
+
 
 /**
  * Sets up the pipeline on a canvas on the page, shown at half size to keep the reference
@@ -60,12 +101,15 @@ function createRenderer(width: number, height: number) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskImage);
-    pipeline!.updateMask(maskTexture);
-    gl.deleteTexture(maskTexture);
-
     const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
-    pipeline!.renderFrame(videoFrame);
-    videoFrame.close();
+
+    try {
+      pipeline!.updateMask(maskTexture, videoFrame);
+      pipeline!.renderFrame(videoFrame);
+    } finally {
+      gl.deleteTexture(maskTexture);
+      videoFrame.close();
+    }
   }
 
   return {
