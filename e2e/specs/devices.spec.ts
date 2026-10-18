@@ -105,7 +105,19 @@ test.describe('device switching', () => {
     expect(live.presented / (live.elapsedMs / 1000), 'the published track froze').toBeGreaterThan(
       DEVICE_SWITCH.MIN_FPS_AFTER,
     );
-    expect(after.hash, 'the output is still the pre-switch frame').not.toBe(before.hash);
+    // No hash comparison against the pre-switch frame here, deliberately. It used to assert
+    // `after.hash !== before.hash`, which held only while the subject was drawn from primitives
+    // at the capture resolution: the two fake devices then rasterised the figure differently
+    // and the 320px sample differed. Against the committed `subject.png` both devices render
+    // the same photo, so the downscaled sample is byte-identical at 1280x720 and 640x480 and
+    // the assertion fails on a working switch.
+    //
+    // Nothing is lost. The property it stood for — the output is the new device's, not a stale
+    // frame from the old one — is carried more strictly by the `immediate` sample above, which
+    // demands the new dimensions on the first frame readable after the switch with no settle
+    // window at all. `motion: 'static'` also makes consecutive frames identical by design, so a
+    // distinct-hash liveness check is not available here; liveness is the fps assertion and the
+    // per-frame recording classified below.
 
     // --------------------------------------------------------------- geometry follows the device
 

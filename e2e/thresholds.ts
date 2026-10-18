@@ -377,7 +377,8 @@ export const SEGMENTATION = {
   MIN_MOVING_FLIP_RATE: 0.001,
   /**
    * The classifier has to have found a subject: at 0 or 1 the frame is uniform and a flip rate
-   * of zero says nothing. Observed 14.5-14.7% of the frame.
+   * of zero says nothing. Observed 31.0-31.5% of the frame against the committed
+   * `public/subject.png`; it was 14.5-14.7% against the procedural figure that preceded it.
    */
   FOREGROUND_RATIO_MIN: 0.03,
   FOREGROUND_RATIO_MAX: 0.8,
@@ -611,7 +612,7 @@ export const LOGGING = {
  * Nothing, and that is a result rather than a gap. Forcing `waitForTrackResolution` to return
  * `{ width: undefined, height: undefined }` — the outcome of its 500ms timeout, i.e. the iOS
  * condition the `sleep(10)` at the top of it exists for — changes none of the numbers below, on
- * either pipeline: dx 0.0016, dy 0.0539, coverage 0.1455, subject-patch plate ratio 0.000, the
+ * either pipeline: dx 0.0016, dy 0.0128, coverage 0.0816, subject-patch plate ratio 0.000, the
  * same figures a healthy run gives. Both pipelines re-derive the frame size every frame
  * afterwards — `BackgroundTransformer.transform` assigns `canvas.width = frame.displayWidth`,
  * and the fallback's enqueue follows `sourceDummy.videoWidth` — so the 300x300 fallback inside
@@ -660,12 +661,25 @@ export const PREPUBLISH = {
   /**
    * A patch well inside the segmented subject, in frame coordinates.
    *
-   * Chosen against the observed mask rather than against the compositor's rect: mediapipe finds
-   * head-and-shoulders at 0.344/0.122 0.313x0.728, so this sits comfortably inside it with room
-   * on every side for the feathered edge. The compositor's own rect (0.20/0.08 0.60x0.92) would
-   * not do — most of it is legitimately background.
+   * Chosen against the observed mask rather than against the compositor's rect, which would not
+   * do — most of the compositor's rect is legitimately background.
+   *
+   * Re-chosen when the procedural figure was replaced by the committed `public/subject.png`.
+   * The old patch (0.42/0.30 0.16x0.30) was the head and neck of the drawn figure; against the
+   * photo it overhangs the neck, which is much narrower, and reads 0.0911 plate — nearly twice
+   * the limit. Measured over candidates on the real mask:
+   *
+   *   0.42/0.30 0.16x0.30  (old, head+neck)   0.0911
+   *   0.44/0.20 0.12x0.35  (head+neck, narrow) 0.0080
+   *   0.42/0.22 0.16x0.12  (head only)        0.0000
+   *   0.38/0.72 0.24x0.20  (torso, centre)    0.0000
+   *   0.32/0.70 0.36x0.24  (torso, wide)      0.0000  <- this one
+   *
+   * The wide torso patch is the largest region that is solidly inside the silhouette, so a
+   * plate overlaying the subject has the most area to show up in. Re-derive it by dumping the
+   * mask with `probe.captureMask()` if the subject image is ever replaced again.
    */
-  SUBJECT_PATCH: { x: 0.42, y: 0.3, w: 0.16, h: 0.3 },
+  SUBJECT_PATCH: { x: 0.32, y: 0.7, w: 0.36, h: 0.24 },
   /**
    * How much of that patch may be the virtual-background plate.
    *
@@ -678,7 +692,7 @@ export const PREPUBLISH = {
   /**
    * How far the far end's subject coverage may drift from the local track's, as a fraction.
    *
-   * Observed 0.014 (0.1455 local at 1280x720 against 0.1476 received at 320x180). Secondary: it
+   * Observed 0.009 (0.0728 local at 1280x720 against 0.0816 received at 320x180). Secondary: it
    * says publishing did not change the picture, and it does *not* separate the controls above —
    * the shifted mask moves both sides equally, to a drift of 0.04. Kept because a published
    * frame that lost the subject while the local one kept it would show up here and nowhere else.
