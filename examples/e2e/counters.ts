@@ -8,11 +8,8 @@ import type { ResourceCounters } from './types';
  * Chromium's CDP — treat them as diagnostic only.
  *
  * `webgl.contextsLost` counts explicit releases: every `WEBGL_lose_context.loseContext()` call
- * and every `webglcontextlost` event. It reads zero today because `src/webgl/index.ts`
- * `cleanup()` never calls it and `VideoTransformer.destroy()` only drops the reference, so
- * contexts survive until GC (livekit/track-processors-js#136). It is instrumented so that a fix
- * can be asserted rather than eyeballed: once the library releases its context, this rises in
- * step with the setProcessor/stopProcessor cycles and `created - contextsLost` stops growing.
+ * and every `webglcontextlost` event. `VideoTransformer.destroy()` releases the context it made,
+ * so this rises in step with the setProcessor/stopProcessor cycles (asserted by B3).
  */
 
 let installed = false;

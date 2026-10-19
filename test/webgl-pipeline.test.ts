@@ -162,4 +162,18 @@ describe('WebGL pipeline', () => {
 
     expect(samePixels(pixels(resized.canvas), expected)).toBe(true);
   });
+
+  // VideoTransformer.restart() runs cleanup() and then setupWebGL() on what can be the same
+  // canvas, so only releaseContext() may lose the context.
+  it('keeps the context through cleanup() and loses it on releaseContext()', () => {
+    using renderer = createRenderer(1280, 720);
+    const gl = renderer.canvas.getContext('webgl2')!;
+
+    renderer.pipeline.cleanup();
+    expect(gl.isContextLost(), 'after cleanup').toBe(false);
+    expect(setupWebGL(renderer.canvas), 'set up again on the same canvas').toBeDefined();
+
+    renderer.pipeline.releaseContext();
+    expect(gl.isContextLost(), 'after releaseContext').toBe(true);
+  });
 });

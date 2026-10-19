@@ -97,4 +97,27 @@ test.describe('processor lifecycle', () => {
     const snapshot = await page.evaluate(() => window.harness.snapshot());
     expect(snapshot.video?.readyState).toBe('live');
   });
+
+  // #136: Chrome caps live WebGL contexts per GPU process, so each detach has to release the one
+  // its attach made instead of leaving it to GC.
+  test('B3: every detach releases its WebGL context', async ({ app }) => {
+    const { page } = app;
+    await app.goto({ backdrop: 'checker', motion: 'static' });
+    await startCamera(page);
+
+    const before = await page.evaluate(() => window.harness.counters().webgl.contextsLost);
+    const cycles = 3;
+    for (let i = 0; i < cycles; i += 1) {
+      await page.click('[data-testid="attach-processor"]');
+      await page.waitForFunction(() => window.harness.snapshot().videoProcessorEnabled === true);
+      await page.evaluate(() => window.harness.probe.waitForFrames(5, 25_000));
+      await page.click('[data-testid="detach-processor"]');
+      await page.waitForFunction(() => window.harness.snapshot().videoProcessorEnabled === false);
+    }
+
+    // The webglcontextlost event is dispatched as a task after loseContext(), hence the poll.
+    await expect
+      .poll(() => page.evaluate(() => window.harness.counters().webgl.contextsLost))
+      .toBeGreaterThanOrEqual(before + cycles);
+  });
 });
