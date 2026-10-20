@@ -48,12 +48,16 @@
           <button id="start-video" data-testid="start-video" type="button">Start camera</button>
           <button id="stop-video" data-testid="stop-video" type="button">Stop camera</button>
           <button id="restart-video" data-testid="restart-video" type="button">Restart track</button>
+          <button id="mute-video" data-testid="mute-video" type="button">Mute camera</button>
+          <button id="unmute-video" data-testid="unmute-video" type="button">Unmute camera</button>
+          <button id="resize-source" data-testid="resize-source" type="button">Resize source</button>
           <label for="video-device">Device</label>
           <select id="video-device" data-testid="video-device"></select>
           <label for="video-resolution">Resolution</label>
           <select id="video-resolution" data-testid="video-resolution">
             <option value="">(device default)</option>
             <option value="640x480">640&times;480</option>
+            <option value="640x360">640&times;360</option>
             <option value="1280x720">1280&times;720</option>
             <option value="480x640">480&times;640 (portrait)</option>
             <option value="1920x1080">1920&times;1080</option>
@@ -80,6 +84,8 @@
             step="1"
             value="10"
           />
+          <p id="processor-unsupported" data-testid="processor-unsupported" class="notice" hidden>
+          </p>
         </fieldset>
 
         <fieldset>

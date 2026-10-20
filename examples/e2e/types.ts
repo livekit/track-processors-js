@@ -4,7 +4,6 @@
  * The Playwright suite imports these with `import type` so specs compile against the real
  * surface rather than a hand-maintained copy. Keep this file free of runtime imports.
  */
-
 import type { BackgroundOptions } from '../../src';
 
 /**
@@ -26,6 +25,25 @@ export type ProcessorMode = 'background-blur' | 'virtual-background' | 'disabled
 export type ReportedMode = ProcessorMode | 'legacy' | 'off';
 
 export type PipelinePath = 'insertable-streams' | 'canvas-fallback' | 'none';
+
+/** The level names the library's `setLogLevel` accepts, in ascending severity. */
+export type LogLevelName = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent';
+
+/**
+ * One record the library emitted through its own `setLogExtension` hook.
+ *
+ * Identified by origin rather than by scraping the console: loglevel binds `console.error` and
+ * friends directly, so a library line carries no logger name and is indistinguishable from one
+ * livekit-client or the page wrote. `setLogExtension` is the library's documented sink for its
+ * internal records, which makes it the only precise answer to "what did the *library* log".
+ */
+export interface LibraryLogRecord {
+  /** Numeric `LogLevel`, exactly as the `LogExtension` signature delivers it. */
+  level: number;
+  /** The same level by name, so a failure message is readable. */
+  levelName: string;
+  msg: string;
+}
 
 export type BackdropKind = 'flat' | 'checker' | 'gradient';
 
@@ -52,11 +70,20 @@ export interface Rgb {
 export interface Config {
   /** Force the canvas.captureStream fallback by removing the insertable-streams globals. */
   forceFallback: boolean;
+  /** Remove one of the primitives `BackgroundTransformer.isSupported` reads, before boot. */
+  breakPrimitive?: BrokenPrimitive;
   delegate?: 'CPU' | 'GPU';
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maxFps?: number;
   /** `legacy` builds through the deprecated BackgroundBlur()/VirtualBackground() factories. */
   api: 'modern' | 'legacy';
+  /**
+   * Level handed to the library's `setLogLevel` before the processor is constructed, plus the
+   * record capture that goes with it. A parameter rather than a method because
+   * `BackgroundTransformer` resolves its logger in its constructor, which `Media` runs at boot.
+   * Absent means the page leaves the library's logging alone.
+   */
+  logLevel?: LogLevelName;
   /** `capture` passes the processor through VideoCaptureOptions instead of setProcessor. */
   attach: 'set' | 'capture';
   mode: ProcessorMode;
@@ -136,6 +163,8 @@ export interface AppStateSnapshot {
   audio: TrackInfo | null;
   videoProcessorEnabled: boolean;
   audioProcessorEnabled: boolean;
+  /** True while the source camera track is muted (`enabled === false`). */
+  videoMuted: boolean;
   mode: ReportedMode;
   backgroundImage: string | null;
   blurRadius: number | null;
@@ -215,9 +244,19 @@ export interface RecordOptions {
   regions?: { fg?: Rect; bg?: Rect };
 }
 
+/**
+ * Which track the probe reads.
+ *
+ * `processed` is what the application would publish, `source` bypasses the processor, and
+ * `received` is the decoded far end of `harness.loopback` — the frames a remote peer actually
+ * gets, after an encode/decode round trip. Only `received` can answer a case about publishing;
+ * the other two are both local to the sending side.
+ */
+export type ProbeSource = 'processed' | 'source' | 'received';
+
 export interface ProbeOptions {
-  /** Which track to read. 'source' bypasses the processor. */
-  source?: 'processed' | 'source';
+  /** Which track to read. 'source' bypasses the processor; 'received' is the loopback far end. */
+  source?: ProbeSource;
   regions?: { fg?: Rect; bg?: Rect };
   expectBackground?: Rgb & { tolerance?: number };
   includeImage?: boolean;
@@ -271,6 +310,26 @@ export interface SenderStatsSample {
   qualityLimitationReason?: string;
 }
 
+/** Inbound-rtp stats from the receiving end of the in-page loopback. */
+export interface LoopbackStatsSample {
+  framesDecoded: number;
+  framesReceived: number;
+  framesPerSecond: number | null;
+  frameWidth: number | null;
+  frameHeight: number | null;
+}
+
+export interface LoopbackControl {
+  /** Publish `track` through a self-connected peer pair; resolves once frames are decoding. */
+  start(track: MediaStreamTrack, timeoutMs?: number): Promise<void>;
+  stop(): Promise<void>;
+  isConnected(): boolean;
+  stats(): Promise<LoopbackStatsSample | null>;
+  /** Mean decoded fps over `windowMs`, counted rather than read from `framesPerSecond`. */
+  measure(windowMs?: number): Promise<{ fps: number; framesDecoded: number; elapsedMs: number }>;
+  receivedTrack(): MediaStreamTrack | undefined;
+}
+
 // --------------------------------------------------------------------------- controls
 
 export interface FakeCameraDevice {
@@ -285,6 +344,20 @@ export interface FakeCameraControl {
   readonly installed: boolean;
   devices(): FakeCameraDevice[];
   setBackdrop(kind: BackdropKind, color?: string): void;
+  /**
+   * Resize every live source mid-stream, with no track swap.
+   *
+   * This is what a resolution change looks like to the library. `restartVideo` does not test it:
+   * `LocalVideoTrack.restartTrack` re-acquires the camera and then rebuilds the processor, so
+   * every buffer is simply allocated at the new size and nothing ever follows a change. Resizing
+   * the compositor canvas leaves the pipeline running and changes the frame size underneath it,
+   * which is the path #112 and #128 are about.
+   *
+   * It also sidesteps `applyConstraints`, which cannot reach the source: once a processor is
+   * attached, `LocalTrack.mediaStreamTrack` returns the processor's output track rather than
+   * the camera's.
+   */
+  setResolution(width: number, height: number): void;
   setMotion(mode: MotionKind): void;
   setClock(mode: CameraClock): void;
   setSubjectVisible(visible: boolean): void;
@@ -311,6 +384,24 @@ export interface FakeMicControl {
   setAmplitude(a: number): void;
   /** Measures the published audio track. Returns silence-level rms if nothing is flowing. */
   level(windowMs?: number): Promise<{ rms: number; peak: number; dominantHz: number }>;
+  /**
+   * Rejects when the oscillator's AudioContext is not running.
+   *
+   * WebKit and iOS suspend an AudioContext until a user gesture, which makes every level()
+   * read silent. Audio specs call this first so that failure says so rather than looking like
+   * a gain bug.
+   */
+  assertRunning(): Promise<void>;
+}
+
+/** What `FakeMicControl.level()` returns. Named so specs can hold a measurement in a variable. */
+export interface AudioLevel {
+  /** Root-mean-square amplitude over the window, 0..1. */
+  rms: number;
+  /** Largest absolute sample in the window, 0..1. Above 1.0 would mean clipping. */
+  peak: number;
+  /** Centre frequency of the loudest FFT bin. 2048-point FFT, so bins are ~23 Hz apart. */
+  dominantHz: number;
 }
 
 export interface StartVideoOptions {
@@ -330,23 +421,59 @@ export interface MediaControl {
   switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void>;
 
   setVideoProcessorEnabled(enabled: boolean): Promise<TrackInfo | null>;
+  /** Mute as an application does it: `enabled = false` on the source track, processor intact. */
+  setVideoMuted(muted: boolean): Promise<TrackInfo | null>;
   switchMode(mode: ProcessorMode): Promise<TrackInfo | null>;
   setBackgroundImage(url: string): Promise<TrackInfo | null>;
   setBlurRadius(radius: number): Promise<TrackInfo | null>;
+  /**
+   * The library's own option merge, with nothing in between.
+   *
+   * Everything above routes through `switchTo()`, which substitutes a default for any option a
+   * mode leaves out — so none of them can express "radius zero" or "no image". Those are exactly
+   * the values #37 was about, which is why C7 needs the unmediated call.
+   */
+  updateTransformerOptions(opts: TransformerOptionUpdate): Promise<TrackInfo | null>;
 
   setAudioProcessorEnabled(enabled: boolean): Promise<TrackInfo | null>;
   setGain(value: number): void;
 
+  /**
+   * The video track a remote peer would receive — the processor's output while one is
+   * attached, the raw camera otherwise.
+   *
+   * Exposed on the interface because a publishing case has to hand exactly this track to
+   * `harness.loopback.start()`, and has to be able to name it without knowing whether a
+   * processor is attached — which `LocalVideoTrack.mediaStreamTrack` cannot be read for, since
+   * `setProcessor` silently repoints it at the processed track.
+   */
+  processedVideoTrack(): MediaStreamTrack | undefined;
+
   info(kind?: 'video' | 'audio'): TrackInfo | null;
+  /** Ready states either side of the processor, plus the wrapper's own lifecycle state. */
+  processorState(): ProcessorStateReport;
+}
+
+/**
+ * The part of the library's `BackgroundOptions` that can be changed on a running processor.
+ *
+ * `segmenterOptions` and `assetPaths` are deliberately absent: they are read once at
+ * construction and need a reload to change, like the query parameters that set them.
+ */
+export interface TransformerOptionUpdate {
+  blurRadius?: number;
+  imagePath?: string;
+  backgroundDisabled?: boolean;
 }
 
 export interface ProbeControl {
   sample(opts?: ProbeOptions): Promise<FrameSample>;
-  sampleSeries(
-    opts: ProbeOptions & { count: number; intervalMs?: number },
-  ): Promise<FrameSample[]>;
+  sampleSeries(opts: ProbeOptions & { count: number; intervalMs?: number }): Promise<FrameSample[]>;
   /** Resolves once `count` further frames have been presented, or rejects on timeout. */
-  waitForFrames(count: number, timeoutMs?: number): Promise<{ presented: number; elapsedMs: number }>;
+  waitForFrames(
+    count: number,
+    timeoutMs?: number,
+  ): Promise<{ presented: number; elapsedMs: number }>;
   /** Resolves once two consecutive samples hash-match. Use before pixel assertions. */
   waitForStable(opts?: { timeoutMs?: number; intervalMs?: number }): Promise<FrameSample>;
   /** Ground truth from the compositor, or null when the source is not the fake camera. */
@@ -373,6 +500,24 @@ export interface ProbeControl {
   captureReference(opts?: ProbeOptions): Promise<{ width: number; height: number }>;
   /** Compare the current frame against the stored reference. */
   diffFromReference(opts?: ProbeOptions & { tolerance?: number }): Promise<FrameDiff>;
+
+  /**
+   * Classify every pixel of every presented frame as foreground or background, and count the
+   * ones that change class between consecutive frames.
+   *
+   * On a static input every flip is segmentation instability rather than input change, which is
+   * what makes mask shimmer (#76, #98) an objective number instead of a complaint.
+   */
+  measureTemporalStability(opts?: TemporalStabilityOptions): Promise<TemporalStability>;
+
+  /**
+   * The current frame's whole mask, classified exactly as `measureTemporalStability` classifies
+   * each of its frames.
+   *
+   * What H1 compares against a committed golden: if the mediapipe build or the model asset
+   * changes under us, the silhouette moves and the comparison says so (#59, #72).
+   */
+  captureMask(opts?: MaskOptions): Promise<MaskSnapshot>;
 }
 
 export interface RoomControl {
@@ -397,20 +542,167 @@ export interface Harness {
   logs(): string[];
   lastError(): string | null;
   clearLogs(): void;
+  /** Records the library emitted through `setLogExtension`. Empty unless `?loglevel=` was set. */
+  libraryLogs(): LibraryLogRecord[];
+  clearLibraryLogs(): void;
 
   stats(): ProcessorStatsSnapshot;
   resetStats(): void;
   counters(): ResourceCounters;
+
+  /** Whether a processor can be built here, and what is missing when it cannot. */
+  support(): ProcessorSupport;
+  /**
+   * Construct a processor deliberately and catch what it throws.
+   *
+   * The app never calls `BackgroundProcessor()` when `support().supported` is false, which is
+   * the whole point of A2 — so a spec that wants to see the documented message needs a way to
+   * ask for it explicitly.
+   */
+  tryCreateProcessor(): ProcessorConstruction;
 
   camera: FakeCameraControl;
   mic: FakeMicControl;
   media: MediaControl;
   probe: ProbeControl;
   room: RoomControl;
+  /** An in-page peer connection, for cases about what reaches the encoder. */
+  loopback: LoopbackControl;
 }
 
 declare global {
   interface Window {
     harness: Harness;
   }
+}
+
+// --------------------------------------------------------------------------- degradation
+
+/**
+ * A primitive `?break=` takes away before boot.
+ *
+ * `BackgroundTransformer.isSupported` reads exactly these four, so removing any one of them is
+ * enough to make the library unsupported — which is the environment issues #10 and #38 were
+ * reported from, and the one the app has to degrade in rather than throw out of.
+ */
+export type BrokenPrimitive = 'offscreencanvas' | 'videoframe' | 'createimagebitmap' | 'webgl2';
+
+/** Whether this browser can run a processor, and why not when it cannot. */
+export interface ProcessorSupport {
+  supported: boolean;
+  /** The primitives the library's support checks wanted and did not find. */
+  missing: string[];
+  /** Shown in the UI beside the disabled controls, and mirrored onto `document.body.dataset`. */
+  reason: string | null;
+}
+
+/** The outcome of calling `BackgroundProcessor()` on purpose, with its throw caught. */
+export interface ProcessorConstruction {
+  ok: boolean;
+  error: string | null;
+}
+
+// --------------------------------------------------------------------------- temporal stability
+
+export interface TemporalStabilityOptions {
+  /** How many consecutive presented frames to classify. Default 60. */
+  frames?: number;
+  timeoutMs?: number;
+  /**
+   * Longest edge of the classification canvas. Default 160.
+   *
+   * The flip *rate* is resolution-independent in the sense that it is a fraction rather than a
+   * count, but not scale-free: mask churn lives on the silhouette, whose share of the frame
+   * grows as resolution falls. Compare runs taken at one `maxDimension`.
+   */
+  maxDimension?: number;
+  /**
+   * The plate colour that counts as background — the flat virtual background, normally. Omitted,
+   * the background is learned from the first frame's border ring, as `foregroundBox` does, and
+   * the same palette then classifies every later frame so a flip means the pixel moved, not that
+   * the classifier did.
+   */
+  background?: Rgb & { tolerance?: number };
+}
+
+/**
+ * How much the foreground/background split moves from one presented frame to the next.
+ *
+ * Fed a byte-identical input, a stable segmenter produces the same mask every frame and every
+ * number here is zero.
+ */
+export interface TemporalStability {
+  /** Frames actually classified. */
+  frames: number;
+  /** Frame-to-frame transitions measured, i.e. `frames - 1`. */
+  transitions: number;
+  pixels: number;
+  width: number;
+  height: number;
+  /** Mean fraction of pixels that changed class per transition. The headline number. */
+  flipRate: number;
+  /** Worst single transition, which is what a viewer notices. */
+  maxFlipRate: number;
+  /** Every transition's rate, for diagnostics. */
+  rates: number[];
+  /** Fraction of pixels that flipped at least once over the whole run — the shimmer band. */
+  unstablePixelRatio: number;
+  /**
+   * Mean fraction of pixels classified foreground.
+   *
+   * A sanity check on the classifier: at 0 or 1 it found no subject at all, and a flip rate of
+   * zero would then mean nothing.
+   */
+  foregroundRatio: number;
+}
+
+// --------------------------------------------------------------------------- processor state
+
+/**
+ * What the wrapper looks like from outside, either side of its pipeline.
+ *
+ * Added for B8, which drives the source track's own `.stop()` — a device unplug — and has to
+ * tell "the wrapper noticed and tore the pipeline down" apart from "the wrapper is still
+ * holding a dead stream". `snapshot().video` cannot answer that: `LocalVideoTrack.
+ * mediaStreamTrack` is the *processed* track once a processor is attached, so its `readyState`
+ * reports the output on exactly the runs where the input is the interesting half.
+ */
+export interface ProcessorStateReport {
+  /**
+   * `ProcessorWrapper.lifecycleState`, which is `private` in TypeScript and so not part of the
+   * library's public surface — readable at runtime only. Null when no processor exists.
+   *
+   * Read through a cast rather than exported, deliberately: a spec asserting on it is asserting
+   * on an internal, and when a rename makes this null the failure points here rather than
+   * looking like a behaviour change.
+   */
+  lifecycle: string | null;
+  /** The camera track the wrapper was handed — `ProcessorWrapper.source`, which is public. */
+  source: MediaStreamTrackState | null;
+  /** The track the wrapper publishes. */
+  processed: MediaStreamTrackState | null;
+}
+
+// --------------------------------------------------------------------------- golden masks
+
+export interface MaskOptions {
+  source?: 'processed' | 'source';
+  /**
+   * Longest edge of the classification canvas. Default 160 — the scale
+   * `measureTemporalStability` works at, so a golden captured here is a mask H2 has already
+   * shown to be reproducible frame to frame.
+   */
+  maxDimension?: number;
+  /** The plate colour that counts as background. Omitted, it is learned from a border ring. */
+  background?: Rgb & { tolerance?: number };
+}
+
+/** One frame's foreground/background mask, in a form that can be committed and diffed. */
+export interface MaskSnapshot {
+  width: number;
+  height: number;
+  /** `height` strings of `width` characters: `#` foreground, `.` background. */
+  rows: string[];
+  /** Share of the frame classified foreground. Zero or one means nothing was segmented. */
+  foregroundRatio: number;
 }

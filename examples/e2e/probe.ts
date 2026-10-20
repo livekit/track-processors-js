@@ -2,12 +2,17 @@ import type {
   FrameDiff,
   FrameFingerprint,
   FrameSample,
+  MaskOptions,
+  MaskSnapshot,
   ProbeControl,
   ProbeOptions,
+  ProbeSource,
   RecordOptions,
   Rect,
   RegionStats,
   Rgb,
+  TemporalStability,
+  TemporalStabilityOptions,
 } from './types';
 
 /**
@@ -27,8 +32,12 @@ const DEFAULT_TOLERANCE = 28;
 /** Small enough that fingerprinting keeps up with a 30fps track on the main thread. */
 const RECORD_MAX_DIMENSION = 96;
 const RECORD_MAX_FRAMES = 600;
+/** Two seconds of a 30fps track: long enough for shimmer to show, short enough to stay cheap. */
+const STABILITY_FRAMES = 60;
+/** Big enough that the silhouette is several hundred pixels long, small enough to keep up. */
+const STABILITY_MAX_DIMENSION = 160;
 
-type TrackResolver = (source: 'processed' | 'source') => MediaStreamTrack | undefined;
+type TrackResolver = (source: ProbeSource) => MediaStreamTrack | undefined;
 
 export class Probe implements ProbeControl {
   private video: HTMLVideoElement;
@@ -39,7 +48,16 @@ export class Probe implements ProbeControl {
 
   private presented = 0;
 
-  private boundTrackId: string | null = null;
+  /**
+   * The track object currently wired to the probe video, not its id.
+   *
+   * It has to be identity: Chrome names a remote track after the `a=msid` of the offer, so the
+   * far end of `harness.loopback` carries the *sender's* track id. Keyed by id, a rebind from
+   * `processed` to `received` is a no-op and every later sample silently re-reads the local
+   * frame — a comparison of a thing with itself, which is the shape of the C3 mistake recorded
+   * in e2e/AGENTS.md.
+   */
+  private boundTrack: MediaStreamTrack | null = null;
 
   private rvfcHandle?: number;
 
@@ -98,12 +116,18 @@ export class Probe implements ProbeControl {
 
   // ------------------------------------------------------------------ binding
 
-  private async bind(source: 'processed' | 'source') {
+  private async bind(source: ProbeSource) {
     const track = this.resolveTrack(source);
-    if (!track) throw new Error(`No ${source} track to probe. Start the camera first.`);
+    if (!track) {
+      throw new Error(
+        source === 'received'
+          ? 'No received track to probe. Call loopback.start() first.'
+          : `No ${source} track to probe. Start the camera first.`,
+      );
+    }
 
-    if (this.boundTrackId !== track.id) {
-      this.boundTrackId = track.id;
+    if (this.boundTrack !== track) {
+      this.boundTrack = track;
       this.presented = 0;
       this.video.srcObject = new MediaStream([track]);
       this.startFrameCounter();
@@ -182,7 +206,8 @@ export class Probe implements ProbeControl {
     this.recordCtx.drawImage(this.video, 0, 0, w, h);
     const { data } = this.recordCtx.getImageData(0, 0, w, h);
 
-    const fg = this.recordOpts.regions?.fg ?? this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
+    const fg = this.recordOpts.regions?.fg ??
+      this.groundTruth() ?? { x: 0.25, y: 0.15, w: 0.5, h: 0.85 };
     const inFg = rectPredicate(fg, w, h);
     const inBg = this.recordOpts.regions?.bg
       ? rectPredicate(this.recordOpts.regions.bg, w, h)
@@ -276,9 +301,7 @@ export class Probe implements ProbeControl {
       }
       await new Promise((resolve) => setTimeout(resolve, 16));
     }
-    throw new Error(
-      `Only ${this.presented - start} of ${count} frames arrived in ${timeoutMs}ms`,
-    );
+    throw new Error(`Only ${this.presented - start} of ${count} frames arrived in ${timeoutMs}ms`);
   }
 
   // ------------------------------------------------------------------ reference diffing
@@ -332,6 +355,184 @@ export class Probe implements ProbeControl {
     };
   }
 
+  // ------------------------------------------------------------------ temporal stability
+
+  /**
+   * Counts pixels whose foreground/background classification flips between consecutive frames.
+   *
+   * Driven by `requestVideoFrameCallback` rather than by polling, for the same reason the
+   * recorder is: a poll can only report the frames it happened to catch, and shimmer is
+   * precisely what happens between them. Every presented frame is classified.
+   *
+   * Classification is a colour match against a fixed palette — the virtual-background plate, or
+   * the first frame's border ring. The palette is learned once and reused, so a flip always
+   * means the pixel changed side, never that the classifier drifted.
+   */
+  async measureTemporalStability(opts: TemporalStabilityOptions = {}): Promise<TemporalStability> {
+    await this.bind('processed');
+    const anyVideo = this.video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+    };
+    if (typeof anyVideo.requestVideoFrameCallback !== 'function') {
+      throw new Error('requestVideoFrameCallback is unavailable; stability needs every frame');
+    }
+
+    const wanted = opts.frames ?? STABILITY_FRAMES;
+    const timeoutMs = opts.timeoutMs ?? 20_000;
+    const maxDimension = opts.maxDimension ?? STABILITY_MAX_DIMENSION;
+    const tolerance = opts.background?.tolerance ?? DEFAULT_TOLERANCE;
+
+    // A canvas of its own, so a concurrent sample() or recording cannot clobber a frame
+    // mid-classification.
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Could not get a 2d context for the stability measurement');
+
+    let palette: Rgb[] | null = opts.background
+      ? [{ r: opts.background.r, g: opts.background.g, b: opts.background.b }]
+      : null;
+    let previous: Uint8Array | null = null;
+    let everFlipped = new Uint8Array(0);
+    let unstablePixels = 0;
+    const rates: number[] = [];
+    let backgroundPixels = 0;
+    let observed = 0;
+    let w = 0;
+    let h = 0;
+
+    const classifyOne = () => {
+      const srcW = this.video.videoWidth;
+      const srcH = this.video.videoHeight;
+      if (!srcW || !srcH) throw new Error('no frame');
+
+      const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
+      const fw = Math.max(2, Math.round(srcW * scale));
+      const fh = Math.max(2, Math.round(srcH * scale));
+      canvas.width = fw;
+      canvas.height = fh;
+      ctx.drawImage(this.video, 0, 0, fw, fh);
+      const { data } = ctx.getImageData(0, 0, fw, fh);
+
+      if (!palette) palette = borderPalette(data, fw, fh);
+      if (palette.length === 0) throw new Error('no background palette could be learned');
+
+      const mask = classifyBackground(data, fw * fh, palette, tolerance);
+      for (let i = 0; i < mask.length; i += 1) backgroundPixels += mask[i];
+
+      // A resolution change mid-run makes the two masks incomparable; start again from here
+      // rather than reporting a flip for every pixel.
+      if (previous && previous.length === mask.length) {
+        let flips = 0;
+        for (let i = 0; i < mask.length; i += 1) {
+          if (mask[i] !== previous[i]) {
+            flips += 1;
+            if (everFlipped[i] === 0) {
+              everFlipped[i] = 1;
+              unstablePixels += 1;
+            }
+          }
+        }
+        rates.push(flips / mask.length);
+      } else {
+        everFlipped = new Uint8Array(mask.length);
+        unstablePixels = 0;
+      }
+
+      previous = mask;
+      observed += 1;
+      w = fw;
+      h = fh;
+    };
+
+    await new Promise<void>((resolve) => {
+      const deadline = performance.now() + timeoutMs;
+      // Belt and braces: if frames stop arriving altogether the callback never runs again, so
+      // the deadline check inside it would never fire either.
+      const timer = setTimeout(resolve, timeoutMs + 250);
+      const step = () => {
+        try {
+          classifyOne();
+        } catch {
+          // A frame that cannot be read — zero-sized, or the track just ended — is skipped
+          // rather than aborting the measurement.
+        }
+        if (observed >= wanted || performance.now() > deadline) {
+          clearTimeout(timer);
+          resolve();
+          return;
+        }
+        anyVideo.requestVideoFrameCallback!(step);
+      };
+      anyVideo.requestVideoFrameCallback!(step);
+    });
+
+    if (rates.length === 0) {
+      throw new Error(`Stability needs at least two comparable frames; got ${observed}`);
+    }
+
+    const pixels = w * h;
+    return {
+      frames: observed,
+      transitions: rates.length,
+      pixels,
+      width: w,
+      height: h,
+      flipRate: rates.reduce((sum, r) => sum + r, 0) / rates.length,
+      maxFlipRate: rates.reduce((max, r) => Math.max(max, r), 0),
+      rates,
+      unstablePixelRatio: pixels ? unstablePixels / pixels : 0,
+      foregroundRatio: observed && pixels ? 1 - backgroundPixels / (observed * pixels) : 0,
+    };
+  }
+
+  // ------------------------------------------------------------------ golden masks
+
+  /**
+   * One frame's whole foreground/background mask, as rows of `#` and `.`.
+   *
+   * The same classification `measureTemporalStability` applies, through the same
+   * `classifyBackground` palette rule and at the same default scale. H1 and H2 have to agree
+   * about what a mask *is*, or the golden would be guarding a different quantity from the one
+   * H2 reports as byte-stable. All that differs is that this keeps a single frame's mask
+   * instead of reducing a run of them to a flip count.
+   *
+   * Rows rather than a packed bitmap or a screenshot: the committed artifact stays diffable,
+   * so a reviewer looking at a failing golden sees which part of the silhouette moved.
+   */
+  async captureMask(opts: MaskOptions = {}): Promise<MaskSnapshot> {
+    const { data, w, h } = await this.readFrame({
+      source: opts.source ?? 'processed',
+      maxDimension: opts.maxDimension ?? STABILITY_MAX_DIMENSION,
+    });
+
+    const tolerance = opts.background?.tolerance ?? DEFAULT_TOLERANCE;
+    const palette: Rgb[] = opts.background
+      ? [{ r: opts.background.r, g: opts.background.g, b: opts.background.b }]
+      : borderPalette(data, w, h);
+    if (palette.length === 0) throw new Error('no background palette could be learned');
+
+    const background = classifyBackground(data, w * h, palette, tolerance);
+
+    const rows: string[] = [];
+    let foreground = 0;
+    for (let y = 0; y < h; y += 1) {
+      let row = '';
+      for (let x = 0; x < w; x += 1) {
+        const isForeground = background[y * w + x] === 0;
+        if (isForeground) foreground += 1;
+        row += isForeground ? '#' : '.';
+      }
+      rows.push(row);
+    }
+
+    return {
+      width: w,
+      height: h,
+      rows,
+      foregroundRatio: w * h ? foreground / (w * h) : 0,
+    };
+  }
+
   async waitForStable(opts: { timeoutMs?: number; intervalMs?: number } = {}) {
     const deadline = performance.now() + (opts.timeoutMs ?? 5000);
     let previous = await this.sample();
@@ -361,12 +562,7 @@ function luma(data: Uint8ClampedArray, i: number) {
   return 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
 }
 
-function analyze(
-  data: Uint8ClampedArray,
-  w: number,
-  h: number,
-  include: Predicate,
-): RegionStats {
+function analyze(data: Uint8ClampedArray, w: number, h: number, include: Predicate): RegionStats {
   let n = 0;
   let sumR = 0;
   let sumG = 0;
@@ -540,6 +736,37 @@ function borderPalette(data: Uint8ClampedArray, w: number, h: number): Rgb[] {
     .filter((bin) => bin.n / totalBorderPixels >= 0.08)
     .slice(0, 3)
     .map((bin) => ({ r: bin.r / bin.n, g: bin.g / bin.n, b: bin.b / bin.n }));
+}
+
+/**
+ * One byte per pixel: 1 where the pixel matches the background palette, 0 where it does not.
+ *
+ * The same rule `foregroundBox` applies, kept per pixel instead of reduced to a bounding box,
+ * because the question here is which pixels changed side rather than how far the subject reaches.
+ */
+function classifyBackground(
+  data: Uint8ClampedArray,
+  pixels: number,
+  palette: Rgb[],
+  tolerance: number,
+): Uint8Array {
+  const mask = new Uint8Array(pixels);
+  for (let i = 0; i < pixels; i += 1) {
+    const o = i * 4;
+    for (let c = 0; c < palette.length; c += 1) {
+      const colour = palette[c];
+      const distance = Math.max(
+        Math.abs(data[o] - colour.r),
+        Math.abs(data[o + 1] - colour.g),
+        Math.abs(data[o + 2] - colour.b),
+      );
+      if (distance <= tolerance) {
+        mask[i] = 1;
+        break;
+      }
+    }
+  }
+  return mask;
 }
 
 /** 8x8 average hash. Equal hashes mean a visually identical frame. */

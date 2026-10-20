@@ -1,4 +1,12 @@
-import type { BackdropKind, CameraClock, Config, MotionKind, ProcessorMode } from './types';
+import type {
+  BackdropKind,
+  BrokenPrimitive,
+  CameraClock,
+  Config,
+  LogLevelName,
+  MotionKind,
+  ProcessorMode,
+} from './types';
 
 /**
  * Query parameters are used for anything that cannot be changed after construction —
@@ -16,14 +24,31 @@ export const DEFAULT_BACKGROUND_IMAGE = '/bg-solid.png';
  */
 export const DEFAULT_SUBJECT_URL = '/subject.png';
 
-/** The local copies written by `pnpm assets:mediapipe`, used when `?assets=local`. */
+/**
+ * Where `?assets=local` points `assetPaths`. The dev server answers both out of `node_modules`
+ * and a one-time cache — see the `e2e-mediapipe-assets` plugin in `vite.config.js` — so nothing
+ * has to be committed or prepared before a run (I2).
+ */
 const LOCAL_ASSETS = {
   tasksVisionFileSet: '/mediapipe/wasm',
   modelAssetPath: '/mediapipe/selfie_segmenter.tflite',
 };
 
+/** The four primitives `BackgroundTransformer.isSupported` reads, as `?break=` spells them. */
+const BREAKABLE = [
+  'offscreencanvas',
+  'videoframe',
+  'createimagebitmap',
+  'webgl2',
+] as const satisfies readonly BrokenPrimitive[];
+
 function oneOf<T extends string>(raw: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(raw as T) ? (raw as T) : fallback;
+}
+
+/** Like `oneOf`, but an absent or unrecognised value means "leave it alone" rather than a default. */
+function optionalOneOf<T extends string>(raw: string | null, allowed: readonly T[]): T | undefined {
+  return allowed.includes(raw as T) ? (raw as T) : undefined;
 }
 
 function num(raw: string | null, fallback: number): number {
@@ -47,7 +72,8 @@ export function parseConfig(search: string = window.location.search): Config {
   const p = new URLSearchParams(search);
 
   const assetMode = p.get('assets');
-  const wasm = p.get('wasm') ?? (assetMode === 'local' ? LOCAL_ASSETS.tasksVisionFileSet : undefined);
+  const wasm =
+    p.get('wasm') ?? (assetMode === 'local' ? LOCAL_ASSETS.tasksVisionFileSet : undefined);
   const model = p.get('model') ?? (assetMode === 'local' ? LOCAL_ASSETS.modelAssetPath : undefined);
   const assetPaths =
     wasm || model ? { tasksVisionFileSet: wasm, modelAssetPath: model } : undefined;
@@ -55,16 +81,33 @@ export function parseConfig(search: string = window.location.search): Config {
   const delegateRaw = p.get('delegate')?.toUpperCase() ?? null;
   const { width, height } = resolution(p.get('camres'));
 
+  const broken = p.get('break')?.toLowerCase() ?? null;
+
   return {
     forceFallback: bool(p.get('fallback')),
+    breakPrimitive: BREAKABLE.includes(broken as BrokenPrimitive)
+      ? (broken as BrokenPrimitive)
+      : undefined,
     delegate: delegateRaw === 'CPU' || delegateRaw === 'GPU' ? delegateRaw : undefined,
     assetPaths,
     maxFps: p.has('maxfps') ? num(p.get('maxfps'), 30) : undefined,
     api: oneOf(p.get('api'), ['modern', 'legacy'] as const, 'modern'),
+    logLevel: optionalOneOf(p.get('loglevel'), [
+      'trace',
+      'debug',
+      'info',
+      'warn',
+      'error',
+      'silent',
+    ] as const satisfies readonly LogLevelName[]),
     attach: oneOf(p.get('attach'), ['set', 'capture'] as const, 'set'),
     mode: oneOf(
       p.get('mode'),
-      ['background-blur', 'virtual-background', 'disabled'] as const satisfies readonly ProcessorMode[],
+      [
+        'background-blur',
+        'virtual-background',
+        'disabled',
+      ] as const satisfies readonly ProcessorMode[],
       'background-blur',
     ),
     blurRadius: num(p.get('blur'), 10),
@@ -73,10 +116,22 @@ export function parseConfig(search: string = window.location.search): Config {
     camera: p.get('cam') ?? 'front',
     cameraWidth: width,
     cameraHeight: height,
-    backdrop: oneOf(p.get('backdrop'), ['flat', 'checker', 'gradient'] as const satisfies readonly BackdropKind[], 'checker'),
+    backdrop: oneOf(
+      p.get('backdrop'),
+      ['flat', 'checker', 'gradient'] as const satisfies readonly BackdropKind[],
+      'checker',
+    ),
     backdropColor: p.get('backdropcolor') ?? '#1d6fa5',
-    motion: oneOf(p.get('motion'), ['static', 'pan', 'wave'] as const satisfies readonly MotionKind[], 'static'),
-    clock: oneOf(p.get('camclock'), ['raf', 'interval', 'worker', 'manual'] as const satisfies readonly CameraClock[], 'raf'),
+    motion: oneOf(
+      p.get('motion'),
+      ['static', 'pan', 'wave'] as const satisfies readonly MotionKind[],
+      'static',
+    ),
+    clock: oneOf(
+      p.get('camclock'),
+      ['raf', 'interval', 'worker', 'manual'] as const satisfies readonly CameraClock[],
+      'raf',
+    ),
     cameraFps: num(p.get('camfps'), 30),
     subjectUrl: p.get('subject') ?? DEFAULT_SUBJECT_URL,
     camSrc: p.get('camsrc') ?? undefined,

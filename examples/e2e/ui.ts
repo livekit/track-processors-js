@@ -11,6 +11,17 @@ import type { BackdropKind, MotionKind } from './types';
 
 const ALT_BACKGROUND = '/bg-alt.png';
 
+/** Everything that needs a constructed processor, and so has to go dead without one. */
+const PROCESSOR_CONTROLS = [
+  'attach-processor',
+  'detach-processor',
+  'switch-disabled',
+  'switch-blur',
+  'switch-virtual',
+  'set-background',
+  'blur-radius',
+];
+
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export function buildUi(harness: E2EHarness, render: () => void) {
@@ -60,6 +71,17 @@ export function buildUi(harness: E2EHarness, render: () => void) {
   on('restart-video', 'click', () =>
     media.restartVideo({ deviceId: deviceSelect.value || undefined, ...readResolution() }),
   );
+  // Separate buttons rather than one toggle: a toggle's meaning depends on state the spec
+  // would then have to read back, and labels are not something a spec may assert on.
+  on('mute-video', 'click', () => media.setVideoMuted(true));
+  on('unmute-video', 'click', () => media.setVideoMuted(false));
+  // Separate from 'restart-video' on purpose: this resizes the source the processor is already
+  // reading instead of handing it a new one. See FakeCameraControl.setResolution.
+  on('resize-source', 'click', () => {
+    const { width, height } = readResolution();
+    if (width === undefined || height === undefined) return;
+    camera.setResolution(width, height);
+  });
   on('video-device', 'change', () => media.switchDevice('videoinput', deviceSelect.value));
 
   // ---------------------------------------------------------------- video processor
@@ -71,7 +93,9 @@ export function buildUi(harness: E2EHarness, render: () => void) {
   on('switch-virtual', 'click', () => media.switchMode('virtual-background'));
   on('set-background', 'click', () => {
     const current = harness.snapshot().backgroundImage;
-    return media.setBackgroundImage(current === ALT_BACKGROUND ? config.backgroundImage : ALT_BACKGROUND);
+    return media.setBackgroundImage(
+      current === ALT_BACKGROUND ? config.backgroundImage : ALT_BACKGROUND,
+    );
   });
 
   const blurInput = $<HTMLInputElement>('blur-radius');
@@ -82,6 +106,21 @@ export function buildUi(harness: E2EHarness, render: () => void) {
     $('blur-radius-value').textContent = String(radius);
     return media.setBlurRadius(radius);
   });
+
+  /**
+   * An unsupported browser gets disabled controls and a reason, not a live button that throws
+   * when it is pressed (#10, #38). The handlers above stay wired: a disabled control dispatches
+   * no click, which is the property A2 drives through a real press.
+   */
+  const support = harness.support();
+  if (!support.supported) {
+    for (const id of PROCESSOR_CONTROLS) {
+      $<HTMLButtonElement | HTMLInputElement>(id).disabled = true;
+    }
+    const notice = $('processor-unsupported');
+    notice.textContent = support.reason;
+    notice.hidden = false;
+  }
 
   // ---------------------------------------------------------------- audio
 
