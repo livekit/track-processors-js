@@ -12,6 +12,7 @@ export {
   ProcessorWrapper,
   type BackgroundOptions,
   type SegmenterOptions,
+  type FrameProcessingStats,
   BackgroundTransformer,
   type ProcessorWrapperOptions,
 };
