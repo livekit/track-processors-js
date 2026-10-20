@@ -54,6 +54,8 @@ export default abstract class VideoTransformer<Options extends Record<string, un
     this.isDisabled = true;
     this.canvas = undefined;
     this.gl?.cleanup();
+    // Subclasses close anything else using this context before calling super.destroy().
+    this.gl?.releaseContext();
     this.gl = undefined;
   }
 

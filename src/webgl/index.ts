@@ -367,5 +367,26 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     finalMaskTextures = [];
   }
 
-  return { renderFrame, updateMask, setBackgroundImage, setBlurRadius, setBackgroundDisabled, cleanup };
+  /**
+   * Release the WebGL context instead of leaving it alive until the canvas is garbage
+   * collected; browsers cap live contexts and drop the oldest past that.
+   *
+   * Kept apart from cleanup() because a lost context stays bound to its canvas: getContext()
+   * on the same canvas returns it again, so this is only for a canvas that will not be reused.
+   * Anything else rendering into the context (the MediaPipe segmenter shares it) must be
+   * closed first. Without WEBGL_lose_context the context is left to GC.
+   */
+  function releaseContext() {
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+  }
+
+  return {
+    renderFrame,
+    updateMask,
+    setBackgroundImage,
+    setBlurRadius,
+    setBackgroundDisabled,
+    cleanup,
+    releaseContext,
+  };
 };

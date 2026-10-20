@@ -247,10 +247,7 @@ export interface ResourceCounters {
     byType: { webgl: number; webgl2: number };
     /**
      * Contexts explicitly released, via `loseContext()` or a `webglcontextlost` event.
-     *
-     * Zero while livekit/track-processors-js#136 is open: `cleanup()` never releases the
-     * context it made. Instrumented so a fix can be asserted — `created - contextsLost` is the
-     * number waiting on GC.
+     * Rises by one per processor detach.
      */
     contextsLost: number;
     /** Best effort. GC timing is not controllable, so treat as diagnostic only. */

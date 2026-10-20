@@ -91,8 +91,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   }
 
   async destroy(options?: TrackTransformerDestroyOptions) {
-    await super.destroy();
+    // The segmenter renders into the canvas's WebGL context, which super.destroy() releases,
+    // so it is closed first. Disabling first passes frames that arrive during the close through.
+    this.isDisabled = true;
     await this.imageSegmenter?.close();
+    await super.destroy();
     this.backgroundImageAndPath = null;
 
     if (!options?.willProcessorRestart) {
