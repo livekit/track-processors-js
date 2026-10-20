@@ -154,7 +154,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       resizeTexture(gl, texture, maskBufferWidth, maskBufferHeight);
     }
     if (backgroundSourceImage) {
-      // Not awaited: the placeholder background shows until the re-crop resolves, as on the initial set.
+      // Not awaited: the image cropped for the previous size shows until the re-crop resolves.
       setBackgroundImage(backgroundSourceImage);
     }
   }
@@ -183,8 +183,8 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
 
-    // Apply blur if enabled (and no custom background is set)
-    let backgroundTexture = bgTexture;
+    // The blurred frame, else the custom background, else the frame itself, which the composite passes through
+    let backgroundTexture = frameTexture;
 
     if (blurRadius) {
       const downSampledFrameTexture = applyDownsampling(
@@ -248,29 +248,28 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
    * @param image The background image to use, or null to clear
    */
   async function setBackgroundImage(image: ImageBitmap | null) {
-    // Clear existing background
     backgroundSourceImage = image;
-    customBackgroundImage = null;
 
-    if (image) {
-      customBackgroundImage = getEmptyImageData();
-      // Show the placeholder until the cropped image is ready: renderFrame no longer uploads it.
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, bgTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
+    if (!image) {
+      customBackgroundImage = null;
+    } else {
+      // bgTexture keeps showing the current image until the new one is cropped
+      let croppedImage: ImageBitmap | ImageData = getEmptyImageData();
       try {
         // Resize and crop the image to cover the canvas
-        const croppedImage = await resizeImageToCover(image, canvas.width, canvas.height);
-
-        // Store the cropped and resized image
-        customBackgroundImage = croppedImage;
+        croppedImage = await resizeImageToCover(image, canvas.width, canvas.height);
       } catch (error) {
         log.error(
           'Error processing background image, falling back to black background:',
           error,
         );
       }
+      // A later call or cleanup() replaced or cleared the image while it was cropping
+      if (image !== backgroundSourceImage) {
+        return;
+      }
 
+      customBackgroundImage = croppedImage;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, bgTexture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, customBackgroundImage);
@@ -279,7 +278,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
   function setBlurRadius(radius: number | null) {
     blurRadius = radius ? Math.max(1, Math.floor(radius / downsampleFactor)) : null; // we are downsampling the blur texture, so decrease the radius here for better performance with a similar visual result
-    setBackgroundImage(null);
   }
 
   function setBackgroundDisabled(disabled: boolean) {

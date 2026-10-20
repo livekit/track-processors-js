@@ -137,6 +137,42 @@ describe('WebGL pipeline', () => {
     expect(samePixels(pixels(renderer.canvas), first), 'after blur').toBe(true);
   });
 
+  it('passes the frame through when the blur is cleared and no image is set', () => {
+    using renderer = createRenderer(1280, 720);
+    renderer.pipeline.setBlurRadius(10);
+    renderer.process(frame, mask);
+    renderer.pipeline.setBlurRadius(null);
+    renderer.process(frame, mask);
+
+    expect(samePixels(pixels(renderer.canvas), pixels(frame))).toBe(true);
+  });
+
+  it('passes the frame through once the background image is cleared', async () => {
+    using renderer = createRenderer(1280, 720);
+    await renderer.pipeline.setBackgroundImage(background);
+    renderer.process(frame, mask);
+    await renderer.pipeline.setBackgroundImage(null);
+    renderer.process(frame, mask);
+
+    expect(samePixels(pixels(renderer.canvas), pixels(frame))).toBe(true);
+  });
+
+  it('keeps showing the previous image until the next one is ready', async () => {
+    using renderer = createRenderer(1280, 720);
+    await renderer.pipeline.setBackgroundImage(background);
+    renderer.process(frame, mask);
+    const previous = pixels(renderer.canvas);
+
+    // The robot frame stands in for a second background image.
+    const next = renderer.pipeline.setBackgroundImage(frame);
+    renderer.process(frame, mask);
+    expect(samePixels(pixels(renderer.canvas), previous), 'while loading').toBe(true);
+
+    await next;
+    renderer.process(frame, mask);
+    expect(samePixels(pixels(renderer.canvas), previous), 'once loaded').toBe(false);
+  });
+
   it('passes the frame through untouched when the background is disabled', () => {
     using renderer = createRenderer(1280, 720);
     renderer.pipeline.setBlurRadius(10);

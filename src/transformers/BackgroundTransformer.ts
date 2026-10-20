@@ -116,7 +116,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       const imageData = await createImageBitmap(img);
       this.backgroundImageAndPath = { imageData, path };
     }
-    this.gl?.setBackgroundImage(this.backgroundImageAndPath.imageData);
+    // A later update() switched to another background while the image was loading
+    if (this.options.imagePath !== path) {
+      return;
+    }
+    await this.gl?.setBackgroundImage(this.backgroundImageAndPath.imageData);
   }
 
   async transform(frame: VideoFrame, controller: TransformStreamDefaultController<VideoFrame>) {
@@ -217,12 +221,16 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   async update(opts: BackgroundOptions) {
     this.options = { ...this.options, ...opts };
 
-    this.gl?.setBlurRadius(opts.blurRadius ?? null);
+    // The blur or the previous image stays on screen until the new image is ready
     if (opts.imagePath) {
       await this.loadAndSetBackground(opts.imagePath);
+      if (this.options.imagePath !== opts.imagePath) {
+        return;
+      }
     } else {
       this.gl?.setBackgroundImage(null);
     }
+    this.gl?.setBlurRadius(opts.blurRadius ?? null);
     this.gl?.setBackgroundDisabled(opts.backgroundDisabled ?? false);
   }
 
