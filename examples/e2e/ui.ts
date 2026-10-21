@@ -30,10 +30,21 @@ export function buildUi(harness: E2EHarness, render: () => void) {
     });
   };
 
+  // Assigning srcObject restarts the element, which shows black until the next frame, so the
+  // preview keeps one stream and only swaps its track when the track itself changes.
+  const previewStream = new MediaStream();
   const refreshPreview = () => {
     const track = media.processedVideoTrack();
-    preview.srcObject = track ? new MediaStream([track]) : null;
-    if (track) void preview.play().catch(() => undefined);
+    const [current] = previewStream.getVideoTracks();
+    if (track === current) return;
+    if (current) previewStream.removeTrack(current);
+    if (!track) {
+      preview.srcObject = null;
+      return;
+    }
+    previewStream.addTrack(track);
+    if (preview.srcObject !== previewStream) preview.srcObject = previewStream;
+    void preview.play().catch(() => undefined);
   };
   media.onChange(refreshPreview);
 
