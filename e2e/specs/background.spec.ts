@@ -110,4 +110,28 @@ test.describe('virtual background', () => {
     // this asserts only about repeated switches within a single processor session.
     expect(requests, `bg-solid.png was fetched ${requests} times`).toBe(1);
   });
+
+  test('D6: an image that fails to load at construction is logged, not thrown', async ({ app }) => {
+    const { page } = app;
+
+    let requests = 0;
+    await page.route('**/missing-bg.png', (route) => {
+      requests += 1;
+      return route.fulfill({ status: 404 });
+    });
+
+    // `mode` and `bg` are read when the harness constructs the processor, so the failing image
+    // goes through the constructor rather than switchTo().
+    await app.goto({ mode: 'virtual-background', bg: '/missing-bg.png', backdrop: 'flat' });
+    await startCamera(page);
+    await attachProcessor(page);
+
+    // The failure must actually have happened, or a clean page would be trivially true.
+    expect(requests, 'missing-bg.png was never requested').toBeGreaterThan(0);
+
+    // Regression guard for #141. A rejection from the constructor reaches the page as an
+    // uncaught error with no message.
+    expect(app.pageErrors, 'uncaught page errors').toEqual([]);
+    expect(await page.evaluate(() => window.harness.lastError()), 'harness logged an error').toBeNull();
+  });
 });

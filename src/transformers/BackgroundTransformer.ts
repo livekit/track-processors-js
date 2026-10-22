@@ -51,7 +51,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
   constructor(opts: BackgroundOptions) {
     super();
     this.options = opts;
-    this.update(opts);
+    this.update(opts).catch((err) =>
+      this.log.error('Error while applying initial processor options: ', err),
+    );
   }
 
   async init({ outputCanvas, inputElement: inputVideo }: VideoTransformerInitOptions) {
