@@ -33,14 +33,14 @@ Chrome only for now. Firefox, WebKit and BrowserStack devices need their own cal
 
 ## What's covered
 
-Seventeen cases across eleven concerns.
+Twenty cases.
 
 | Spec | IDs | Concern |
 | --- | --- | --- |
 | `capability.spec.ts` | A1, A1b, A3, A4 | Support predicates; both pipelines selected and working |
-| `lifecycle.spec.ts` | B1, B2 | Attach produces blurred frames; detach restores them |
+| `lifecycle.spec.ts` | B1, B2, B3, B4 | Attach produces blurred frames; detach restores them and releases the WebGL context; a missing fileset rejects with an `Error` naming it |
 | `modes.spec.ts` | C1, C1b, C3 | Switching lands correctly, publishes no intermediate frame, and `disabled` is true passthrough |
-| `background.spec.ts` | D1, D5, D6 | Image composited behind the subject; fetched once; a failing image at construction is logged |
+| `background.spec.ts` | D1, D5, D6 | Image composited behind the subject; fetched once; a failing image at construction is logged by name |
 | `geometry.spec.ts` | E1 | Output dimensions follow the source at three resolutions |
 | `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
 

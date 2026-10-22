@@ -78,6 +78,16 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       runningMode: 'VIDEO',
       outputCategoryMask: true,
       outputConfidenceMasks: false,
+    }).catch((err) => {
+      // MediaPipe loads its wasm loader through a <script> tag and rejects with that tag's error
+      // Event, which has no message. The script's URL is the only thing identifying the failure.
+      if (err instanceof Event) {
+        const src = err.target instanceof HTMLScriptElement ? err.target.src : 'unknown URL';
+        throw new Error(`Failed to load the MediaPipe tasks-vision fileset from ${src}`, {
+          cause: err,
+        });
+      }
+      throw err;
     });
 
     // Skip loading the image here if update already loaded the image below
@@ -112,7 +122,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       await new Promise((resolve, reject) => {
         img.crossOrigin = 'Anonymous';
         img.onload = () => resolve(img);
-        img.onerror = (err) => reject(err);
+        img.onerror = (event) =>
+          reject(new Error(`Failed to load background image from ${path}`, { cause: event }));
         img.src = path;
       });
       const imageData = await createImageBitmap(img);

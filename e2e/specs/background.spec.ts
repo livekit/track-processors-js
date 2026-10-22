@@ -133,5 +133,11 @@ test.describe('virtual background', () => {
     // uncaught error with no message.
     expect(app.pageErrors, 'uncaught page errors').toEqual([]);
     expect(await page.evaluate(() => window.harness.lastError()), 'harness logged an error').toBeNull();
+
+    // #142: the logged failure names the image rather than printing a bare DOM Event.
+    expect(
+      app.consoleErrors.some((line) => line.includes('missing-bg.png')),
+      `no console error named the image: ${JSON.stringify(app.consoleErrors)}`,
+    ).toBe(true);
   });
 });

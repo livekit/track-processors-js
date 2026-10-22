@@ -120,4 +120,25 @@ test.describe('processor lifecycle', () => {
       .poll(() => page.evaluate(() => window.harness.counters().webgl.contextsLost))
       .toBeGreaterThanOrEqual(before + cycles);
   });
+
+  // #142: MediaPipe rejects a failed wasm-loader script with its DOM Event, which has no message.
+  test('B4: a fileset that fails to load rejects with an Error naming its URL', async ({ app }) => {
+    const { page } = app;
+    await page.route('**/missing-wasm/**', (route) => route.fulfill({ status: 404 }));
+    await app.goto({ backdrop: 'checker', motion: 'static', wasm: '/missing-wasm' });
+    await startCamera(page);
+
+    const err = await page.evaluate(() =>
+      window.harness.media.setVideoProcessorEnabled(true).then(
+        () => null,
+        (e: unknown) => ({
+          isError: e instanceof Error,
+          message: String((e as Error).message),
+        }),
+      ),
+    );
+    expect(err, 'attaching with a missing fileset resolved').not.toBeNull();
+    expect(err?.isError, 'rejection value is an Error').toBe(true);
+    expect(err?.message).toContain('/missing-wasm/');
+  });
 });
