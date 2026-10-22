@@ -24,6 +24,14 @@ export type BackgroundOptions = {
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
+/**
+ * `cause` is assigned rather than passed to the constructor, because browsers without support for
+ * the `cause` option ignore it.
+ */
+function errorWithCause(message: string, cause: unknown) {
+  return Object.assign(new Error(message), { cause });
+}
+
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
     return (
@@ -83,9 +91,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       // Event, which has no message. The script's URL is the only thing identifying the failure.
       if (err instanceof Event) {
         const src = err.target instanceof HTMLScriptElement ? err.target.src : 'unknown URL';
-        throw new Error(`Failed to load the MediaPipe tasks-vision fileset from ${src}`, {
-          cause: err,
-        });
+        throw errorWithCause(`Failed to load the MediaPipe tasks-vision fileset from ${src}`, err);
       }
       throw err;
     });
@@ -123,7 +129,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         img.crossOrigin = 'Anonymous';
         img.onload = () => resolve(img);
         img.onerror = (event) =>
-          reject(new Error(`Failed to load background image from ${path}`, { cause: event }));
+          reject(errorWithCause(`Failed to load background image from ${path}`, event));
         img.src = path;
       });
       const imageData = await createImageBitmap(img);
