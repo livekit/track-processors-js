@@ -131,14 +131,23 @@ test.describe('processor lifecycle', () => {
     const err = await page.evaluate(() =>
       window.harness.media.setVideoProcessorEnabled(true).then(
         () => null,
-        (e: unknown) => ({
-          isError: e instanceof Error,
-          message: String((e as Error).message),
-        }),
+        (e: unknown) => {
+          const cause = (e as { cause?: unknown }).cause;
+          return {
+            isError: e instanceof Error,
+            message: String((e as Error).message),
+            causeIsEvent: cause instanceof Event,
+            causeTarget:
+              cause instanceof Event ? (cause.target as Element | null)?.tagName : undefined,
+          };
+        },
       ),
     );
     expect(err, 'attaching with a missing fileset resolved').not.toBeNull();
     expect(err?.isError, 'rejection value is an Error').toBe(true);
     expect(err?.message).toContain('/missing-wasm/');
+    // The browser's original error stays reachable for callers that need more than the message.
+    expect(err?.causeIsEvent, 'cause is the original Event').toBe(true);
+    expect(err?.causeTarget).toBe('SCRIPT');
   });
 });
