@@ -24,6 +24,14 @@ export type BackgroundOptions = {
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
+/**
+ * `cause` is assigned rather than passed to the constructor, because browsers without support for
+ * the `cause` option ignore it.
+ */
+function errorWithCause(message: string, cause: unknown) {
+  return Object.assign(new Error(message), { cause });
+}
+
 export default class BackgroundProcessor extends VideoTransformer<BackgroundOptions> {
   static get isSupported() {
     return (
@@ -78,6 +86,14 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       runningMode: 'VIDEO',
       outputCategoryMask: true,
       outputConfidenceMasks: false,
+    }).catch((err) => {
+      // MediaPipe loads its wasm loader through a <script> tag and rejects with that tag's error
+      // Event, which has no message. The script's URL is the only thing identifying the failure.
+      if (err instanceof Event) {
+        const src = err.target instanceof HTMLScriptElement ? err.target.src : 'unknown URL';
+        throw errorWithCause(`Failed to load the MediaPipe tasks-vision fileset from ${src}`, err);
+      }
+      throw err;
     });
 
     // Skip loading the image here if update already loaded the image below
@@ -112,7 +128,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       await new Promise((resolve, reject) => {
         img.crossOrigin = 'Anonymous';
         img.onload = () => resolve(img);
-        img.onerror = (err) => reject(err);
+        img.onerror = (event) =>
+          reject(errorWithCause(`Failed to load background image from ${path}`, event));
         img.src = path;
       });
       const imageData = await createImageBitmap(img);
