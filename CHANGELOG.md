@@ -1,5 +1,19 @@
 # @livekit/track-processors
 
+## 0.8.3
+
+### Patch Changes
+
+- Log a failing background image passed to the processor's constructor, instead of raising an unhandled promise rejection - [#148](https://github.com/livekit/track-processors-js/pull/148) ([@changt](https://github.com/changt))
+
+- Export the `FrameProcessingStats` type so `onFrameProcessed` callbacks can be typed - [#143](https://github.com/livekit/track-processors-js/pull/143) ([@changt](https://github.com/changt))
+
+- Keep the current blur or background image on screen until a new background image is ready, and show the camera instead of a black background when the blur radius is set to 0 - [#146](https://github.com/livekit/track-processors-js/pull/146) ([@changt](https://github.com/changt))
+
+- Reject with an `Error` naming the URL when the MediaPipe fileset or a background image fails to load, instead of a bare DOM `Event` - [#149](https://github.com/livekit/track-processors-js/pull/149) ([@changt](https://github.com/changt))
+
+- Release the WebGL context when a video processor is destroyed, instead of leaving it alive until garbage collection - [#144](https://github.com/livekit/track-processors-js/pull/144) ([@changt](https://github.com/changt))
+
 ## 0.8.2
 
 ### Patch Changes
