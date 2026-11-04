@@ -92,6 +92,41 @@ test.describe('mode switching', () => {
   });
 
   /**
+   * C3 cannot see whether the work still happens: the renderer alone can make the output look
+   * untouched while every frame is still segmented and composited (#150). `onFrameProcessed`
+   * fires only from the processing path, so it stays silent across a passthrough.
+   */
+  test('C4: disabled mode skips per-frame processing', async ({ app }) => {
+    const { page } = app;
+    await app.goto({ backdrop: 'checker', motion: 'static' });
+    await startCamera(page);
+    await attachProcessor(page);
+    // Arrive from blur: the switch leaves the blur radius in the transformer's options, so
+    // "nothing to render" cannot be what skips the work.
+    await switchMode(page, 'background-blur');
+
+    await page.click(BUTTON.disabled);
+    await page.waitForFunction(() => window.harness.snapshot().mode === 'disabled', null, {
+      timeout: 25_000,
+    });
+    // Transforms in flight at the switch report after it; let them drain before counting.
+    await page.evaluate(() => window.harness.probe.waitForFrames(10, 25_000));
+
+    await page.evaluate(() => window.harness.resetStats());
+    const presented = await page.evaluate(
+      (n) => window.harness.probe.waitForFrames(n, 25_000),
+      PASSTHROUGH.IDLE_FRAMES,
+    );
+    const stats = await page.evaluate(() => window.harness.stats());
+
+    expect(presented.presented).toBeGreaterThanOrEqual(PASSTHROUGH.IDLE_FRAMES);
+    expect(
+      stats.frames,
+      `onFrameProcessed fired ${stats.frames} times over ${presented.presented} passthrough frames`,
+    ).toBe(0);
+  });
+
+  /**
    * The artifact test.
    *
    * Every published frame must carry either the old treatment or the new one. Not a grey flash
@@ -106,6 +141,7 @@ test.describe('mode switching', () => {
     ['background-blur', 'virtual-background'],
     ['virtual-background', 'background-blur'],
     ['background-blur', 'disabled'],
+    ['disabled', 'background-blur'],
   ];
 
   for (const [from, to] of transitions) {

@@ -150,7 +150,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         return;
       }
 
-      let skipProcessingFrame = this.isDisabled ?? this.options.backgroundDisabled ?? false;
+      let skipProcessingFrame = this.isDisabled || (this.options.backgroundDisabled ?? false);
       if (typeof this.options.blurRadius !== 'number' && typeof this.options.imagePath !== 'string') {
         skipProcessingFrame = true;
       }
