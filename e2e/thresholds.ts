@@ -71,6 +71,11 @@ export const PASSTHROUGH = {
   MEAN_TOLERANCE: 18,
   /** And the background must keep its high-frequency detail, unlike in blur mode. */
   ENERGY_RATIO_MIN: 0.6,
+  /**
+   * Frames presented in 'disabled' mode before asserting that `onFrameProcessed` reported none
+   * of them. Negative control: with every frame still processed (#150), observed 30 of 30.
+   */
+  IDLE_FRAMES: 30,
 };
 
 export const PERFORMANCE = {
