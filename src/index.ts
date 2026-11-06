@@ -203,6 +203,7 @@ export const BackgroundProcessor = (
 
       processorOpts = rest;
       transformer = new BackgroundTransformer({
+        backgroundDisabled: true,
         segmenterOptions,
         assetPaths,
         onFrameProcessed,
