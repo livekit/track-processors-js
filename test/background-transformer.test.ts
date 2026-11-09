@@ -5,6 +5,7 @@ describe('BackgroundTransformer lifecycle', () => {
   it('drops the first frame when destroyed while waiting for it to render', async () => {
     const processor = new BackgroundTransformer({ blurRadius: 10 });
     const canvas = new OffscreenCanvas(2, 2);
+    canvas.getContext('2d')!.fillRect(0, 0, 2, 2);
     const frame = new VideoFrame(canvas, { timestamp: 0 });
     const video = document.createElement('video');
     let renderFrame!: VideoFrameRequestCallback;
