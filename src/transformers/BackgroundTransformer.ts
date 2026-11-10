@@ -112,7 +112,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     // The segmenter renders into the canvas's WebGL context, which super.destroy() releases,
     // so it is closed first. Disabling first passes frames that arrive during the close through.
     this.isDisabled = true;
-    await this.imageSegmenter?.close();
+    const segmenter = this.imageSegmenter;
+    this.imageSegmenter = undefined;
+    await segmenter?.close();
     await super.destroy();
     this.backgroundImageAndPath = null;
 
@@ -188,6 +190,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
             });
           });
         }
+      }
+      if (this.isDisabled || !this.imageSegmenter) {
+        return;
       }
       this.isFirstFrame = false;
 
