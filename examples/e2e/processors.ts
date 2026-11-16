@@ -10,7 +10,7 @@ import type { Config, FrameProcessingStats } from './types';
 /**
  * The only place a processor is constructed.
  *
- * `segmenterOptions`, `assetPaths` and `maxFps` are all read once inside `BackgroundProcessor()`
+ * `segmenterOptions`, `assetPaths`, `maskBlending` and `maxFps` are all read once inside `BackgroundProcessor()`
  * and cannot be changed afterwards, which is why the suite varies them by reloading with
  * different query parameters rather than through a mutator. A `recreate()` helper would have
  * semantics no real integration has.
@@ -24,6 +24,7 @@ export function createBackgroundProcessor(
   const common = {
     segmenterOptions,
     assetPaths: config.assetPaths,
+    maskBlending: config.maskBlending,
     onFrameProcessed,
     ...(config.maxFps !== undefined ? { maxFps: config.maxFps } : {}),
   };

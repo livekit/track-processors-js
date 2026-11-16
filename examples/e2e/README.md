@@ -96,6 +96,7 @@ reloading, which matches how a real integration would.
 | `assets` | `cdn` | `local` points wasm and model at self-hosted copies |
 | `wasm` / `model` | CDN | Individual `assetPaths` overrides |
 | `maxfps` | `30` | `ProcessorWrapperOptions.maxFps` |
+| `mask` | `binary` | `maskBlending` — `binary` or `alpha` (modern API only) |
 | `api` | `modern` | `legacy` routes through the deprecated `BackgroundBlur()` / `VirtualBackground()` |
 | `attach` | `set` | `capture` routes through `createLocalVideoTrack({ processor })` |
 | `mode` | `background-blur` | Initial mode |

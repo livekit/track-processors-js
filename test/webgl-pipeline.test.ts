@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
-import { setupWebGL } from '../src/webgl';
+import { type MaskBlending, setupWebGL } from '../src/webgl';
 
 /**
  * Runs the WebGL compositing pipeline (the part of BackgroundProcessor after segmentation) on a
@@ -45,7 +45,11 @@ function createRenderer(width: number, height: number) {
   const gl = canvas.getContext('webgl2')!;
 
   /** Runs one frame through the pipeline, as BackgroundTransformer does after segmentation. */
-  function process(frameImage: ImageBitmap, maskImage: ImageBitmap) {
+  function process(
+    frameImage: ImageBitmap,
+    maskImage: ImageBitmap,
+    maskBlending: MaskBlending = 'binary',
+  ) {
     // The transformer sizes the canvas to each frame before handing it to the pipeline.
     canvas.width = frameImage.width;
     canvas.height = frameImage.height;
@@ -60,7 +64,7 @@ function createRenderer(width: number, height: number) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskImage);
-    pipeline!.updateMask(maskTexture);
+    pipeline!.updateMask(maskTexture, maskBlending);
     gl.deleteTexture(maskTexture);
 
     const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
@@ -184,6 +188,70 @@ describe('WebGL pipeline', () => {
     renderer.process(frame, mask);
 
     expect(samePixels(pixels(renderer.canvas), expected)).toBe(true);
+  });
+
+  describe('with alpha mask blending', () => {
+    const solid = (color: string) => {
+      const canvas = new OffscreenCanvas(1280, 720);
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1280, 720);
+      return createImageBitmap(canvas);
+    };
+    const personColor = [200, 40, 40];
+    const sceneColor = [20, 60, 220];
+    let person: ImageBitmap;
+    let scene: ImageBitmap;
+    let quarterMask: ImageBitmap;
+
+    beforeAll(async () => {
+      [person, scene, quarterMask] = await Promise.all([
+        solid(`rgb(${personColor})`),
+        solid(`rgb(${sceneColor})`),
+        solid('rgb(64, 64, 64)'),
+      ]);
+    });
+
+    function centerPixel(canvas: HTMLCanvasElement) {
+      const center = (360 * 1280 + 640) * 4;
+      return [...pixels(canvas).slice(center, center + 3)];
+    }
+
+    function expectColor(actual: number[], expected: number[]) {
+      for (let c = 0; c < 3; c++) {
+        expect(Math.abs(actual[c] - expected[c]), `channel ${c}`).toBeLessThanOrEqual(2);
+      }
+    }
+
+    it("shows the frame at the mask's opacity over the background", async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.process(person, quarterMask, 'alpha');
+
+      const alpha = 64 / 255;
+      expectColor(
+        centerPixel(renderer.canvas),
+        sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),
+      );
+    });
+
+    // Binary blending reads the same mask as mostly person (below the 0.5 cut, 1 is background).
+    it('cuts the same mask to fully the frame with binary blending', async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.process(person, quarterMask, 'binary');
+
+      expectColor(centerPixel(renderer.canvas), personColor);
+    });
+
+    it('blends each mask as the call that handed it over asked', async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.process(person, quarterMask, 'alpha');
+      renderer.process(person, quarterMask, 'binary');
+
+      expectColor(centerPixel(renderer.canvas), personColor);
+    });
   });
 
   it('passes the frame through untouched when the background is disabled', () => {

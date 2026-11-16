@@ -20,6 +20,15 @@ import {
 
 const log = getLogger(LoggerNames.WebGl);
 
+/**
+ * How a segmentation mask is blended into the frame.
+ * - `binary`: the mask is 1 for the background and 0 for the person. It is feathered and cut at
+ *   0.5, so every pixel away from the edge is fully the frame or fully the background.
+ * - `alpha`: the mask is the person's opacity, 1 for the person and 0 for the background. The frame
+ *   is blended over the background by that value.
+ */
+export type MaskBlending = 'binary' | 'alpha';
+
 export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const gl = canvas.getContext('webgl2', {
     // Every pass is a full-screen quad, so multisampling only adds a resolve per frame.
@@ -29,6 +38,10 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
   let blurRadius: number | null = null;
   let maskBlurRadius: number | null = 8;
+  // The segmenter scales its mask up to the frame in blocks, which leaves steps along the edge.
+  // An alpha mask is blurred just enough to round them off: its values stay the blend opacity,
+  // so a wider blur would show as a halo around the person.
+  const alphaMaskBlurRadius = 4;
   const downsampleFactor = 4;
   // The segmentation mask is at most a few hundred pixels across, so feathering it at
   // full frame size only multiplies the box-blur cost. The mask buffers are kept near
@@ -55,6 +68,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     frame: frameTextureLocation,
     background: bgTextureLocation,
     disableBackground: disableBackgroundLocation,
+    maskIsAlpha: maskIsAlphaLocation,
   } = composite.uniformLocations;
 
   // Create the blur program using the same vertex shader source
@@ -84,6 +98,8 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   let finalMaskTextures: WebGLTexture[] = [];
   let readMaskIndex = 0; // Index for renderFrame to read from
   let writeMaskIndex = 1; // Index for updateMask to write to
+  // How the mask in each buffer is blended, as given to the updateMask call that wrote it
+  const finalMaskBlending: MaskBlending[] = ['binary', 'binary'];
 
   // Create textures for background processing (blur)
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
@@ -239,6 +255,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.uniform1i(maskTextureLocation, 2);
     // The segmenter renders into this context too and can leave its own blend function set.
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1i(maskIsAlphaLocation, finalMaskBlending[readMaskIndex] === 'alpha' ? 1 : 0);
     gl.enable(gl.BLEND);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
@@ -285,35 +302,30 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     backgroundImageDisabled = disabled;
   }
 
-  function updateMask(mask: WebGLTexture) {
+  function updateMask(mask: WebGLTexture, blending: MaskBlending = 'binary') {
     // Same guard as renderFrame: cleanup() empties the arrays, a late segmentation callback must not touch them.
     if (finalMaskTextures.length === 0) {
       return;
     }
     ensureBuffersMatchCanvas();
 
-    // Use the existing applyBlur function to apply the first blur pass
-    // The second blur pass will be written to finalMaskTextures[writeMaskIndex]
-
-    // Create temporary arrays for the single blur operation
-    const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
-
-    const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
-
-    // Apply the blur using the existing function
+    // Feather the mask with a two-pass box blur; the second pass writes to
+    // finalMaskTextures[writeMaskIndex]
+    const radius = blending === 'alpha' ? alphaMaskBlurRadius : maskBlurRadius || 1.0;
     applyBlur(
       gl,
       mask,
       maskBufferWidth,
       maskBufferHeight,
       // The radius is in mask-buffer texels, so scale it down with the buffer.
-      Math.max(1, Math.round((maskBlurRadius || 1.0) / maskDownsampleFactor)),
+      Math.max(1, Math.round(radius / maskDownsampleFactor)),
       boxBlurProgram,
       boxBlurUniforms,
       vertexBuffer!,
-      tempFramebuffers,
-      tempTextures,
+      [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]],
+      [tempMaskTexture, finalMaskTextures[writeMaskIndex]],
     );
+    finalMaskBlending[writeMaskIndex] = blending;
 
     // Swap indices for the next frame
     readMaskIndex = writeMaskIndex;

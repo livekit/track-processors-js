@@ -2,6 +2,7 @@ import * as vision from '@mediapipe/tasks-vision';
 import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
+import type { MaskBlending } from '../webgl/index';
 import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
@@ -20,6 +21,18 @@ export type BackgroundOptions = {
   segmenterOptions?: SegmenterOptions;
   /** cannot be updated through the `update` method, needs a restart */
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  /**
+   * How the segmentation mask is blended into the frame. Defaults to `binary`.
+   * - `binary`: each pixel is the person or the background, with a feathered edge.
+   * - `alpha`: the segmenter's confidence that a pixel is the person is that pixel's opacity, which
+   *   keeps soft edges such as hair. Parts the model is unsure of show as partly transparent.
+   *
+   * `alpha` reads the model's first confidence mask, which is the person for MediaPipe's selfie
+   * segmenter, the default model.
+   *
+   * cannot be updated through the `update` method, needs a restart
+   */
+  maskBlending?: MaskBlending;
   /** called when a new frame is processed */
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
@@ -54,6 +67,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   isFirstFrame = true;
 
+  private maskBlending: MaskBlending = 'binary';
+
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
   constructor(opts: BackgroundOptions) {
@@ -74,6 +89,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
     );
 
+    // Fixed for the segmenter's lifetime, as it decides which mask the segmenter outputs
+    this.maskBlending = this.options.maskBlending ?? 'binary';
+
     this.imageSegmenter = await vision.ImageSegmenter.createFromOptions(fileSet, {
       baseOptions: {
         modelAssetPath:
@@ -84,8 +102,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       },
       canvas: this.canvas,
       runningMode: 'VIDEO',
-      outputCategoryMask: true,
-      outputConfidenceMasks: false,
+      outputCategoryMask: this.maskBlending === 'binary',
+      outputConfidenceMasks: this.maskBlending === 'alpha',
     }).catch((err) => {
       // MediaPipe loads its wasm loader through a <script> tag and rejects with that tag's error
       // Event, which has no message. The script's URL is the only thing identifying the failure.
@@ -206,7 +224,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
+            this.updateMask(
+              this.maskBlending === 'alpha' ? result.confidenceMasks?.[0] : result.categoryMask,
+            );
             result.close();
             resolve();
           });
@@ -265,6 +285,6 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   private async updateMask(mask: vision.MPMask | undefined) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture());
+    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending);
   }
 }

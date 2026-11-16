@@ -45,6 +45,16 @@ await videoTrack.setProcessor(processor);
 room.localParticipant.publishTrack(videoTrack);
 ```
 
+### Mask blending
+
+By default each pixel is treated as either the person or the background, with a feathered edge between them. Pass `maskBlending: 'alpha'` to use the segmenter's confidence that a pixel is the person as that pixel's opacity instead:
+
+```ts
+const processor = BackgroundProcessor({ mode: 'background-blur', maskBlending: 'alpha' });
+```
+
+This keeps soft edges such as hair. Parts of the frame the model is unsure about show as partly transparent rather than being cut to one side. The option is read when the processor is created and cannot be changed with `switchTo`.
+
 ### Avoiding visual artifacts when toggling
 
 Calling `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand can produce visual artifacts during the switch. A better approach is to initialize the processor in `disabled` mode up front and use `switchTo()` to toggle effects. This avoids artifacts entirely:
