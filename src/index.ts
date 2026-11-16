@@ -54,6 +54,7 @@ export type SwitchBackgroundProcessorOptions =
 
 type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   segmenterOptions?: SegmenterOptions;
+  segmentationMask?: BackgroundOptions['segmentationMask'];
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
@@ -157,6 +158,7 @@ export const BackgroundProcessor = (
         mode,
         blurRadius = DEFAULT_BLUR_RADIUS,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
         ...rest
@@ -166,6 +168,7 @@ export const BackgroundProcessor = (
       transformer = new BackgroundTransformer({
         blurRadius,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
       });
@@ -178,6 +181,7 @@ export const BackgroundProcessor = (
         mode,
         imagePath,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
         ...rest
@@ -187,6 +191,7 @@ export const BackgroundProcessor = (
       transformer = new BackgroundTransformer({
         imagePath,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
       });
@@ -196,6 +201,7 @@ export const BackgroundProcessor = (
     case 'disabled': {
       const {
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
         ...rest
@@ -205,6 +211,7 @@ export const BackgroundProcessor = (
       transformer = new BackgroundTransformer({
         backgroundDisabled: true,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
       });
@@ -216,6 +223,7 @@ export const BackgroundProcessor = (
         blurRadius,
         imagePath,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
         ...rest
@@ -226,6 +234,7 @@ export const BackgroundProcessor = (
         blurRadius,
         imagePath,
         segmenterOptions,
+        segmentationMask,
         assetPaths,
         onFrameProcessed,
       });

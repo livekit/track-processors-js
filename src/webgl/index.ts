@@ -285,7 +285,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     backgroundImageDisabled = disabled;
   }
 
-  function updateMask(mask: WebGLTexture) {
+  function updateMask(mask: WebGLTexture, isForeground = false) {
     // Same guard as renderFrame: cleanup() empties the arrays, a late segmentation callback must not touch them.
     if (finalMaskTextures.length === 0) {
       return;
@@ -313,6 +313,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       vertexBuffer!,
       tempFramebuffers,
       tempTextures,
+      isForeground,
     );
 
     // Swap indices for the next frame

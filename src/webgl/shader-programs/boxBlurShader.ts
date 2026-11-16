@@ -10,6 +10,7 @@ uniform sampler2D u_texture;
 uniform vec2 u_texelSize;    // 1.0 / texture size
 uniform vec2 u_direction;    // (1.0, 0.0) for horizontal, (0.0, 1.0) for vertical
 uniform float u_radius;      // blur radius in texels
+uniform bool u_invert;
 
 out vec4 fragColor;
 
@@ -29,7 +30,8 @@ void main() {
         count += 1.0;
   }
 
-  fragColor = vec4(sum / count, 1.0);
+  vec3 color = sum / count;
+  fragColor = vec4(u_invert ? 1.0 - color : color, 1.0);
 }
 `;
 
@@ -49,6 +51,7 @@ export function createBoxBlurProgram(gl: WebGL2RenderingContext) {
     texelSize: gl.getUniformLocation(program, 'u_texelSize'),
     direction: gl.getUniformLocation(program, 'u_direction'),
     radius: gl.getUniformLocation(program, 'u_radius'),
+    invert: gl.getUniformLocation(program, 'u_invert'),
   };
 
   return {

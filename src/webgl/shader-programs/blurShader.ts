@@ -104,6 +104,7 @@ export function applyBlur(
   vertexBuffer: WebGLBuffer,
   processFramebuffers: WebGLFramebuffer[],
   processTextures: WebGLTexture[],
+  invertSource = false,
 ) {
   gl.useProgram(blurProgram);
 
@@ -136,6 +137,7 @@ export function applyBlur(
   } else {
     // Box blur program, which takes the radius directly.
     gl.uniform1f(blurUniforms.radius, blurRadius);
+    gl.uniform1i(blurUniforms.invert, invertSource ? 1 : 0);
   }
 
   gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -148,6 +150,9 @@ export function applyBlur(
   gl.bindTexture(gl.TEXTURE_2D, processTextures[0]);
   gl.uniform1i(blurUniforms.texture, 0);
   gl.uniform2f(blurUniforms.direction, 0.0, 1.0); // Vertical
+  if (!blurUniforms.weights) {
+    gl.uniform1i(blurUniforms.invert, 0);
+  }
 
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 

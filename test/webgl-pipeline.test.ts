@@ -45,7 +45,7 @@ function createRenderer(width: number, height: number) {
   const gl = canvas.getContext('webgl2')!;
 
   /** Runs one frame through the pipeline, as BackgroundTransformer does after segmentation. */
-  function process(frameImage: ImageBitmap, maskImage: ImageBitmap) {
+  function process(frameImage: ImageBitmap, maskImage: ImageBitmap, maskIsForeground = false) {
     // The transformer sizes the canvas to each frame before handing it to the pipeline.
     canvas.width = frameImage.width;
     canvas.height = frameImage.height;
@@ -60,7 +60,7 @@ function createRenderer(width: number, height: number) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskImage);
-    pipeline!.updateMask(maskTexture);
+    pipeline!.updateMask(maskTexture, maskIsForeground);
     gl.deleteTexture(maskTexture);
 
     const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
@@ -89,6 +89,10 @@ function pixels(source: ImageBitmap | HTMLCanvasElement) {
 
 function samePixels(a: Uint8ClampedArray, b: Uint8ClampedArray) {
   return a.length === b.length && a.every((value, i) => value === b[i]);
+}
+
+function maxDifference(a: Uint8ClampedArray, b: Uint8ClampedArray) {
+  return a.reduce((max, value, i) => Math.max(max, Math.abs(value - b[i])), 0);
 }
 
 /** A portrait frame from a landscape image: the center cropped and scaled up, as on rotation. */
@@ -184,6 +188,25 @@ describe('WebGL pipeline', () => {
     renderer.process(frame, mask);
 
     expect(samePixels(pixels(renderer.canvas), expected)).toBe(true);
+  });
+
+  it('composites a foreground mask as the background mask it inverts', async () => {
+    const inverted = new OffscreenCanvas(mask.width, mask.height);
+    const ctx = inverted.getContext('2d')!;
+    ctx.filter = 'invert(1)';
+    ctx.drawImage(mask, 0, 0);
+    const foregroundMask = await createImageBitmap(inverted);
+
+    using expected = createRenderer(1280, 720);
+    expected.pipeline.setBlurRadius(10);
+    expected.process(frame, mask);
+
+    using renderer = createRenderer(1280, 720);
+    renderer.pipeline.setBlurRadius(10);
+    renderer.process(frame, foregroundMask, true);
+
+    // The 8-bit mask buffers round the edge of an inverted mask a step apart.
+    expect(maxDifference(pixels(renderer.canvas), pixels(expected.canvas))).toBeLessThanOrEqual(2);
   });
 
   it('passes the frame through untouched when the background is disabled', () => {

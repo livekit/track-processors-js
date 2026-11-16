@@ -20,6 +20,14 @@ export type BackgroundOptions = {
   segmenterOptions?: SegmenterOptions;
   /** cannot be updated through the `update` method, needs a restart */
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  /**
+   * `'confidence'` composites with the model's per-pixel probability rather than its foreground or
+   * background decision (`'category'`, the default): the edge moves smoothly instead of jumping,
+   * and multiclass models such as `selfie_multiclass_256x256` work.
+   *
+   * cannot be updated through the `update` method, needs a restart
+   */
+  segmentationMask?: 'category' | 'confidence';
   /** called when a new frame is processed */
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
@@ -84,8 +92,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       },
       canvas: this.canvas,
       runningMode: 'VIDEO',
-      outputCategoryMask: true,
-      outputConfidenceMasks: false,
+      outputCategoryMask: this.options.segmentationMask !== 'confidence',
+      outputConfidenceMasks: this.options.segmentationMask === 'confidence',
     }).catch((err) => {
       // MediaPipe loads its wasm loader through a <script> tag and rejects with that tag's error
       // Event, which has no message. The script's URL is the only thing identifying the failure.
@@ -206,7 +214,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
+            // A single-class model gives the foreground; a multiclass one gives the background first.
+            const masks = result.confidenceMasks;
+            this.updateMask(masks?.[0] ?? result.categoryMask, masks?.length === 1);
             result.close();
             resolve();
           });
@@ -263,8 +273,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.renderFrame(frame);
   }
 
-  private async updateMask(mask: vision.MPMask | undefined) {
+  private async updateMask(mask: vision.MPMask | undefined, isForeground: boolean) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture());
+    this.gl?.updateMask(mask.getAsWebGLTexture(), isForeground);
   }
 }
