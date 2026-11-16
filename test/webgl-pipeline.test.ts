@@ -173,6 +173,19 @@ describe('WebGL pipeline', () => {
     expect(samePixels(pixels(renderer.canvas), previous), 'once loaded').toBe(false);
   });
 
+  it('composites the same after the segmenter changes the blend function', () => {
+    using renderer = createRenderer(1280, 720);
+    renderer.pipeline.setBlurRadius(10);
+    renderer.process(frame, mask);
+    const expected = pixels(renderer.canvas);
+
+    const gl = renderer.canvas.getContext('webgl2')!;
+    gl.blendFunc(gl.ONE, gl.ONE);
+    renderer.process(frame, mask);
+
+    expect(samePixels(pixels(renderer.canvas), expected)).toBe(true);
+  });
+
   it('passes the frame through untouched when the background is disabled', () => {
     using renderer = createRenderer(1280, 720);
     renderer.pipeline.setBlurRadius(10);

@@ -45,7 +45,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   // Blending is only enabled around the composite draw: the intermediate passes all
   // write opaque output, so blending them just costs a framebuffer read.
   gl.disable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
   // Create the composite program
   const composite = createCompositeProgram(gl);
@@ -238,6 +237,8 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[readMaskIndex]);
     gl.uniform1i(maskTextureLocation, 2);
+    // The segmenter renders into this context too and can leave its own blend function set.
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.enable(gl.BLEND);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
