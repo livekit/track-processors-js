@@ -14,14 +14,16 @@ import { type MaskBlending, setupWebGL } from '../src/webgl';
 let frame: ImageBitmap;
 let mask: ImageBitmap;
 let background: ImageBitmap;
+let office: ImageBitmap;
 
 beforeAll(async () => {
   const load = async (name: string) =>
     createImageBitmap(await (await fetch(new URL(`./fixtures/${name}`, import.meta.url))).blob());
-  [frame, mask, background] = await Promise.all([
+  [frame, mask, background, office] = await Promise.all([
     load('robot-office.jpg'),
     load('robot-office-mask.png'),
     load('lounge.jpg'),
+    load('office.jpg'),
   ]);
 });
 
@@ -65,10 +67,10 @@ function createRenderer(width: number, height: number) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskImage);
-    pipeline!.updateMask(maskTexture, maskBlending, alphaIsBackground);
+    const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
+    pipeline!.updateMask(maskTexture, maskBlending, alphaIsBackground, videoFrame);
     gl.deleteTexture(maskTexture);
 
-    const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
     pipeline!.renderFrame(videoFrame);
     videoFrame.close();
   }
@@ -94,6 +96,31 @@ function pixels(source: ImageBitmap | HTMLCanvasElement) {
 
 function samePixels(a: Uint8ClampedArray, b: Uint8ClampedArray) {
   return a.length === b.length && a.every((value, i) => value === b[i]);
+}
+
+/** The share of pixels that differ visibly between two images. */
+function changedShare(a: Uint8ClampedArray, b: Uint8ClampedArray) {
+  let changed = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    const difference = Math.max(
+      Math.abs(a[i] - b[i]),
+      Math.abs(a[i + 1] - b[i + 1]),
+      Math.abs(a[i + 2] - b[i + 2]),
+    );
+    if (difference > 16) {
+      changed++;
+    }
+  }
+  return changed / (a.length / 4);
+}
+
+/** A mask that marks the whole frame as background. */
+function backgroundOnly(width: number, height: number) {
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, width, height);
+  return createImageBitmap(canvas);
 }
 
 /** A portrait frame from a landscape image: the center cropped and scaled up, as on rotation. */
@@ -306,6 +333,73 @@ describe('WebGL pipeline', () => {
 
       expectColor(centerPixel(renderer.canvas), personColor);
     });
+
+    it("starts temporal smoothing over when the mask's meaning changes", async () => {
+      const emptyMask = await solid('black');
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.pipeline.setTemporalSmoothing(true);
+      renderer.process(person, emptyMask, 'alpha');
+      renderer.process(person, quarterMask, 'alpha', true);
+
+      const alpha = 1 - 64 / 255;
+      expectColor(
+        centerPixel(renderer.canvas),
+        sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),
+      );
+    });
+  });
+
+  it('keeps the previous mask with temporal smoothing where the picture is still', async () => {
+    const nextMask = await backgroundOnly(mask.width, mask.height);
+
+    using smoothed = createRenderer(1280, 720);
+    smoothed.pipeline.setBlurRadius(10);
+    smoothed.pipeline.setTemporalSmoothing(true);
+    smoothed.process(frame, mask);
+    const first = pixels(smoothed.canvas);
+    smoothed.process(frame, nextMask);
+
+    using unsmoothed = createRenderer(1280, 720);
+    unsmoothed.pipeline.setBlurRadius(10);
+    unsmoothed.process(frame, mask);
+    unsmoothed.process(frame, nextMask);
+
+    expect(changedShare(pixels(smoothed.canvas), first)).toBeLessThan(0.005);
+    expect(changedShare(pixels(unsmoothed.canvas), first)).toBeGreaterThan(0.02);
+  });
+
+  it('follows the new mask with temporal smoothing where the picture moves', async () => {
+    const nextMask = await backgroundOnly(mask.width, mask.height);
+
+    using smoothed = createRenderer(1280, 720);
+    smoothed.pipeline.setBlurRadius(10);
+    smoothed.pipeline.setTemporalSmoothing(true);
+    smoothed.process(frame, mask);
+    smoothed.process(office, nextMask);
+
+    using unsmoothed = createRenderer(1280, 720);
+    unsmoothed.pipeline.setBlurRadius(10);
+    unsmoothed.process(office, nextMask);
+
+    expect(changedShare(pixels(smoothed.canvas), pixels(unsmoothed.canvas))).toBeLessThan(0.01);
+  });
+
+  it('starts temporal smoothing over when the frame size changes', async () => {
+    const portraitFrame = await portrait(frame);
+    const portraitMask = await portrait(mask, 'pixelated');
+
+    using smoothed = createRenderer(1280, 720);
+    smoothed.pipeline.setBlurRadius(10);
+    smoothed.pipeline.setTemporalSmoothing(true);
+    smoothed.process(frame, mask);
+    smoothed.process(portraitFrame, portraitMask);
+
+    using fresh = createRenderer(720, 1280);
+    fresh.pipeline.setBlurRadius(10);
+    fresh.process(portraitFrame, portraitMask);
+
+    expect(samePixels(pixels(smoothed.canvas), pixels(fresh.canvas))).toBe(true);
   });
 
   it('passes the frame through untouched when the background is disabled', () => {

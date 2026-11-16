@@ -9,6 +9,7 @@ import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
 import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
+import { createTemporalMaskProgram } from './shader-programs/temporalMaskShader';
 import {
   createFramebuffer,
   createVertexBuffer,
@@ -90,8 +91,14 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const boxBlurProgram = boxBlur.program;
   const boxBlurUniforms = boxBlur.uniforms;
 
+  const temporalMask = createTemporalMaskProgram(gl);
+  let temporalSmoothing = false;
+  let hasMaskHistory = false;
+
   const bgTexture = initTexture(gl, 0);
-  const frameTexture = initTexture(gl, 1);
+  let frameTexture = initTexture(gl, 1);
+  let previousFrameTexture = initTexture(gl, 8);
+  let uploadedFrame: VideoFrame | null = null;
   const vertexBuffer = createVertexBuffer(gl);
 
   if (!vertexBuffer) {
@@ -101,7 +108,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   // Create additional textures and framebuffers for processing
   let bgBlurTextures: WebGLTexture[] = [];
   let bgBlurFrameBuffers: WebGLFramebuffer[] = [];
-  let blurredMaskTexture: WebGLTexture | null = null;
 
   // For double buffering the final mask
   let finalMaskTextures: WebGLTexture[] = [];
@@ -141,6 +147,14 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     maskBufferHeight,
   );
 
+  const blurredMaskTexture = initTexture(gl, 9);
+  const blurredMaskFrameBuffer = createFramebuffer(
+    gl,
+    blurredMaskTexture,
+    maskBufferWidth,
+    maskBufferHeight,
+  );
+
   // Initialize two textures for double-buffering the final mask
   finalMaskTextures.push(initTexture(gl, 6)); // For reading in renderFrame
   finalMaskTextures.push(initTexture(gl, 7)); // For writing in updateMask
@@ -175,9 +189,10 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     maskDownsampleFactor = getMaskDownsampleFactor(bufferWidth, bufferHeight);
     maskBufferWidth = Math.max(1, Math.round(bufferWidth / maskDownsampleFactor));
     maskBufferHeight = Math.max(1, Math.round(bufferHeight / maskDownsampleFactor));
-    for (const texture of [tempMaskTexture, ...finalMaskTextures]) {
+    for (const texture of [tempMaskTexture, blurredMaskTexture, ...finalMaskTextures]) {
       resizeTexture(gl, texture, maskBufferWidth, maskBufferHeight);
     }
+    hasMaskHistory = false;
     if (backgroundSourceImage) {
       // Not awaited: the image cropped for the previous size shows until the re-crop resolves.
       setBackgroundImage(backgroundSourceImage);
@@ -193,6 +208,20 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   gl.uniform1i(frameTextureLocation, 1);
   gl.uniform1i(maskTextureLocation, 2);
 
+  /** Uploads a frame once, whether updateMask or renderFrame sees it first. */
+  function uploadFrame(frame: VideoFrame) {
+    if (frame === uploadedFrame) {
+      return;
+    }
+    uploadedFrame = frame;
+    if (temporalSmoothing) {
+      [frameTexture, previousFrameTexture] = [previousFrameTexture, frameTexture];
+    }
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+  }
+
   function renderFrame(frame: VideoFrame) {
     if (frame.codedWidth === 0 || finalMaskTextures.length === 0) {
       return;
@@ -203,10 +232,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
     ensureBuffersMatchCanvas();
 
-    // Prepare frame texture
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+    uploadFrame(frame);
 
     // The blurred frame, else the custom background, else the frame itself, which the composite passes through
     let backgroundTexture = frameTexture;
@@ -318,25 +344,52 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     alphaRange = range;
   }
 
+  function setTemporalSmoothing(enabled: boolean) {
+    temporalSmoothing = enabled;
+    hasMaskHistory = false;
+  }
+
   /**
    * Takes the segmenter's latest mask.
    * @param alphaIsBackground for `alpha` blending, the mask is the background's opacity rather
    *   than the person's
+   * @param frame the frame the mask was segmented from, which temporal smoothing needs
    */
-  function updateMask(mask: WebGLTexture, blending: MaskBlending, alphaIsBackground = false) {
+  function updateMask(
+    mask: WebGLTexture,
+    blending: MaskBlending,
+    alphaIsBackground = false,
+    frame?: VideoFrame,
+  ) {
     // Same guard as renderFrame: cleanup() empties the arrays, a late segmentation callback must not touch them.
     if (finalMaskTextures.length === 0) {
       return;
     }
     ensureBuffersMatchCanvas();
 
+    const smoothing = temporalSmoothing && frame !== undefined;
+    if (smoothing) {
+      uploadFrame(frame);
+    }
+    const blendWithPrevious =
+      smoothing &&
+      hasMaskHistory &&
+      finalMaskBlending[readMaskIndex] === blending &&
+      finalMaskIsBackground[readMaskIndex] === alphaIsBackground;
+
     // Use the existing applyBlur function to apply the first blur pass
-    // The second blur pass will be written to finalMaskTextures[writeMaskIndex]
+    // The second blur pass writes the final mask, or blurredMaskTexture for temporal smoothing to blend
 
     // Create temporary arrays for the single blur operation
-    const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
+    const tempFramebuffers = [
+      tempMaskFrameBuffer,
+      blendWithPrevious ? blurredMaskFrameBuffer : finalMaskFrameBuffers[writeMaskIndex],
+    ];
 
-    const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
+    const tempTextures = [
+      tempMaskTexture,
+      blendWithPrevious ? blurredMaskTexture : finalMaskTextures[writeMaskIndex],
+    ];
 
     const radius = blending === 'alpha' ? alphaMaskBlurRadius : maskBlurRadius || 1.0;
 
@@ -354,6 +407,29 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       tempFramebuffers,
       tempTextures,
     );
+
+    if (blendWithPrevious) {
+      gl.useProgram(temporalMask.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.vertexAttribPointer(temporalMask.uniforms.position, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(temporalMask.uniforms.position);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, finalMaskFrameBuffers[writeMaskIndex]);
+      gl.viewport(0, 0, maskBufferWidth, maskBufferHeight);
+      const inputs = [
+        [temporalMask.uniforms.previousMask, finalMaskTextures[readMaskIndex]],
+        [temporalMask.uniforms.currentMask, blurredMaskTexture],
+        [temporalMask.uniforms.previousFrame, previousFrameTexture],
+        [temporalMask.uniforms.currentFrame, frameTexture],
+      ] as const;
+      inputs.forEach(([location, texture], unit) => {
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.uniform1i(location, unit);
+      });
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    hasMaskHistory = smoothing;
     finalMaskBlending[writeMaskIndex] = blending;
     finalMaskIsBackground[writeMaskIndex] = alphaIsBackground;
 
@@ -368,6 +444,11 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.deleteProgram(boxBlurProgram);
     gl.deleteTexture(bgTexture);
     gl.deleteTexture(frameTexture);
+    gl.deleteTexture(previousFrameTexture);
+    gl.deleteProgram(temporalMask.program);
+    gl.deleteTexture(blurredMaskTexture);
+    gl.deleteFramebuffer(blurredMaskFrameBuffer);
+    uploadedFrame = null;
     gl.deleteTexture(tempMaskTexture);
     gl.deleteFramebuffer(tempMaskFrameBuffer);
 
@@ -384,10 +465,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       gl.deleteFramebuffer(framebuffer);
     }
     gl.deleteBuffer(vertexBuffer);
-
-    if (blurredMaskTexture) {
-      gl.deleteTexture(blurredMaskTexture);
-    }
 
     if (downSampler) {
       gl.deleteTexture(downSampler.texture);
@@ -428,6 +505,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     setBlurRadius,
     setBackgroundDisabled,
     setAlphaRange,
+    setTemporalSmoothing,
     cleanup,
     releaseContext,
   };

@@ -71,6 +71,16 @@ The default is `[0, 1]`, which uses the confidence as it is. The range can be ch
 await processor.updateTransformerOptions({ imagePath, alphaRange: [0.3, 0.7] });
 ```
 
+### Temporal smoothing
+
+The model's edge can wander from frame to frame even when the person sits still, which shows as a shimmer around hair and shoulders. `temporalSmoothing: true` blends each mask with the previous one, more where the picture is still and less where it moves, so the edge holds still without trailing behind movement.
+
+```ts
+const processor = BackgroundProcessor({ mode: 'background-blur', temporalSmoothing: true });
+```
+
+It is off by default. The option is read when the processor is created and cannot be changed with `switchTo`.
+
 ### Avoiding visual artifacts when toggling
 
 Calling `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand can produce visual artifacts during the switch. A better approach is to initialize the processor in `disabled` mode up front and use `switchTo()` to toggle effects. This avoids artifacts entirely:
