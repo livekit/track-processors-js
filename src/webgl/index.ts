@@ -9,6 +9,7 @@ import { applyBlur, createBlurProgram } from './shader-programs/blurShader';
 import { createBoxBlurProgram } from './shader-programs/boxBlurShader';
 import { createCompositeProgram } from './shader-programs/compositeShader';
 import { applyDownsampling, createDownSampler } from './shader-programs/downSampler';
+import { createEdgeRefinementProgram } from './shader-programs/edgeRefinementShader';
 import { createTemporalMaskProgram } from './shader-programs/temporalMaskShader';
 import {
   createFramebuffer,
@@ -35,6 +36,8 @@ export type AlphaRange = [low: number, high: number];
 
 /** The full range: the alpha is the opacity as it is. */
 export const DEFAULT_ALPHA_RANGE: AlphaRange = [0, 1];
+
+export const DEFAULT_EDGE_REFINEMENT_RADIUS = 4;
 
 export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const gl = canvas.getContext('webgl2', {
@@ -94,6 +97,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const temporalMask = createTemporalMaskProgram(gl);
   let temporalSmoothing = false;
   let hasMaskHistory = false;
+  let edgeRefinement: ReturnType<typeof createEdgeRefinementProgram> | null = null;
 
   const bgTexture = initTexture(gl, 0);
   let frameTexture = initTexture(gl, 1);
@@ -155,6 +159,14 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     maskBufferHeight,
   );
 
+  const refinedMaskTexture = initTexture(gl, 10);
+  const refinedMaskFrameBuffer = createFramebuffer(
+    gl,
+    refinedMaskTexture,
+    maskBufferWidth,
+    maskBufferHeight,
+  );
+
   // Initialize two textures for double-buffering the final mask
   finalMaskTextures.push(initTexture(gl, 6)); // For reading in renderFrame
   finalMaskTextures.push(initTexture(gl, 7)); // For writing in updateMask
@@ -189,7 +201,12 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     maskDownsampleFactor = getMaskDownsampleFactor(bufferWidth, bufferHeight);
     maskBufferWidth = Math.max(1, Math.round(bufferWidth / maskDownsampleFactor));
     maskBufferHeight = Math.max(1, Math.round(bufferHeight / maskDownsampleFactor));
-    for (const texture of [tempMaskTexture, blurredMaskTexture, ...finalMaskTextures]) {
+    for (const texture of [
+      tempMaskTexture,
+      blurredMaskTexture,
+      refinedMaskTexture,
+      ...finalMaskTextures,
+    ]) {
       resizeTexture(gl, texture, maskBufferWidth, maskBufferHeight);
     }
     hasMaskHistory = false;
@@ -264,6 +281,25 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       backgroundTexture = bgTexture;
     }
 
+    let maskTexture = finalMaskTextures[readMaskIndex];
+    if (edgeRefinement) {
+      gl.useProgram(edgeRefinement.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.vertexAttribPointer(edgeRefinement.uniforms.position, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(edgeRefinement.uniforms.position);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, refinedMaskFrameBuffer);
+      gl.viewport(0, 0, maskBufferWidth, maskBufferHeight);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+      gl.uniform1i(edgeRefinement.uniforms.mask, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+      gl.uniform1i(edgeRefinement.uniforms.frame, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      maskTexture = refinedMaskTexture;
+    }
+
     // Render the final composite
     gl.viewport(0, 0, width, height);
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
@@ -285,9 +321,8 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     gl.uniform1i(frameTextureLocation, 1);
 
-    // Set mask texture - always read from the current read index
     gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, finalMaskTextures[readMaskIndex]);
+    gl.bindTexture(gl.TEXTURE_2D, maskTexture);
     gl.uniform1i(maskTextureLocation, 2);
     // The segmenter renders into this context too and can leave its own blend function set.
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -347,6 +382,15 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   function setTemporalSmoothing(enabled: boolean) {
     temporalSmoothing = enabled;
     hasMaskHistory = false;
+  }
+
+  /** @param radius in mask texels, or `null` to turn refinement off */
+  function setEdgeRefinement(radius: number | null) {
+    if (edgeRefinement) {
+      gl.deleteProgram(edgeRefinement.program);
+    }
+    edgeRefinement =
+      radius === null ? null : createEdgeRefinementProgram(gl, Math.max(1, Math.round(radius)));
   }
 
   /**
@@ -442,6 +486,12 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.deleteProgram(compositeProgram);
     gl.deleteProgram(blurProgram);
     gl.deleteProgram(boxBlurProgram);
+    if (edgeRefinement) {
+      gl.deleteProgram(edgeRefinement.program);
+      edgeRefinement = null;
+    }
+    gl.deleteTexture(refinedMaskTexture);
+    gl.deleteFramebuffer(refinedMaskFrameBuffer);
     gl.deleteTexture(bgTexture);
     gl.deleteTexture(frameTexture);
     gl.deleteTexture(previousFrameTexture);
@@ -506,6 +556,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     setBackgroundDisabled,
     setAlphaRange,
     setTemporalSmoothing,
+    setEdgeRefinement,
     cleanup,
     releaseContext,
   };

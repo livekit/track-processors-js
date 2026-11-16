@@ -62,6 +62,8 @@ type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maskBlending?: MaskBlending;
   temporalSmoothing?: boolean;
+  edgeRefinement?: boolean;
+  edgeRefinementRadius?: number;
   alphaRange?: AlphaRange;
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
@@ -168,6 +170,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -180,6 +184,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
       });
@@ -195,6 +201,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -207,6 +215,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
       });
@@ -219,6 +229,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -231,6 +243,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
       });
@@ -245,6 +259,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -258,6 +274,8 @@ export const BackgroundProcessor = (
         assetPaths,
         maskBlending,
         temporalSmoothing,
+        edgeRefinement,
+        edgeRefinementRadius,
         alphaRange,
         onFrameProcessed,
       });

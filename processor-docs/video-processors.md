@@ -81,6 +81,16 @@ const processor = BackgroundProcessor({ mode: 'background-blur', temporalSmoothi
 
 It is off by default. The option is read when the processor is created and cannot be changed with `switchTo`.
 
+### Edge refinement
+
+The segmenter works at a low resolution, so on a large frame its edge can sit a few pixels off the person's outline, around hair and fingers especially. `edgeRefinement: true` refines the mask against the camera frame so its edge follows the outline in the picture. It adds a GPU pass per frame.
+
+```ts
+const processor = BackgroundProcessor({ mode: 'background-blur', edgeRefinement: true });
+```
+
+`edgeRefinementRadius` (default 4, in mask texels) sets how far it looks for the outline. A smaller radius costs less per frame but corrects an edge less far off. Both options are read when the processor is created and cannot be changed with `switchTo`.
+
 ### Avoiding visual artifacts when toggling
 
 Calling `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand can produce visual artifacts during the switch. A better approach is to initialize the processor in `disabled` mode up front and use `switchTo()` to toggle effects. This avoids artifacts entirely:

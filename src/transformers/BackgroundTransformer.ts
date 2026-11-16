@@ -2,7 +2,12 @@ import * as vision from '@mediapipe/tasks-vision';
 import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
-import { type AlphaRange, DEFAULT_ALPHA_RANGE, type MaskBlending } from '../webgl/index';
+import {
+  type AlphaRange,
+  DEFAULT_ALPHA_RANGE,
+  DEFAULT_EDGE_REFINEMENT_RADIUS,
+  type MaskBlending,
+} from '../webgl/index';
 import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
@@ -32,6 +37,8 @@ export type BackgroundOptions = UpdatableBackgroundOptions & {
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maskBlending?: MaskBlending;
   temporalSmoothing?: boolean;
+  edgeRefinement?: boolean;
+  edgeRefinementRadius?: number;
 };
 
 /**
@@ -123,6 +130,11 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
     this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
     this.gl?.setTemporalSmoothing(this.options.temporalSmoothing ?? false);
+    this.gl?.setEdgeRefinement(
+      this.options.edgeRefinement
+        ? (this.options.edgeRefinementRadius ?? DEFAULT_EDGE_REFINEMENT_RADIUS)
+        : null,
+    );
   }
 
   async destroy(options?: TrackTransformerDestroyOptions) {

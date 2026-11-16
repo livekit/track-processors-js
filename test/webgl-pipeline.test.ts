@@ -402,6 +402,51 @@ describe('WebGL pipeline', () => {
     expect(samePixels(pixels(smoothed.canvas), pixels(fresh.canvas))).toBe(true);
   });
 
+  it('moves a misplaced mask edge onto the outline in the picture with edge refinement', async () => {
+    const shifted = new OffscreenCanvas(mask.width, mask.height);
+    const ctx = shifted.getContext('2d')!;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, mask.width, mask.height);
+    ctx.drawImage(mask, 8, 0);
+    const shiftedMask = await createImageBitmap(shifted);
+
+    using exact = createRenderer(1280, 720);
+    exact.pipeline.setBlurRadius(10);
+    exact.process(frame, mask);
+
+    using refined = createRenderer(1280, 720);
+    refined.pipeline.setBlurRadius(10);
+    refined.pipeline.setEdgeRefinement(4);
+    refined.process(frame, shiftedMask);
+
+    using unrefined = createRenderer(1280, 720);
+    unrefined.pipeline.setBlurRadius(10);
+    unrefined.process(frame, shiftedMask);
+
+    const expected = pixels(exact.canvas);
+    expect(changedShare(pixels(refined.canvas), expected)).toBeLessThan(
+      changedShare(pixels(unrefined.canvas), expected) / 2,
+    );
+  });
+
+  it('refines a resized frame as a pipeline created at that size would', async () => {
+    const portraitFrame = await portrait(frame);
+    const portraitMask = await portrait(mask, 'pixelated');
+
+    using fresh = createRenderer(720, 1280);
+    fresh.pipeline.setBlurRadius(10);
+    fresh.pipeline.setEdgeRefinement(4);
+    fresh.process(portraitFrame, portraitMask);
+
+    using resized = createRenderer(1280, 720);
+    resized.pipeline.setBlurRadius(10);
+    resized.pipeline.setEdgeRefinement(4);
+    resized.process(frame, mask);
+    resized.process(portraitFrame, portraitMask);
+
+    expect(samePixels(pixels(resized.canvas), pixels(fresh.canvas))).toBe(true);
+  });
+
   it('passes the frame through untouched when the background is disabled', () => {
     using renderer = createRenderer(1280, 720);
     renderer.pipeline.setBlurRadius(10);
