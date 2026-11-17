@@ -61,6 +61,8 @@ export interface Config {
   attach: 'set' | 'capture';
   mode: ProcessorMode;
   blurRadius: number;
+  /** Not passed to the legacy factories, which do not take it. */
+  maskBlending: 'alpha' | 'binary';
   backgroundImage: string;
   camera: string;
   cameraWidth?: number;

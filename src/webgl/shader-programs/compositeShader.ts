@@ -9,6 +9,11 @@ export const compositeFragmentShader = glsl`#version 300 es
   uniform bool disableBackground;
   uniform sampler2D frame;
   uniform sampler2D mask;
+  uniform bool maskIsAlpha;
+  uniform bool maskIsBackground;
+  // The alpha values that become fully background (x) and fully person (y). The full range,
+  // 0 to 1, blends by the alpha as it is.
+  uniform vec2 alphaRange;
   out vec4 fragColor;
   
   void main() {
@@ -21,17 +26,28 @@ export const compositeFragmentShader = glsl`#version 300 es
 
       float maskVal = texture(mask, texCoords).r;
 
-      // Compute screen-space gradient to detect edge sharpness
-      float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
+      if (maskIsAlpha) {
+        // The person's alpha: soft values (hair, motion, uncertain edges) blend the frame into
+        // the background in proportion.
+        float alpha = maskIsBackground ? 1.0 - maskVal : maskVal;
+        if (alphaRange.x < alphaRange.y && (alphaRange.x > 0.0 || alphaRange.y < 1.0)) {
+          alpha = smoothstep(alphaRange.x, alphaRange.y, alpha);
+        }
+        fragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), alpha);
+      } else {
+        // The mask is a feathered binary mask, 1 for the background.
+        // Compute screen-space gradient to detect edge sharpness
+        float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
 
-      float edgeSoftness = 2.0; // higher = softer
+        float edgeSoftness = 2.0; // higher = softer
 
-      // Create a smooth edge around binary transition
-      float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
+        // Create a smooth edge around binary transition
+        float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
 
-      // Optional: preserve frame alpha, or override as fully opaque
-      vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
-      fragColor = blended;
+        // Optional: preserve frame alpha, or override as fully opaque
+        vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
+        fragColor = blended;
+      }
     }
   
   }
@@ -56,6 +72,9 @@ export function createCompositeProgram(gl: WebGL2RenderingContext) {
     frame: gl.getUniformLocation(compositeProgram, 'frame')!,
     background: gl.getUniformLocation(compositeProgram, 'background')!,
     disableBackground: gl.getUniformLocation(compositeProgram, 'disableBackground')!,
+    maskIsAlpha: gl.getUniformLocation(compositeProgram, 'maskIsAlpha')!,
+    maskIsBackground: gl.getUniformLocation(compositeProgram, 'maskIsBackground')!,
+    alphaRange: gl.getUniformLocation(compositeProgram, 'alphaRange')!,
     stepWidth: gl.getUniformLocation(compositeProgram, 'u_stepWidth')!,
   };
 

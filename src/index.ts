@@ -3,7 +3,9 @@ import BackgroundTransformer, {
   BackgroundOptions,
   FrameProcessingStats,
   SegmenterOptions,
+  UpdatableBackgroundOptions,
 } from './transformers/BackgroundTransformer';
+import type { AlphaRange, MaskBlending } from './webgl/index';
 
 export * from './transformers/types';
 export { default as VideoTransformer } from './transformers/VideoTransformer';
@@ -11,8 +13,11 @@ export { GainAudioProcessor, type GainAudioProcessorOptions } from './audio/Gain
 export {
   ProcessorWrapper,
   type BackgroundOptions,
+  type UpdatableBackgroundOptions,
   type SegmenterOptions,
   type FrameProcessingStats,
+  type MaskBlending,
+  type AlphaRange,
   BackgroundTransformer,
   type ProcessorWrapperOptions,
 };
@@ -55,6 +60,8 @@ export type SwitchBackgroundProcessorOptions =
 type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  maskBlending?: MaskBlending;
+  alphaRange?: AlphaRange;
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
@@ -158,6 +165,8 @@ export const BackgroundProcessor = (
         blurRadius = DEFAULT_BLUR_RADIUS,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
         ...rest
       } = options;
@@ -167,6 +176,8 @@ export const BackgroundProcessor = (
         blurRadius,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
       });
       break;
@@ -179,6 +190,8 @@ export const BackgroundProcessor = (
         imagePath,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
         ...rest
       } = options;
@@ -188,6 +201,8 @@ export const BackgroundProcessor = (
         imagePath,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
       });
       break;
@@ -197,6 +212,8 @@ export const BackgroundProcessor = (
       const {
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
         ...rest
       } = options;
@@ -206,6 +223,8 @@ export const BackgroundProcessor = (
         backgroundDisabled: true,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
       });
       break;
@@ -217,6 +236,8 @@ export const BackgroundProcessor = (
         imagePath,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
         ...rest
       } = options;
@@ -227,6 +248,8 @@ export const BackgroundProcessor = (
         imagePath,
         segmenterOptions,
         assetPaths,
+        maskBlending,
+        alphaRange,
         onFrameProcessed,
       });
       break;

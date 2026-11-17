@@ -9,7 +9,7 @@ import {
 import { GEOMETRY, VIRTUAL_BACKGROUND } from '../thresholds';
 
 /**
- * D1, D5 — the virtual background image.
+ * D1, D5, D7 — the virtual background image.
  */
 test.describe('virtual background', () => {
   test('D1: the image is composited behind the subject, not over it', async ({ app }) => {
@@ -74,6 +74,36 @@ test.describe('virtual background', () => {
     expect(box.coverage, `implausible subject coverage: ${report}`).toBeLessThan(
       GEOMETRY.COVERAGE_MAX,
     );
+  });
+
+  // The other tests run with the default, alpha blending. This covers the segmenter's category
+  // mask, which binary blending reads instead of its confidence mask.
+  test('D7: the image is composited behind the subject with binary mask blending', async ({ app }) => {
+    const { page } = app;
+    await app.goto({ backdrop: 'flat', motion: 'static', mask: 'binary' });
+    await startCamera(page);
+    await attachProcessor(page);
+    await switchMode(page, 'virtual-background');
+    await sampleStable(page);
+
+    const sample = await sampleProcessed(page, {
+      ...VIRTUAL_BACKGROUND.COLOR,
+      tolerance: VIRTUAL_BACKGROUND.TOLERANCE,
+    });
+
+    expect(sample.backgroundMatchRatio!).toBeGreaterThan(VIRTUAL_BACKGROUND.MATCH_RATIO_MIN);
+
+    const truth = await page.evaluate(() => window.harness.camera.subjectRect());
+    expect(sample.foregroundBox, 'no subject found in front of the background').not.toBeNull();
+    const box = sample.foregroundBox!;
+    expect(Math.abs(box.x + box.w / 2 - (truth.x + truth.w / 2))).toBeLessThan(
+      GEOMETRY.CENTRE_TOLERANCE,
+    );
+    expect(Math.abs(box.y + box.h / 2 - (truth.y + truth.h / 2))).toBeLessThan(
+      GEOMETRY.CENTRE_TOLERANCE,
+    );
+    expect(box.coverage).toBeGreaterThan(GEOMETRY.COVERAGE_MIN);
+    expect(box.coverage).toBeLessThan(GEOMETRY.COVERAGE_MAX);
   });
 
   test('D5: the image is fetched once, however often the mode is re-entered', async ({ app }) => {

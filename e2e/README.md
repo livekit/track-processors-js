@@ -40,7 +40,7 @@ Twenty-two cases.
 | `capability.spec.ts` | A1, A1b, A3, A4 | Support predicates; both pipelines selected and working |
 | `lifecycle.spec.ts` | B1, B2, B3, B4 | Attach produces blurred frames; detach restores them and releases the WebGL context; a missing fileset rejects with an `Error` naming it |
 | `modes.spec.ts` | C1, C1b, C3, C4 | Switching lands correctly, publishes no intermediate frame, and `disabled` is a passthrough that skips the per-frame work |
-| `background.spec.ts` | D1, D5, D6 | Image composited behind the subject; fetched once; a failing image at construction is logged by name |
+| `background.spec.ts` | D1, D5, D6, D7 | Image composited behind the subject; fetched once; a failing image at construction is logged by name; composited behind the subject with binary mask blending |
 | `geometry.spec.ts` | E1 | Output dimensions follow the source at three resolutions |
 | `performance.spec.ts` | G1 | `onFrameProcessed` timings are coherent at a usable frame rate |
 

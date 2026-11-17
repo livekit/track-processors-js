@@ -2,7 +2,7 @@ import type { BackdropKind, CameraClock, Config, MotionKind, ProcessorMode } fro
 
 /**
  * Query parameters are used for anything that cannot be changed after construction —
- * `segmenterOptions`, `assetPaths` and `maxFps` are all read once inside `BackgroundProcessor()`
+ * `segmenterOptions`, `assetPaths`, `maskBlending` and `maxFps` are all read once inside `BackgroundProcessor()`
  * — plus anything that has to apply before boot, like removing the insertable-streams globals.
  * Everything else is a method on the harness.
  */
@@ -68,6 +68,7 @@ export function parseConfig(search: string = window.location.search): Config {
       'background-blur',
     ),
     blurRadius: num(p.get('blur'), 10),
+    maskBlending: oneOf(p.get('mask'), ['alpha', 'binary'] as const, 'alpha'),
     backgroundImage: p.get('bg') ?? DEFAULT_BACKGROUND_IMAGE,
 
     camera: p.get('cam') ?? 'front',

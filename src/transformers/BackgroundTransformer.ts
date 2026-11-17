@@ -2,6 +2,7 @@ import * as vision from '@mediapipe/tasks-vision';
 import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
+import { type AlphaRange, DEFAULT_ALPHA_RANGE, type MaskBlending } from '../webgl/index';
 import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
@@ -12,16 +13,24 @@ export interface FrameProcessingStats {
   filterTimeMs: number;
 }
 
-export type BackgroundOptions = {
+/** The options the `update` method takes: the ones that apply to a running transformer. */
+export type UpdatableBackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
   backgroundDisabled?: boolean;
-  /** cannot be updated through the `update` method, needs a restart */
-  segmenterOptions?: SegmenterOptions;
-  /** cannot be updated through the `update` method, needs a restart */
-  assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  alphaRange?: AlphaRange;
   /** called when a new frame is processed */
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
+};
+
+/**
+ * The options a transformer is constructed with. Those not in {@link UpdatableBackgroundOptions}
+ * are read when the transformer starts, so changing them needs a new transformer.
+ */
+export type BackgroundOptions = UpdatableBackgroundOptions & {
+  segmenterOptions?: SegmenterOptions;
+  assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
+  maskBlending?: MaskBlending;
 };
 
 /**
@@ -54,6 +63,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   isFirstFrame = true;
 
+  private maskBlending: MaskBlending = 'alpha';
+
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
   constructor(opts: BackgroundOptions) {
@@ -74,6 +85,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
         `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`,
     );
 
+    // Fixed for the segmenter's lifetime, as it decides which mask the segmenter outputs
+    this.maskBlending = this.options.maskBlending ?? 'alpha';
+
     this.imageSegmenter = await vision.ImageSegmenter.createFromOptions(fileSet, {
       baseOptions: {
         modelAssetPath:
@@ -84,8 +98,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       },
       canvas: this.canvas,
       runningMode: 'VIDEO',
-      outputCategoryMask: true,
-      outputConfidenceMasks: false,
+      outputCategoryMask: this.maskBlending === 'binary',
+      outputConfidenceMasks: this.maskBlending === 'alpha',
     }).catch((err) => {
       // MediaPipe loads its wasm loader through a <script> tag and rejects with that tag's error
       // Event, which has no message. The script's URL is the only thing identifying the failure.
@@ -106,6 +120,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.gl?.setBlurRadius(this.options.blurRadius);
     }
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
+    this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
   }
 
   async destroy(options?: TrackTransformerDestroyOptions) {
@@ -206,7 +221,13 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(result.categoryMask);
+            if (this.maskBlending === 'alpha') {
+              const masks = result.confidenceMasks;
+              // Several masks are one per category, the background first.
+              this.updateMask(masks?.[0], (masks?.length ?? 0) > 1);
+            } else {
+              this.updateMask(result.categoryMask);
+            }
             result.close();
             resolve();
           });
@@ -242,8 +263,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     }
   }
 
-  async update(opts: BackgroundOptions) {
+  async update(opts: UpdatableBackgroundOptions) {
     this.options = { ...this.options, ...opts };
+    this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
 
     // The blur or the previous image stays on screen until the new image is ready
     if (opts.imagePath) {
@@ -263,8 +285,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.renderFrame(frame);
   }
 
-  private async updateMask(mask: vision.MPMask | undefined) {
+  private async updateMask(mask: vision.MPMask | undefined, alphaIsBackground = false) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture());
+    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending, alphaIsBackground);
   }
 }
