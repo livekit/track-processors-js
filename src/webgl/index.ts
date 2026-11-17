@@ -32,6 +32,9 @@ export type MaskBlending = 'binary' | 'alpha';
 /** `[low, high]`: the alpha that becomes fully background and the one that becomes fully person. */
 export type AlphaRange = [low: number, high: number];
 
+/** The full range: the alpha is the opacity as it is. */
+export const DEFAULT_ALPHA_RANGE: AlphaRange = [0, 1];
+
 export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   const gl = canvas.getContext('webgl2', {
     // Every pass is a full-screen quad, so multisampling only adds a resolve per frame.
@@ -41,7 +44,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
   let blurRadius: number | null = null;
   let maskBlurRadius: number | null = 8;
-  let alphaRange: AlphaRange | null = null;
+  let alphaRange = DEFAULT_ALPHA_RANGE;
   // The segmenter scales its mask up to the frame in blocks, which leaves steps along the edge.
   // An alpha mask is blurred just enough to round them off: its values stay the blend opacity,
   // so a wider blur would show as a halo around the person.
@@ -264,7 +267,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.uniform1i(maskIsAlphaLocation, finalMaskBlending[readMaskIndex] === 'alpha' ? 1 : 0);
     gl.uniform1i(maskIsBackgroundLocation, finalMaskIsBackground[readMaskIndex] ? 1 : 0);
-    gl.uniform2f(alphaRangeLocation, alphaRange?.[0] ?? 0, alphaRange?.[1] ?? 0);
+    gl.uniform2f(alphaRangeLocation, alphaRange[0], alphaRange[1]);
     gl.enable(gl.BLEND);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
@@ -313,10 +316,10 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
 
   /**
    * Remaps the alpha of `alpha` blending: at or below `range[0]` a pixel is fully background, at
-   * or above `range[1]` fully the person, with a smooth ramp between. `null` blends by the alpha
-   * as it is.
+   * or above `range[1]` fully the person, with a smooth ramp between. The full range, 0 to 1,
+   * blends by the alpha as it is.
    */
-  function setAlphaRange(range: AlphaRange | null) {
+  function setAlphaRange(range: AlphaRange) {
     alphaRange = range;
   }
 

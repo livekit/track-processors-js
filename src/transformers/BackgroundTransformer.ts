@@ -2,7 +2,7 @@ import * as vision from '@mediapipe/tasks-vision';
 import { getLogger, LoggerNames } from '../logger';
 import { dependencies } from '../../package.json';
 import VideoTransformer from './VideoTransformer';
-import type { AlphaRange, MaskBlending } from '../webgl/index';
+import { type AlphaRange, DEFAULT_ALPHA_RANGE, type MaskBlending } from '../webgl/index';
 import { TrackTransformerDestroyOptions, VideoTransformerInitOptions } from './types';
 
 export type SegmenterOptions = Partial<vision.ImageSegmenterOptions['baseOptions']>;
@@ -23,9 +23,9 @@ export type UpdatableBackgroundOptions = {
    * `[low, high]`, each from 0 to 1 with `low` below `high`. A pixel at or below `low` is fully
    * background, one at or above `high` is fully the person, and those between ramp smoothly.
    * This hides things the model is only partly sure of, which otherwise show through faintly.
-   * Unset, the confidence is the opacity as it is.
+   * Defaults to `[0, 1]`, which uses the confidence as the opacity as it is.
    *
-   * It stays in effect across updates that leave it out; pass `undefined` to clear it.
+   * It stays in effect across updates that leave it out.
    */
   alphaRange?: AlphaRange;
   /** called when a new frame is processed */
@@ -139,7 +139,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
       this.gl?.setBlurRadius(this.options.blurRadius);
     }
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
-    this.gl?.setAlphaRange(this.options.alphaRange ?? null);
+    this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
   }
 
   async destroy(options?: TrackTransformerDestroyOptions) {
@@ -284,7 +284,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   async update(opts: UpdatableBackgroundOptions) {
     this.options = { ...this.options, ...opts };
-    this.gl?.setAlphaRange(this.options.alphaRange ?? null);
+    this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
 
     // The blur or the previous image stays on screen until the new image is ready
     if (opts.imagePath) {

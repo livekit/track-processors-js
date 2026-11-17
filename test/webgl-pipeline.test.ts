@@ -272,7 +272,7 @@ describe('WebGL pipeline', () => {
         sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),
       );
 
-      renderer.pipeline.setAlphaRange(null);
+      renderer.pipeline.setAlphaRange([0, 1]);
       renderer.process(person, quarterMask, 'alpha');
       expectColor(
         centerPixel(renderer.canvas),

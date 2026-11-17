@@ -65,7 +65,7 @@ With `alpha` blending, things the model is only partly sure of, such as objects 
 const processor = BackgroundProcessor({ mode: 'virtual-background', imagePath, alphaRange: [0.15, 0.85] });
 ```
 
-It is unset by default, and can be changed on a running processor. An update replaces the background settings it leaves out, so pass them along:
+The default is `[0, 1]`, which uses the confidence as it is. The range can be changed on a running processor. An update replaces the background settings it leaves out, so pass them along:
 
 ```ts
 await processor.updateTransformerOptions({ imagePath, alphaRange: [0.3, 0.7] });

@@ -11,7 +11,8 @@ export const compositeFragmentShader = glsl`#version 300 es
   uniform sampler2D mask;
   uniform bool maskIsAlpha;
   uniform bool maskIsBackground;
-  // The alpha values that become fully background (x) and fully person (y). x >= y: no remap.
+  // The alpha values that become fully background (x) and fully person (y). The full range,
+  // 0 to 1, blends by the alpha as it is.
   uniform vec2 alphaRange;
   out vec4 fragColor;
   
@@ -29,7 +30,7 @@ export const compositeFragmentShader = glsl`#version 300 es
         // The person's alpha: soft values (hair, motion, uncertain edges) blend the frame into
         // the background in proportion.
         float alpha = maskIsBackground ? 1.0 - maskVal : maskVal;
-        if (alphaRange.x < alphaRange.y) {
+        if (alphaRange.x < alphaRange.y && (alphaRange.x > 0.0 || alphaRange.y < 1.0)) {
           alpha = smoothstep(alphaRange.x, alphaRange.y, alpha);
         }
         fragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), alpha);
