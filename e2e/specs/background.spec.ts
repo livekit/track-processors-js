@@ -76,11 +76,11 @@ test.describe('virtual background', () => {
     );
   });
 
-  // The pipeline tests cover the blend itself. This covers what only the real segmenter can: that
-  // its confidence mask is the person rather than the background, and is the right way up.
-  test('D7: the image is composited behind the subject with alpha mask blending', async ({ app }) => {
+  // The other tests run with the default, alpha blending. This covers the segmenter's category
+  // mask, which binary blending reads instead of its confidence mask.
+  test('D7: the image is composited behind the subject with binary mask blending', async ({ app }) => {
     const { page } = app;
-    await app.goto({ backdrop: 'flat', motion: 'static', mask: 'alpha' });
+    await app.goto({ backdrop: 'flat', motion: 'static', mask: 'binary' });
     await startCamera(page);
     await attachProcessor(page);
     await switchMode(page, 'virtual-background');

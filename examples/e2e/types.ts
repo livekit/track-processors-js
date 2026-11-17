@@ -62,7 +62,7 @@ export interface Config {
   mode: ProcessorMode;
   blurRadius: number;
   /** Not passed to the legacy factories, which do not take it. */
-  maskBlending: 'binary' | 'alpha';
+  maskBlending: 'alpha' | 'binary';
   backgroundImage: string;
   camera: string;
   cameraWidth?: number;

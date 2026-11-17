@@ -22,13 +22,14 @@ export type BackgroundOptions = {
   /** cannot be updated through the `update` method, needs a restart */
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   /**
-   * How the segmentation mask is blended into the frame. Defaults to `binary`.
-   * - `binary`: each pixel is the person or the background, with a feathered edge.
+   * How the segmentation mask is blended into the frame. Defaults to `alpha`.
    * - `alpha`: the segmenter's confidence that a pixel is the person is that pixel's opacity, which
    *   keeps soft edges such as hair. Parts the model is unsure of show as partly transparent.
+   * - `binary`: each pixel is the person or the background, with a feathered edge.
    *
-   * `alpha` reads the model's first confidence mask, which is the person for MediaPipe's selfie
-   * segmenter, the default model.
+   * `alpha` reads the model's first confidence mask. That is the person for a model with a single
+   * mask, such as MediaPipe's selfie segmenter, the default; a model with several masks puts the
+   * background first.
    *
    * cannot be updated through the `update` method, needs a restart
    */
@@ -67,7 +68,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
 
   isFirstFrame = true;
 
-  private maskBlending: MaskBlending = 'binary';
+  private maskBlending: MaskBlending = 'alpha';
 
   private log = getLogger(LoggerNames.ProcessorWrapper);
 
@@ -90,7 +91,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     );
 
     // Fixed for the segmenter's lifetime, as it decides which mask the segmenter outputs
-    this.maskBlending = this.options.maskBlending ?? 'binary';
+    this.maskBlending = this.options.maskBlending ?? 'alpha';
 
     this.imageSegmenter = await vision.ImageSegmenter.createFromOptions(fileSet, {
       baseOptions: {
@@ -224,9 +225,13 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
           this.imageSegmenter?.segmentForVideo(frame, segmentationStartTimeMs, (result) => {
             this.segmentationTimeMs = performance.now() - segmentationStartTimeMs;
             this.segmentationResults = result;
-            this.updateMask(
-              this.maskBlending === 'alpha' ? result.confidenceMasks?.[0] : result.categoryMask,
-            );
+            if (this.maskBlending === 'alpha') {
+              const masks = result.confidenceMasks;
+              // Several masks are one per category, the background first.
+              this.updateMask(masks?.[0], (masks?.length ?? 0) > 1);
+            } else {
+              this.updateMask(result.categoryMask);
+            }
             result.close();
             resolve();
           });
@@ -283,8 +288,8 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.renderFrame(frame);
   }
 
-  private async updateMask(mask: vision.MPMask | undefined) {
+  private async updateMask(mask: vision.MPMask | undefined, alphaIsBackground = false) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending);
+    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending, alphaIsBackground);
   }
 }

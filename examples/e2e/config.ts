@@ -68,7 +68,7 @@ export function parseConfig(search: string = window.location.search): Config {
       'background-blur',
     ),
     blurRadius: num(p.get('blur'), 10),
-    maskBlending: oneOf(p.get('mask'), ['binary', 'alpha'] as const, 'binary'),
+    maskBlending: oneOf(p.get('mask'), ['alpha', 'binary'] as const, 'alpha'),
     backgroundImage: p.get('bg') ?? DEFAULT_BACKGROUND_IMAGE,
 
     camera: p.get('cam') ?? 'front',

@@ -49,6 +49,7 @@ function createRenderer(width: number, height: number) {
     frameImage: ImageBitmap,
     maskImage: ImageBitmap,
     maskBlending: MaskBlending = 'binary',
+    alphaIsBackground = false,
   ) {
     // The transformer sizes the canvas to each frame before handing it to the pipeline.
     canvas.width = frameImage.width;
@@ -64,7 +65,7 @@ function createRenderer(width: number, height: number) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskImage);
-    pipeline!.updateMask(maskTexture, maskBlending);
+    pipeline!.updateMask(maskTexture, maskBlending, alphaIsBackground);
     gl.deleteTexture(maskTexture);
 
     const videoFrame = new VideoFrame(frameImage, { timestamp: 0 });
@@ -229,6 +230,18 @@ describe('WebGL pipeline', () => {
       renderer.process(person, quarterMask, 'alpha');
 
       const alpha = 64 / 255;
+      expectColor(
+        centerPixel(renderer.canvas),
+        sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),
+      );
+    });
+
+    it("shows the frame at the rest of a background mask's opacity", async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.process(person, quarterMask, 'alpha', true);
+
+      const alpha = 1 - 64 / 255;
       expectColor(
         centerPixel(renderer.canvas),
         sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),

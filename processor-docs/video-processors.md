@@ -47,13 +47,15 @@ room.localParticipant.publishTrack(videoTrack);
 
 ### Mask blending
 
-By default each pixel is treated as either the person or the background, with a feathered edge between them. Pass `maskBlending: 'alpha'` to use the segmenter's confidence that a pixel is the person as that pixel's opacity instead:
+By default the segmenter's confidence that a pixel is the person is used as that pixel's opacity (`maskBlending: 'alpha'`). This keeps soft edges such as hair. Parts of the frame the model is unsure about show as partly transparent rather than being cut to one side.
+
+Pass `maskBlending: 'binary'` to treat each pixel as either the person or the background, with a feathered edge between them:
 
 ```ts
-const processor = BackgroundProcessor({ mode: 'background-blur', maskBlending: 'alpha' });
+const processor = BackgroundProcessor({ mode: 'background-blur', maskBlending: 'binary' });
 ```
 
-This keeps soft edges such as hair. Parts of the frame the model is unsure about show as partly transparent rather than being cut to one side. The option is read when the processor is created and cannot be changed with `switchTo`.
+The option is read when the processor is created and cannot be changed with `switchTo`.
 
 ### Avoiding visual artifacts when toggling
 

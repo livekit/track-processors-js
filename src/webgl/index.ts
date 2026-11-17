@@ -24,8 +24,8 @@ const log = getLogger(LoggerNames.WebGl);
  * How a segmentation mask is blended into the frame.
  * - `binary`: the mask is 1 for the background and 0 for the person. It is feathered and cut at
  *   0.5, so every pixel away from the edge is fully the frame or fully the background.
- * - `alpha`: the mask is the person's opacity, 1 for the person and 0 for the background. The frame
- *   is blended over the background by that value.
+ * - `alpha`: the mask is the person's opacity, 1 for the person and 0 for the background. It is
+ *   lightly feathered and the frame is blended over the background by that value.
  */
 export type MaskBlending = 'binary' | 'alpha';
 
@@ -69,6 +69,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     background: bgTextureLocation,
     disableBackground: disableBackgroundLocation,
     maskIsAlpha: maskIsAlphaLocation,
+    maskIsBackground: maskIsBackgroundLocation,
   } = composite.uniformLocations;
 
   // Create the blur program using the same vertex shader source
@@ -100,6 +101,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
   let writeMaskIndex = 1; // Index for updateMask to write to
   // How the mask in each buffer is blended, as given to the updateMask call that wrote it
   const finalMaskBlending: MaskBlending[] = ['binary', 'binary'];
+  const finalMaskIsBackground = [false, false];
 
   // Create textures for background processing (blur)
   bgBlurTextures.push(initTexture(gl, 3)); // For blur pass 1
@@ -256,6 +258,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     // The segmenter renders into this context too and can leave its own blend function set.
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.uniform1i(maskIsAlphaLocation, finalMaskBlending[readMaskIndex] === 'alpha' ? 1 : 0);
+    gl.uniform1i(maskIsBackgroundLocation, finalMaskIsBackground[readMaskIndex] ? 1 : 0);
     gl.enable(gl.BLEND);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
@@ -302,7 +305,12 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     backgroundImageDisabled = disabled;
   }
 
-  function updateMask(mask: WebGLTexture, blending: MaskBlending = 'binary') {
+  /**
+   * Takes the segmenter's latest mask.
+   * @param alphaIsBackground for `alpha` blending, the mask is the background's opacity rather
+   *   than the person's
+   */
+  function updateMask(mask: WebGLTexture, blending: MaskBlending, alphaIsBackground = false) {
     // Same guard as renderFrame: cleanup() empties the arrays, a late segmentation callback must not touch them.
     if (finalMaskTextures.length === 0) {
       return;
@@ -326,6 +334,7 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       [tempMaskTexture, finalMaskTextures[writeMaskIndex]],
     );
     finalMaskBlending[writeMaskIndex] = blending;
+    finalMaskIsBackground[writeMaskIndex] = alphaIsBackground;
 
     // Swap indices for the next frame
     readMaskIndex = writeMaskIndex;
