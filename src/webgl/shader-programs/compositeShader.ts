@@ -11,6 +11,8 @@ export const compositeFragmentShader = glsl`#version 300 es
   uniform sampler2D mask;
   uniform bool maskIsAlpha;
   uniform bool maskIsBackground;
+  // The alpha values that become fully background (x) and fully person (y). x >= y: no remap.
+  uniform vec2 alphaRange;
   out vec4 fragColor;
   
   void main() {
@@ -27,6 +29,9 @@ export const compositeFragmentShader = glsl`#version 300 es
         // The person's alpha: soft values (hair, motion, uncertain edges) blend the frame into
         // the background in proportion.
         float alpha = maskIsBackground ? 1.0 - maskVal : maskVal;
+        if (alphaRange.x < alphaRange.y) {
+          alpha = smoothstep(alphaRange.x, alphaRange.y, alpha);
+        }
         fragColor = mix(bgTex, vec4(frameTex.rgb, 1.0), alpha);
       } else {
         // The mask is a feathered binary mask, 1 for the background.
@@ -68,6 +73,7 @@ export function createCompositeProgram(gl: WebGL2RenderingContext) {
     disableBackground: gl.getUniformLocation(compositeProgram, 'disableBackground')!,
     maskIsAlpha: gl.getUniformLocation(compositeProgram, 'maskIsAlpha')!,
     maskIsBackground: gl.getUniformLocation(compositeProgram, 'maskIsBackground')!,
+    alphaRange: gl.getUniformLocation(compositeProgram, 'alphaRange')!,
     stepWidth: gl.getUniformLocation(compositeProgram, 'u_stepWidth')!,
   };
 

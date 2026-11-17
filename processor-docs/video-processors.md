@@ -57,6 +57,20 @@ const processor = BackgroundProcessor({ mode: 'background-blur', maskBlending: '
 
 The option is read when the processor is created and cannot be changed with `switchTo`.
 
+#### Remapping the confidence
+
+With `alpha` blending, things the model is only partly sure of, such as objects behind the person, can show through faintly. `alphaRange: [low, high]` remaps the confidence before it is used as opacity: a pixel at or below `low` is fully background, one at or above `high` is fully the person, and those between ramp smoothly, so hair stays soft.
+
+```ts
+const processor = BackgroundProcessor({ mode: 'virtual-background', imagePath, alphaRange: [0.15, 0.85] });
+```
+
+It is unset by default, and can be changed on a running processor. An update replaces the background settings it leaves out, so pass them along:
+
+```ts
+await processor.updateTransformerOptions({ imagePath, alphaRange: [0.3, 0.7] });
+```
+
 ### Avoiding visual artifacts when toggling
 
 Calling `videoTrack.setProcessor()` / `videoTrack.stopProcessor()` on demand can produce visual artifacts during the switch. A better approach is to initialize the processor in `disabled` mode up front and use `switchTo()` to toggle effects. This avoids artifacts entirely:

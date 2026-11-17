@@ -248,6 +248,47 @@ describe('WebGL pipeline', () => {
       );
     });
 
+    it('remaps the alpha across the alpha range', async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+
+      // The mask's alpha, 64 / 255, is below the range: fully background.
+      renderer.pipeline.setAlphaRange([0.4, 0.8]);
+      renderer.process(person, quarterMask, 'alpha');
+      expectColor(centerPixel(renderer.canvas), sceneColor);
+
+      // Above the range: fully the person.
+      renderer.pipeline.setAlphaRange([0.05, 0.2]);
+      renderer.process(person, quarterMask, 'alpha');
+      expectColor(centerPixel(renderer.canvas), personColor);
+
+      // Inside it: a smoothstep between the two.
+      renderer.pipeline.setAlphaRange([0, 0.5]);
+      renderer.process(person, quarterMask, 'alpha');
+      const t = 64 / 255 / 0.5;
+      const alpha = t * t * (3 - 2 * t);
+      expectColor(
+        centerPixel(renderer.canvas),
+        sceneColor.map((value, c) => value + (personColor[c] - value) * alpha),
+      );
+
+      renderer.pipeline.setAlphaRange(null);
+      renderer.process(person, quarterMask, 'alpha');
+      expectColor(
+        centerPixel(renderer.canvas),
+        sceneColor.map((value, c) => value + (personColor[c] - value) * (64 / 255)),
+      );
+    });
+
+    it('leaves binary blending as it is with an alpha range set', async () => {
+      using renderer = createRenderer(1280, 720);
+      await renderer.pipeline.setBackgroundImage(scene);
+      renderer.pipeline.setAlphaRange([0.4, 0.8]);
+      renderer.process(person, quarterMask, 'binary');
+
+      expectColor(centerPixel(renderer.canvas), personColor);
+    });
+
     // Binary blending reads the same mask as mostly person (below the 0.5 cut, 1 is background).
     it('cuts the same mask to fully the frame with binary blending', async () => {
       using renderer = createRenderer(1280, 720);
