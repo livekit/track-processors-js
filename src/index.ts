@@ -3,6 +3,7 @@ import BackgroundTransformer, {
   BackgroundOptions,
   FrameProcessingStats,
   SegmenterOptions,
+  UpdatableBackgroundOptions,
 } from './transformers/BackgroundTransformer';
 import type { MaskBlending } from './webgl/index';
 
@@ -12,6 +13,7 @@ export { GainAudioProcessor, type GainAudioProcessorOptions } from './audio/Gain
 export {
   ProcessorWrapper,
   type BackgroundOptions,
+  type UpdatableBackgroundOptions,
   type SegmenterOptions,
   type FrameProcessingStats,
   type MaskBlending,

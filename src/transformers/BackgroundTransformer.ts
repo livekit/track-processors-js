@@ -13,13 +13,21 @@ export interface FrameProcessingStats {
   filterTimeMs: number;
 }
 
-export type BackgroundOptions = {
+/** The options the `update` method takes: the ones that apply to a running transformer. */
+export type UpdatableBackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
   backgroundDisabled?: boolean;
-  /** cannot be updated through the `update` method, needs a restart */
+  /** called when a new frame is processed */
+  onFrameProcessed?: (stats: FrameProcessingStats) => void;
+};
+
+/**
+ * The options a transformer is constructed with. Those not in {@link UpdatableBackgroundOptions}
+ * are read when the transformer starts, so changing them needs a new transformer.
+ */
+export type BackgroundOptions = UpdatableBackgroundOptions & {
   segmenterOptions?: SegmenterOptions;
-  /** cannot be updated through the `update` method, needs a restart */
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   /**
    * How the segmentation mask is blended into the frame. Defaults to `alpha`.
@@ -30,12 +38,8 @@ export type BackgroundOptions = {
    * `alpha` reads the model's first confidence mask. That is the person for a model with a single
    * mask, such as MediaPipe's selfie segmenter, the default; a model with several masks puts the
    * background first.
-   *
-   * cannot be updated through the `update` method, needs a restart
    */
   maskBlending?: MaskBlending;
-  /** called when a new frame is processed */
-  onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
 
 /**
@@ -267,7 +271,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     }
   }
 
-  async update(opts: BackgroundOptions) {
+  async update(opts: UpdatableBackgroundOptions) {
     this.options = { ...this.options, ...opts };
 
     // The blur or the previous image stays on screen until the new image is ready
