@@ -314,11 +314,6 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     backgroundImageDisabled = disabled;
   }
 
-  /**
-   * Remaps the alpha of `alpha` blending: at or below `range[0]` a pixel is fully background, at
-   * or above `range[1]` fully the person, with a smooth ramp between. The full range, 0 to 1,
-   * blends by the alpha as it is.
-   */
   function setAlphaRange(range: AlphaRange) {
     alphaRange = range;
   }
@@ -335,9 +330,17 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
     }
     ensureBuffersMatchCanvas();
 
-    // Feather the mask with a two-pass box blur; the second pass writes to
-    // finalMaskTextures[writeMaskIndex]
+    // Use the existing applyBlur function to apply the first blur pass
+    // The second blur pass will be written to finalMaskTextures[writeMaskIndex]
+
+    // Create temporary arrays for the single blur operation
+    const tempFramebuffers = [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]];
+
+    const tempTextures = [tempMaskTexture, finalMaskTextures[writeMaskIndex]];
+
     const radius = blending === 'alpha' ? alphaMaskBlurRadius : maskBlurRadius || 1.0;
+
+    // Apply the blur using the existing function
     applyBlur(
       gl,
       mask,
@@ -348,8 +351,8 @@ export const setupWebGL = (canvas: OffscreenCanvas | HTMLCanvasElement) => {
       boxBlurProgram,
       boxBlurUniforms,
       vertexBuffer!,
-      [tempMaskFrameBuffer, finalMaskFrameBuffers[writeMaskIndex]],
-      [tempMaskTexture, finalMaskTextures[writeMaskIndex]],
+      tempFramebuffers,
+      tempTextures,
     );
     finalMaskBlending[writeMaskIndex] = blending;
     finalMaskIsBackground[writeMaskIndex] = alphaIsBackground;

@@ -60,9 +60,7 @@ export type SwitchBackgroundProcessorOptions =
 type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
-  /** How the segmentation mask is blended into the frame. Defaults to `alpha`. */
   maskBlending?: MaskBlending;
-  /** See {@link UpdatableBackgroundOptions.alphaRange}. */
   alphaRange?: AlphaRange;
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };

@@ -18,15 +18,6 @@ export type UpdatableBackgroundOptions = {
   blurRadius?: number;
   imagePath?: string;
   backgroundDisabled?: boolean;
-  /**
-   * With `alpha` mask blending, remaps the segmenter's confidence before it is used as opacity:
-   * `[low, high]`, each from 0 to 1 with `low` below `high`. A pixel at or below `low` is fully
-   * background, one at or above `high` is fully the person, and those between ramp smoothly.
-   * This hides things the model is only partly sure of, which otherwise show through faintly.
-   * Defaults to `[0, 1]`, which uses the confidence as the opacity as it is.
-   *
-   * It stays in effect across updates that leave it out.
-   */
   alphaRange?: AlphaRange;
   /** called when a new frame is processed */
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
@@ -39,16 +30,6 @@ export type UpdatableBackgroundOptions = {
 export type BackgroundOptions = UpdatableBackgroundOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
-  /**
-   * How the segmentation mask is blended into the frame. Defaults to `alpha`.
-   * - `alpha`: the segmenter's confidence that a pixel is the person is that pixel's opacity, which
-   *   keeps soft edges such as hair. Parts the model is unsure of show as partly transparent.
-   * - `binary`: each pixel is the person or the background, with a feathered edge.
-   *
-   * `alpha` reads the model's first confidence mask. That is the person for a model with a single
-   * mask, such as MediaPipe's selfie segmenter, the default; a model with several masks puts the
-   * background first.
-   */
   maskBlending?: MaskBlending;
 };
 
