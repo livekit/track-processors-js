@@ -31,6 +31,7 @@ export type BackgroundOptions = UpdatableBackgroundOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maskBlending?: MaskBlending;
+  temporalSmoothing?: boolean;
 };
 
 /**
@@ -121,6 +122,7 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     }
     this.gl?.setBackgroundDisabled(this.options.backgroundDisabled ?? false);
     this.gl?.setAlphaRange(this.options.alphaRange ?? DEFAULT_ALPHA_RANGE);
+    this.gl?.setTemporalSmoothing(this.options.temporalSmoothing ?? false);
   }
 
   async destroy(options?: TrackTransformerDestroyOptions) {
@@ -224,9 +226,9 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
             if (this.maskBlending === 'alpha') {
               const masks = result.confidenceMasks;
               // Several masks are one per category, the background first.
-              this.updateMask(masks?.[0], (masks?.length ?? 0) > 1);
+              this.updateMask(frame, masks?.[0], (masks?.length ?? 0) > 1);
             } else {
-              this.updateMask(result.categoryMask);
+              this.updateMask(frame, result.categoryMask);
             }
             result.close();
             resolve();
@@ -285,8 +287,12 @@ export default class BackgroundProcessor extends VideoTransformer<BackgroundOpti
     this.gl?.renderFrame(frame);
   }
 
-  private async updateMask(mask: vision.MPMask | undefined, alphaIsBackground = false) {
+  private async updateMask(
+    frame: VideoFrame,
+    mask: vision.MPMask | undefined,
+    alphaIsBackground = false,
+  ) {
     if (!mask) return;
-    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending, alphaIsBackground);
+    this.gl?.updateMask(mask.getAsWebGLTexture(), this.maskBlending, alphaIsBackground, frame);
   }
 }

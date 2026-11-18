@@ -61,6 +61,7 @@ type BackgroundProcessorCommonOptions = ProcessorWrapperOptions & {
   segmenterOptions?: SegmenterOptions;
   assetPaths?: { tasksVisionFileSet?: string; modelAssetPath?: string };
   maskBlending?: MaskBlending;
+  temporalSmoothing?: boolean;
   alphaRange?: AlphaRange;
   onFrameProcessed?: (stats: FrameProcessingStats) => void;
 };
@@ -166,6 +167,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -177,6 +179,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
       });
@@ -191,6 +194,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -202,6 +206,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
       });
@@ -213,6 +218,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -224,6 +230,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
       });
@@ -237,6 +244,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
         ...rest
@@ -249,6 +257,7 @@ export const BackgroundProcessor = (
         segmenterOptions,
         assetPaths,
         maskBlending,
+        temporalSmoothing,
         alphaRange,
         onFrameProcessed,
       });
