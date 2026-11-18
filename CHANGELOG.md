@@ -1,5 +1,21 @@
 # @livekit/track-processors
 
+## 0.9.0
+
+### Minor Changes
+
+- Blend the background by the segmenter's confidence. The confidence that a pixel is the person is now used as that pixel's opacity, which keeps soft edges such as hair, instead of cutting a feathered binary mask at 0.5. A new `maskBlending` option on `BackgroundProcessor` selects this (`'alpha'`, the default) or the previous behavior (`'binary'`). - [#162](https://github.com/livekit/track-processors-js/pull/162) ([@changt](https://github.com/changt))
+
+  `BackgroundTransformer.update()` and `updateTransformerOptions()` now take `UpdatableBackgroundOptions`, the subset of `BackgroundOptions` that applies to a running transformer. Passing `segmenterOptions`, `assetPaths` or `maskBlending` to them is a type error; these are read when the processor is created.
+
+  A new `alphaRange: [low, high]` option remaps the confidence before it is used as opacity: at or below `low` a pixel is fully background, at or above `high` fully the person, with a smooth ramp between. It hides partly confident regions that otherwise show through faintly, defaults to `[0, 1]` (the confidence as it is), and can be updated on a running processor.
+
+- Add a `temporalSmoothing` option to `BackgroundProcessor` that blends each mask with the previous one, more where the picture is still, so the edge holds still between frames without trailing behind movement - [#160](https://github.com/livekit/track-processors-js/pull/160) ([@abhinavkrin](https://github.com/abhinavkrin))
+
+### Patch Changes
+
+- Set the composite's blend function on every frame, instead of once at setup, so a segmentation model that changes it (MediaPipe's multiclass segmenter with confidence masks) no longer turns the output white - [#157](https://github.com/livekit/track-processors-js/pull/157) ([@abhinavkrin](https://github.com/abhinavkrin))
+
 ## 0.8.3
 
 ### Patch Changes
