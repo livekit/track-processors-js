@@ -29,16 +29,16 @@ export interface FrameTicker {
 export function createFrameTicker(intervalMs: number, onTick: () => void): FrameTicker {
   let timeoutTicker: FrameTicker | undefined = createTimeoutTicker(intervalMs, onTick);
   let worker: Worker;
+  let workerUrl: string | undefined;
 
   try {
-    const workerUrl = URL.createObjectURL(
-      new Blob([TICKER_WORKER_SOURCE], { type: 'text/javascript' }),
-    );
+    workerUrl = URL.createObjectURL(new Blob([TICKER_WORKER_SOURCE], { type: 'text/javascript' }));
     worker = new Worker(workerUrl);
-    URL.revokeObjectURL(workerUrl);
   } catch (e) {
     log.warn('Frame ticker worker could not be created, falling back to a window timer', e);
     return timeoutTicker;
+  } finally {
+    if (workerUrl !== undefined) URL.revokeObjectURL(workerUrl);
   }
 
   worker.onmessage = () => {
